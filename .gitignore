@@ -1,0 +1,12 @@
+# development
+.hypothesis/
+.pytest_cache/
+.vscode/
+
+# build files
+build/
+dist/
+docs/_build/
+
+# cache
+__pycache__/
