@@ -76,6 +76,10 @@ class Application(abc.ABC):
         except cli.HelpOption as help_text:
             print(help_text)
             return exit_status.usage
+        
+        except cli.VersionOption as version_info:
+            print(version_info)
+            return exit_status.success
 
         except cli.ArgumentError as error:
             log.critical(error)

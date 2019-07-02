@@ -36,6 +36,16 @@ class ArgumentError(Exception):
     """Exceptions originating from `argparse`."""
 
 
+# override version action to raise instead of exit
+# `Interface` registers this alterate action behavior
+class _VersionAction(_argparse._VersionAction):
+    def __call__(self, parser, namespace, values, option_string=None):
+        version = self.version
+        if version is None:
+            version = parser.version
+        raise VersionOption(self.version)
+
+
 class Interface(_argparse.ArgumentParser):
     """
     Variant of `argparse.ArgumentParser` that raises an ArgumentError instead of
@@ -61,10 +71,15 @@ class Interface(_argparse.ArgumentParser):
         See Also:
         `argparse.ArgumentParser`
         """
+        
         self.program = program
         self.usage_text = usage_text
         self.help_text = help_text
+
         super().__init__(prog=program, usage=usage_text, allow_abbrev=False)
+        
+        # alternate implementation raises VersionOption instead of exit().
+        self.register('action', 'version', _VersionAction)
 
     # prevents base class from trying to build up usage text
     def format_help(self) -> str:
@@ -88,3 +103,4 @@ class Interface(_argparse.ArgumentParser):
     # simple raise, no printing
     def error(self, message: str) -> None:
         raise ArgumentError(message)
+
