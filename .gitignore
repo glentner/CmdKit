@@ -4,6 +4,7 @@
 .vscode/
 
 # build files
+*.egg-info/
 build/
 dist/
 *.egg-info/
