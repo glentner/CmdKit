@@ -109,7 +109,7 @@ class Namespace(dict):
     def _from_yaml(cls, filepath: str, **options) -> 'Namespace':
         """Load a namespace from a YAML file."""
         with open(filepath, mode='r', **options) as source:
-            return cls(yaml.load(source))
+            return cls(yaml.load(source, Loader=yaml.FullLoader))
     
     @classmethod
     def _from_json(cls, filepath: str, **options) -> 'Namespace':
