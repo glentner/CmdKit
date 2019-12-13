@@ -40,7 +40,7 @@ setup(
     url              = 'https://cmdkit.readthedocs.io',
     packages         = find_packages(),
     long_description = readme_file(),
-    classifiers      = ['Development Status :: 3 - Alpha',
+    classifiers      = ['Development Status :: 5 - Production/Stable',
                         'Topic :: Software Development :: Libraries :: Application Frameworks',
                         'Programming Language :: Python :: 3.7',
                         'License :: OSI Approved :: Apache Software License', ],
