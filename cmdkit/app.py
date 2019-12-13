@@ -15,7 +15,7 @@ Application class implementation.
 
 # standard libs
 import abc
-from typing import NamedTuple, List
+from typing import NamedTuple, List, Dict, Callable
 
 # internal libs
 from . import cli
@@ -31,6 +31,7 @@ class exit_status:
     bad_config:         int = 3
     keyboard_interrupt: int = 4
     runtime_error:      int = 5
+    uncaught_exception: int = 6
 
 
 class Application(abc.ABC):
@@ -40,6 +41,10 @@ class Application(abc.ABC):
 
     interface: cli.Interface = None
     ALLOW_NOARGS: bool = False
+
+    exceptions: Dict[Exception, Callable[[Exception], int]] = dict()
+    log_error: Callable[[str], None] = log.critical  # pylint: disable=no-member
+
 
     def __init__(self, **parameters) -> None:
         """Direct initialization sets `parameters`."""
@@ -75,19 +80,26 @@ class Application(abc.ABC):
 
         except cli.HelpOption as help_text:
             print(help_text)
-            return exit_status.usage
+            return exit_status.success
+
+        except cli.VersionOption as version:
+            print(*version.args)
+            return exit_status.success
 
         except cli.ArgumentError as error:
-            log.critical(error)
+            cls.log_error(error)
             return exit_status.bad_argument
 
         except KeyboardInterrupt:
-            log.critical('keyboard-interrupt: going down now!')
+            cls.log_error('keyboard-interrupt: going down now!')
             return exit_status.keyboard_interrupt
 
         except Exception as error:
-            log.critical(f'uncaught exception occurred!')
-            raise error
+            for exc_type, exc_handler in cls.exceptions.items():
+                if isinstance(error, exc_type):
+                    return exc_handler(error)
+            cls.log_error('uncaught exception occurred!')
+            raise
 
     @abc.abstractmethod
     def run(self) -> None:
