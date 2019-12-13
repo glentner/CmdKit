@@ -36,14 +36,11 @@ class ArgumentError(Exception):
     """Exceptions originating from `argparse`."""
 
 
-# override version action to raise instead of exit
-# `Interface` registers this alterate action behavior
-class _VersionAction(_argparse._VersionAction):
-    def __call__(self, parser, namespace, values, option_string=None):
-        version = self.version
-        if version is None:
-            version = parser.version
-        raise VersionOption(self.version)
+def _version_action(self, parser, namespace, values, option_string=None) -> None:
+    raise VersionOption(self.version if self.version is not None else parser.version)
+
+# override version action to raise exception
+_argparse._VersionAction.__call__ = _version_action
 
 
 class Interface(_argparse.ArgumentParser):
