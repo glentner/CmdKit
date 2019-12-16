@@ -12,6 +12,8 @@
 Application class implementation.
 """
 
+# allow for return annotations
+from __future__ import annotations
 
 # standard libs
 import abc
@@ -73,8 +75,8 @@ class Application(abc.ABC):
                     print(cls.interface.usage_text)
                     return exit_status.usage
 
-            app = cls.from_cmdline(cmdline)
-            app.run()
+            with cls.from_cmdline(cmdline) as app:
+                app.run()
 
             return exit_status.success
 
@@ -105,3 +107,11 @@ class Application(abc.ABC):
     def run(self) -> None:
         """Business-logic of the application."""
         raise NotImplementedError()
+
+    def __enter__(self) -> Application:
+        """Place-holder for context manager."""
+        return self
+    
+    def __exit__(self, *exc) -> None:
+        """Release resources."""
+        pass
