@@ -11,3 +11,7 @@ docs/_build/
 
 # cache
 __pycache__/
+
+# pipenv
+Pipfile.lock
+.env
