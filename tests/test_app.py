@@ -63,7 +63,7 @@ class DemoApp(Application):
 
 def test_app_noargs(capsys) -> None:
     """Initialize and run the application."""
-    
+
     with pytest.raises(ArgumentError):
         DemoApp.from_cmdline([]) # missing `arg_1`
 
@@ -81,7 +81,7 @@ def test_app_help_1(capsys) -> None:
     status = DemoApp.main(['-h'])
     captured = capsys.readouterr()
     assert captured.out.strip() == DEMO_HELP.strip()
-    assert status == exit_status.usage
+    assert status == exit_status.success
 
 
 def test_app_help_2(capsys) -> None:
@@ -89,4 +89,4 @@ def test_app_help_2(capsys) -> None:
     status = DemoApp.main(['--help'])
     captured = capsys.readouterr()
     assert captured.out.strip() == DEMO_HELP.strip()
-    assert status == exit_status.usage
+    assert status == exit_status.success

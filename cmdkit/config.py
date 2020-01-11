@@ -16,13 +16,8 @@ local files and your environment.
 
 # standard libs
 import os
-import re
-import yaml
-import json
-import xml
-import configparser
 from collections.abc import Mapping
-from typing import Any, Dict, Callable
+from typing import Any, Dict
 
 
 DictKeys: type = type({}.keys())
@@ -42,12 +37,12 @@ class Namespace(dict):
     >>> ns
     Namespace({'x': 1, 'y': 2})
     """
-    
+
     def __repr__(self) -> str:
         """Convert to string representation."""
         original = super().__repr__()
         return f'{self.__class__.__name__}({original})'
-    
+
     def __getitem__(self, key: str) -> Any:
         """Like `dict.__getitem__` but return Namespace if value is `dict`."""
         value = super().__getitem__(key)
@@ -55,14 +50,14 @@ class Namespace(dict):
             return self.__class__(value)
         else:
             return value
-    
+
     def __setitem__(self, key: str, value: Any) -> None:
         """Strip special type if `value` is Namespace."""
         if isinstance(value, Mapping):
             super().__setitem__(key, dict(value))
         else:
             super().__setitem__(key, value)
-    
+
     @staticmethod
     def __depth_first_update(original: dict, new: dict) -> dict:
         """
@@ -74,10 +69,10 @@ class Namespace(dict):
                 original[key] = Namespace.__depth_first_update(original.get(key, {}), value)
             else:
                 original[key] = value
-            
+
         return original
-    
-    def update(self, other: str) -> None:
+
+    def update(self, other: dict) -> None:
         """Implements a recursive, depth-first update (i.e., an "override")."""
         self.__depth_first_update(self, other)
 
@@ -104,19 +99,28 @@ class Namespace(dict):
             return factory(filepath, **options)
         except AttributeError:
             raise NotImplementedError(f'{self.__class__.__name__} does not currently support "{ext}" files."')
-    
+
     @classmethod
     def _from_yaml(cls, filepath: str, **options) -> 'Namespace':
         """Load a namespace from a YAML file."""
+        import yaml
         with open(filepath, mode='r', **options) as source:
             return cls(yaml.load(source, Loader=yaml.FullLoader))
-    
+
+    @classmethod
+    def _from_toml(cls, filepath: str, **options) -> 'Namespace':
+        """Load a namespace from a TOML file."""
+        import toml
+        with open(filepath, mode='r', **options) as source:
+            return cls(toml.load(source))
+
     @classmethod
     def _from_json(cls, filepath: str, **options) -> 'Namespace':
         """Load a namespace from a JSON file."""
+        import json
         with open(filepath, mode='r', **options) as source:
             return cls(json.load(source))
-    
+
     def to_local(self, filepath: str, **options) -> None:
         """Output to local file. Format based on file extension."""
         try:
@@ -125,14 +129,22 @@ class Namespace(dict):
             return factory(filepath, **options)
         except AttributeError:
             raise NotImplementedError(f'{self.__class__.__name__} does not currently support "{ext}" files."')
-    
+
     def _to_yaml(self, filepath: str, encoding: str = 'utf-8', **kwargs) -> None:
         """Output to local YAML file."""
+        import yaml
         with open(filepath, mode='w', encoding=encoding) as output:
             yaml.dump(self, output, **kwargs)
 
+    def _to_toml(self, filepath: str, encoding: str = 'utf-8', **kwargs) -> None:
+        """Output to local TOML file."""
+        import toml
+        with open(filepath, mode='w', encoding=encoding) as output:
+            toml.dump(self, output, **kwargs)
+
     def _to_json(self, filepath: str, encoding: str = 'utf-8', indent: int = 4, **kwargs) -> None:
         """Output to local JSON file."""
+        import json
         with open(filepath, mode='w', encoding=encoding) as output:
             json.dump(self, output, indent=indent, **kwargs)
 
@@ -149,20 +161,33 @@ class Configuration:
 
     def __init__(self, **namespaces: Namespace) -> None:
         """Retain source `namespaces` and create master namespace."""
-        for name, mapping in namespaces.items():
-            self._namespaces[name] = Namespace(mapping)
-            self._master.update(self.namespaces[name])
-    
+        self.extend(**namespaces)
+
     @property
     def namespaces(self) -> Dict[str, Namespace]:
         """Access to namespaces."""
         return self._namespaces
-    
+
     def __getitem__(self, key: str) -> Any:
         """Access parameter from Configuration."""
         return self._master[key]
-    
+
     def __repr__(self) -> str:
         """String representation of Configuration."""
-        return f'Configuration({self.namespaces})'
-    
+        kwargs = ', '.join([f'{k} = ' + v.__repr__()
+                            for k, v in self.namespaces.items()])
+        return f'Configuration({kwargs})'
+
+    def keys(self) -> type({}.keys()):
+        """A set-like object providing a view on the merged keys"""
+        return self._master.keys()
+
+    def values(self) -> type({}.values()):
+        """An object providing a view on the merged values"""
+        return self._master.values()
+
+    def extend(self, **others: dict) -> None:
+        """Apply update to master dict with `other`."""
+        for name, mapping in others.items():
+            self._namespaces[name] = Namespace(mapping)
+            self._master.update(self.namespaces[name])
