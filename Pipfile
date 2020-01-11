@@ -1,0 +1,21 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+cmdkit = {editable = true, path = "."}
+toml = "*"
+pyyaml = "*"
+pytest = "*"
+pylint = "*"
+hypothesis = "*"
+sphinx = "*"
+sphinx-rtd-theme = "*"
+ipython = "*"
+
+[packages]
+logalpha = "*"
+
+[requires]
+python_version = "3.7"

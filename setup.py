@@ -11,7 +11,6 @@
 """Build and installation script for CmdKit."""
 
 # standard libs
-import os
 from setuptools import setup, find_packages
 
 # internal libs
@@ -23,10 +22,8 @@ from cmdkit.__meta__ import (__pkgname__,
                              __description__)
 
 
-def readme_file():
-    """Use README.md as long_description."""
-    with open(os.path.join(os.path.dirname(__file__), "README.md"), 'r') as readme:
-        return readme.read()
+with open('README.md', mode='r') as readme:
+    long_description = readme.read()
 
 
 setup(
@@ -39,11 +36,17 @@ setup(
     keywords         = 'command-line utility toolkit',
     url              = 'https://cmdkit.readthedocs.io',
     packages         = find_packages(),
-    long_description = readme_file(),
+    long_description = long_description,
     long_description_content_type='text/markdown',
     classifiers      = ['Development Status :: 5 - Production/Stable',
                         'Topic :: Software Development :: Libraries :: Application Frameworks',
+                        'Programming Language :: Python :: 3',
                         'Programming Language :: Python :: 3.7',
                         'License :: OSI Approved :: Apache Software License', ],
     entry_points     = {'console_scripts': []},
+    install_requires = ['logalpha>=2.0.2', ],
+    extras_require  = {
+        'toml': ['toml', ],
+        'yaml': ['pyyaml', ],
+    },
 )
