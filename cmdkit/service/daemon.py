@@ -42,7 +42,7 @@ class Daemon(abc.ABC):
         self.pidfile = pidfile
 
     def daemonize(self) -> None:
-        """Deamonize class. UNIX double fork mechanism."""
+        """Daemonize class. UNIX double fork mechanism."""
 
         try:
             pid = os.fork()
