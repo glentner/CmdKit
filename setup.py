@@ -15,7 +15,7 @@ import os
 from setuptools import setup, find_packages
 
 # internal libs
-from cmdkit.__meta__ import (__appname__,
+from cmdkit.__meta__ import (__pkgname__,
                              __version__,
                              __authors__,
                              __contact__,
@@ -30,7 +30,7 @@ def readme_file():
 
 
 setup(
-    name             = __appname__,
+    name             = __pkgname__,
     version          = __version__,
     author           = __authors__,
     author_email     = __contact__,

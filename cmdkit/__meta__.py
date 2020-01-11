@@ -11,7 +11,7 @@
 """Metadata for CmdKit package."""
 
 
-__appname__   = 'cmdkit'
+__pkgname__   = 'cmdkit'
 __version__   = '1.1.0'
 __authors__   = 'Geoffrey Lentner'
 __contact__   = '<glentner@gmail.com>'
