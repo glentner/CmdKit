@@ -39,6 +39,7 @@ class ArgumentError(Exception):
 def _version_action(self, parser, namespace, values, option_string=None) -> None:
     raise VersionOption(self.version if self.version is not None else parser.version)
 
+
 # override version action to raise exception
 _argparse._VersionAction.__call__ = _version_action
 
@@ -51,32 +52,33 @@ class Interface(_argparse.ArgumentParser):
     Example:
         >>> from cmdkit.cli import Interface
         >>> interface = Interface('my_app', 'usage: ...', 'help: ...')
-        >>> interface.add_argument('--verbose', action_group='store_true')
+        >>> interface.add_argument('--verbose', action='store_true')
     """
 
-    def __init__(self, program: str, usage_text: str, help_text: str) -> None:
+    def __init__(self, program: str, usage_text: str, help_text: str, **kwargs) -> None:
         """
         Explicitly provide `usage_text` and `help_text`.
 
+        Arguments
+        ---------
         program: str
             Name of program (e.g., `os.path.basename(sys.argv[0])`).
+
         usage_text: str
             Full text of program "usage" statement.
+
         help_text: str
             Full text of program "help" statement.
 
-        See Also:
+        See Also
+        --------
         `argparse.ArgumentParser`
         """
-        
+
         self.program = program
         self.usage_text = usage_text
         self.help_text = help_text
-
-        super().__init__(prog=program, usage=usage_text, allow_abbrev=False)
-        
-        # alternate implementation raises VersionOption instead of exit().
-        self.register('action', 'version', _VersionAction)
+        super().__init__(prog=program, usage=usage_text, **kwargs)
 
     # prevents base class from trying to build up usage text
     def format_help(self) -> str:
