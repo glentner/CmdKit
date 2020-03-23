@@ -40,6 +40,7 @@ class ArgumentError(Exception):
 def _version_action(self, parser, namespace, values, option_string=None) -> None:
     raise VersionOption(self.version if self.version is not None else parser.version)
 
+
 # override version action to raise exception
 _argparse._VersionAction.__call__ = _version_action
 
@@ -52,7 +53,7 @@ class Interface(_argparse.ArgumentParser):
     Example:
         >>> from cmdkit.cli import Interface
         >>> interface = Interface('my_app', 'usage: ...', 'help: ...')
-        >>> interface.add_argument('--verbose', action_group='store_true')
+        >>> interface.add_argument('--verbose', action='store_true')
     """
 
     def __init__(self, program: str, usage_text: str, help_text: str) -> None:
