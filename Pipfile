@@ -16,7 +16,7 @@ ipython = "*"
 twine = "*"
 
 [packages]
-logalpha = "*"
+logalpha = ">=2.0.2"
 
 [requires]
 python_version = "3.7"
