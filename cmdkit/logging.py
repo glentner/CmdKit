@@ -11,12 +11,18 @@
 """
 Internal logging.
 
-Add `logalpha.handlers.Handler` instances to the `cmdkit.logging.log` 
+Add `logalpha.handlers.Handler` instances to the `cmdkit.logging.log`
 instance to pick up messages from `cmdkit` events.
 
-Example:
-    >>> from cmdkit.logging import log
-    >>> log.handlers.append(my_handler)
+Or, inject a custom logger by assigning it back to the module.
+Be sure to include the logger used in the `Application` class.
+
+Example
+-------
+>>> from cmdkit import logging as _cmdkit_logging
+>>> from cmdkit.app import Application
+>>> _cmdkit_logging.log = log
+>>> Application.log_error = log.critical
 """
 
 
@@ -28,7 +34,6 @@ from datetime import datetime
 
 # external libs
 from logalpha.colors import Color
-from logalpha.levels import Level, LEVELS
 from logalpha.loggers import Logger
 from logalpha.handlers import Handler
 from logalpha.messages import Message
@@ -38,29 +43,13 @@ from logalpha.messages import Message
 log = Logger()
 
 
-def _get_debugger() -> Logger:
-    """Create simple logger for unit testing."""
+@dataclass
+class ConsoleHandler(Handler):
+    """Colorized handler to <stderr>."""
 
-    @dataclass
-    class DebuggingMessage(Message):
-        """Message with timestamp."""
-        timestamp: datetime
-    
-    class DebuggingLogger(Logger):
-        """Log w/ DEBUG level to <stderr>."""
-        Message: type = DebuggingMessage
-        callbacks: dict = {'timestamp': datetime.now}
+    resource: io.TextIOWrapper = sys.stderr
 
-    @dataclass
-    class ConsoleHandler(Handler):
-        """Colorized handler to <stderr>."""
-        resource: io.TextIOWrapper = sys.stderr
-
-        def format(self, msg: Message) -> str:
-            return (f'{Logger.colors[msg.level.value].foreground}'
-                    f'{msg.timestamp}{Color.reset} '
-                    f'{msg.content}')
-    
-    log = DebuggingLogger()
-    log.handlers.append(ConsoleHandler(LEVELS[0]))
-    return log
+    def format(self, msg: Message) -> str:
+        return (f'{Logger.colors[msg.level.value].foreground}'
+                f'{msg.level.name}{Color.reset} '
+                f'{msg.content}')

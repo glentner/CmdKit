@@ -11,8 +11,12 @@
 """Unit tests for `cmdkit.app` behavior and interfaces."""
 
 
+# standard libs
+from string import ascii_letters
+
 # external libs
 import pytest
+from hypothesis import given, strategies
 
 # internal libs
 from cmdkit.app import Application, exit_status
@@ -63,9 +67,56 @@ class DemoApp(Application):
 
 def test_app_noargs(capsys) -> None:
     """Initialize and run the application."""
-
     with pytest.raises(ArgumentError):
-        DemoApp.from_cmdline([]) # missing `arg_1`
+        with DemoApp.from_cmdline([]) as app:
+            pass
+
+
+@given(strategies.text(ascii_letters, min_size=1))
+def test_app_arg_1(value) -> None:
+    """The positional argument is captured."""
+    with DemoApp.from_cmdline([value]) as app:
+        assert app.arg_1 == value
+
+
+def test_app_option_1_default() -> None:
+    """The optional argument has a default value."""
+    with DemoApp.from_cmdline(['arg_1']) as app:
+        assert app.option_1 == DemoApp.option_1
+
+
+@given(strategies.integers())
+def test_app_option_1_given(value) -> None:
+    """The optional argument was given."""
+    with DemoApp.from_cmdline(['arg_1', '--option', str(value)]) as app:
+        assert app.option_1 == value
+    with DemoApp.from_cmdline(['arg_1', '-o', str(value)]) as app:
+        assert app.option_1 == value
+
+
+@given(strategies.text(ascii_letters, min_size=1, max_size=2))
+def test_app_option_1_is_integer(value) -> None:
+    """The optional argument was given a non-integer value."""
+    with pytest.raises(ArgumentError):
+        with DemoApp.from_cmdline(['arg_1', '--option', str(value)]) as app:
+            pass
+    with pytest.raises(ArgumentError):
+        with DemoApp.from_cmdline(['arg_1', '-o', str(value)]) as app:
+            pass
+
+
+def test_app_debug_mode_not_given() -> None:
+    """The debug mode flag was not given."""
+    with DemoApp.from_cmdline(['arg_1']) as app:
+        assert app.debug_mode is False
+
+
+def test_app_debug_mode_given() -> None:
+    """The debug mode flag was not given."""
+    with DemoApp.from_cmdline(['arg_1', '--debug']) as app:
+        assert app.debug_mode is True
+    with DemoApp.from_cmdline(['arg_1', '-d']) as app:
+        assert app.debug_mode is True
 
 
 def test_app_usage(capsys) -> None:
@@ -90,3 +141,20 @@ def test_app_help_2(capsys) -> None:
     captured = capsys.readouterr()
     assert captured.out.strip() == DEMO_HELP.strip()
     assert status == exit_status.success
+
+
+@given(strategies.integers(min_value=2, max_value=10))
+def test_app_invalid_number_of_positional(count) -> None:
+    """Too many positional arguments are given."""
+    with pytest.raises(ArgumentError):
+        with DemoApp.from_cmdline(['arg']*count) as app:
+            pass
+
+
+@given(strategies.text(ascii_letters, min_size=2, max_size=10))
+def test_app_invalid_options(opt):
+    """An invalid option is given."""
+    if opt not in ('debug', 'option'):
+        with pytest.raises(ArgumentError):
+            with DemoApp.from_cmdline(['arg_1', f'--{opt}']) as app:
+                pass
