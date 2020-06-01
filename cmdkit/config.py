@@ -9,14 +9,19 @@
 # If not, see <https://www.apache.org/licenses/LICENSE-2.0>.
 
 """
-Configuration management. Classes and interfaces for manageming application level
+Configuration management. Classes and interfaces for management application level
 parameters. Get a runtime configuration with a namespace-like interface from both
 local files and your environment.
 """
 
+# type annotations
+from __future__ import annotations
+from typing import IO
+
 # standard libs
 import os
 from collections.abc import Mapping
+from functools import reduce
 from typing import Any, Dict
 
 
@@ -37,6 +42,10 @@ class Namespace(dict):
     >>> ns
     Namespace({'x': 1, 'y': 2})
     """
+
+    def __init__(self, *args: Mapping, **kwargs: Any) -> None:
+        """Initialize namespace from same signature as `dict`."""
+        self.update(dict(*args, **kwargs))
 
     def __repr__(self) -> str:
         """Convert to string representation."""
@@ -61,7 +70,7 @@ class Namespace(dict):
     @staticmethod
     def __depth_first_update(original: dict, new: dict) -> dict:
         """
-        Like normal `dict.update` but if values in both are mappable decend
+        Like normal `dict.update` but if values in both are mappable descend
         a level deeper (recursive) and apply updates there instead.
         """
         for key, value in new.items():
@@ -72,95 +81,154 @@ class Namespace(dict):
 
         return original
 
-    def update(self, other: dict) -> None:
+    def update(self, *args, **kwargs) -> None:
         """Implements a recursive, depth-first update (i.e., an "override")."""
-        self.__depth_first_update(self, other)
+        self.__depth_first_update(self, dict(*args, **kwargs))
 
     @classmethod
-    def from_env(cls, prefix: str = '', defaults: dict = {}) -> None:
+    def from_env(cls, prefix: str = '', defaults: dict = None) -> Namespace:
         """
         Create a `Namespace` from `os.environ`, optionally exclude variables
         based on their name using `prefix` or `pattern`.
         """
-        env = cls(defaults)
+        env = cls(defaults or {})
         if not prefix:
-            env.update(os.environ)
+            env.update(dict(os.environ))
         else:
             env.update({name: value for name, value in os.environ.items()
                         if name.startswith(prefix)})
         return env
 
     @classmethod
-    def from_local(self, filepath: str, **options) -> 'Namespace':
+    def from_local(cls, filepath: str, **options) -> 'Namespace':
         """Generic factory method delegates based on filename extension."""
         try:
             ext = os.path.splitext(filepath)[1].lstrip('.')
-            factory = getattr(self, f'_from_{ext}')
+            factory = getattr(cls, f'_from_{ext}')
             return factory(filepath, **options)
         except AttributeError:
-            raise NotImplementedError(f'{self.__class__.__name__} does not currently support "{ext}" files."')
+            raise NotImplementedError(f'{cls.__class__.__name__} does not currently support "{ext}" files."')
 
     @classmethod
-    def _from_yaml(cls, filepath: str, **options) -> 'Namespace':
+    def from_yaml(cls, path_or_file: Union[str, IO], **options) -> 'Namespace':
         """Load a namespace from a YAML file."""
         import yaml
-        with open(filepath, mode='r', **options) as source:
-            return cls(yaml.load(source, Loader=yaml.FullLoader))
+        if isinstance(path_or_file, str):
+            with open(path_or_file, mode='r', **options) as source:
+                return cls(yaml.load(source, Loader=yaml.FullLoader))
+        else:
+            return cls(yaml.load(path_or_file, Loader=yaml.FullLoader))
 
     @classmethod
-    def _from_toml(cls, filepath: str, **options) -> 'Namespace':
+    def from_toml(cls, path_or_file: Union[str, IO], **options) -> 'Namespace':
         """Load a namespace from a TOML file."""
         import toml
-        with open(filepath, mode='r', **options) as source:
-            return cls(toml.load(source))
+        if isinstance(path_or_file, str):
+            with open(path_or_file, mode='r', **options) as source:
+                return cls(toml.load(source))
+        else:
+            return cls(toml.load(path_or_file))
 
     @classmethod
-    def _from_json(cls, filepath: str, **options) -> 'Namespace':
+    def from_json(cls, path_or_file: Union[str, IO], **options) -> 'Namespace':
         """Load a namespace from a JSON file."""
         import json
-        with open(filepath, mode='r', **options) as source:
-            return cls(json.load(source))
+        if isinstance(path_or_file, str):
+            with open(path_or_file, mode='r', **options) as source:
+                return cls(json.load(source))
+        else:
+            return cls(json.load(path_or_file))
 
     def to_local(self, filepath: str, **options) -> None:
         """Output to local file. Format based on file extension."""
+        ext = os.path.splitext(filepath)[1].lstrip('.')
         try:
-            ext = os.path.splitext(filepath)[1].lstrip('.')
             factory = getattr(self, f'_to_{ext}')
             return factory(filepath, **options)
         except AttributeError:
             raise NotImplementedError(f'{self.__class__.__name__} does not currently support "{ext}" files."')
 
-    def _to_yaml(self, filepath: str, encoding: str = 'utf-8', **kwargs) -> None:
-        """Output to local YAML file."""
+    def to_yaml(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', **kwargs) -> None:
+        """Output to YAML file."""
         import yaml
-        with open(filepath, mode='w', encoding=encoding) as output:
-            yaml.dump(self, output, **kwargs)
+        if isinstance(path_or_file, str):
+            with open(path_or_file, mode='w', encoding=encoding) as output:
+                yaml.dump(self, output, **kwargs)
+        else:
+            yaml.dump(self, path_or_file, **kwargs)
 
-    def _to_toml(self, filepath: str, encoding: str = 'utf-8', **kwargs) -> None:
-        """Output to local TOML file."""
+    def to_toml(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', **kwargs) -> None:
+        """Output to TOML file."""
         import toml
-        with open(filepath, mode='w', encoding=encoding) as output:
-            toml.dump(self, output, **kwargs)
+        if isinstance(path_or_file, str):
+            with open(path_or_file, mode='w', encoding=encoding) as output:
+                toml.dump(self, output, **kwargs)
+        else:
+            toml.dump(self, path_or_file, **kwargs)
 
-    def _to_json(self, filepath: str, encoding: str = 'utf-8', indent: int = 4, **kwargs) -> None:
-        """Output to local JSON file."""
+    def to_json(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', indent: int = 4, **kwargs) -> None:
+        """Output to JSON file."""
         import json
-        with open(filepath, mode='w', encoding=encoding) as output:
-            json.dump(self, output, indent=indent, **kwargs)
+        if isinstance(path_or_file, str):
+            with open(path_or_file, mode='w', encoding=encoding) as output:
+                json.dump(self, output, indent=indent, **kwargs)
+        else:
+            json.dump(self, path_or_file, indent=indent, **kwargs)
 
     # short-hand
-    _from_yml = _from_yaml
-    _to_yml = _to_yaml
+    from_yml = from_yaml
+    from_tml = from_toml
+    to_yml = to_yaml
+    to_tml = to_toml
+
+
+class Environ(Namespace):
+    """
+    A namespace from environment variables.
+    """
+
+    # remembers the prefix for use with `.reduce`
+    _prefix: str = ''
+
+    def __init__(self, prefix: str = '', defaults: dict = None) -> None:
+        """Built via `Namespace.from_env`."""
+        self._prefix = prefix
+        ns = Namespace.from_env(prefix=prefix, defaults=defaults)
+        super().__init__(ns)
+
+    def reduce(self) -> Namespace:
+        """De-normalize the key-value pairs as a deep dictionary."""
+        ns = Namespace()
+        for key, value in self.items():
+            prefix, *sections = key.split('_')
+            base = {}
+            reduce(lambda d, k: d.setdefault(k.lower(), {}), sections[:-1], base)[sections[-1].lower()] = value
+            ns.update(base)
+        return ns
 
 
 class Configuration:
-    """A collection of `Namespace` dictionaries."""
+    """
+    An ordered collection of `Namespace` dictionaries.
 
-    _namespaces: Dict[str, Namespace] = {}
-    _master: Namespace = Namespace()
+    Example
+    -------
+    >>> import os
+    >>> from cmdkit.config import Namespace, Configuration
+    >>> HOME, CWD = os.getenv('HOME'), os.getcwd()
+    >>> cfg = Configuration(system=Namespace.from_local('/etc/myapp.yml'),
+    ...                     user=Namespace.from_local(f'{HOME}/.myapp.yml'),
+    ...                     site=Namespace.from_local(f'{CWD}/.myapp.yml'),
+    ...                     env=Environ(prefix='MYAPP').reduce())
+    """
+
+    _namespaces: Namespace = None
+    _master: Namespace = None
 
     def __init__(self, **namespaces: Namespace) -> None:
         """Retain source `namespaces` and create master namespace."""
+        self._namespaces = Namespace()
+        self._master = Namespace()
         self.extend(**namespaces)
 
     @property
@@ -178,11 +246,11 @@ class Configuration:
                             for k, v in self.namespaces.items()])
         return f'Configuration({kwargs})'
 
-    def keys(self) -> type({}.keys()):
+    def keys(self) -> DictKeys:
         """A set-like object providing a view on the merged keys"""
         return self._master.keys()
 
-    def values(self) -> type({}.values()):
+    def values(self) -> DictValues:
         """An object providing a view on the merged values"""
         return self._master.values()
 
