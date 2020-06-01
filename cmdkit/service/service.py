@@ -39,7 +39,7 @@ class Service(Daemon):
         daemonize: bool (default=False)
             Run service as a daemon process.
         """
-        super().__init__(self.pidfile)
+        super().__init__(pidfile)
         self.is_daemon = daemon
 
     def daemonize(self) -> None:
