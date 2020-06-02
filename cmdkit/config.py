@@ -284,3 +284,15 @@ class Configuration:
         for name, mapping in others.items():
             self._namespaces[name] = Namespace(mapping)
             self._master.update(self.namespaces[name])
+
+    @classmethod
+    def from_local(cls, *, env: bool = False, prefix: str = None,
+                   defaults: Mapping = None, **files: str) -> Configuration:
+        """Create configuration from cascade of `files`. Optionally include `env`."""
+        defaults_ = Namespace() if not defaults else Namespace(defaults)
+        cfg = cls(defaults=defaults_)
+        for label, filepath in files.items():
+            cfg.extend(**{label: Namespace.from_local(filepath, ignore_if_missing=True)})
+        if env:
+            cfg.extend(**{'env': Environ(prefix).reduce()})
+        return cfg
