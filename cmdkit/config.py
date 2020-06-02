@@ -102,10 +102,10 @@ class Namespace(dict):
     @classmethod
     def from_local(cls, filepath: str, ignore_if_missing: bool = False, **options) -> Namespace:
         """Generic factory method delegates based on filename extension."""
+        ext = os.path.splitext(filepath)[1].lstrip('.')
         if not os.path.exists(filepath) and ignore_if_missing is True:
             return Namespace()
         try:
-            ext = os.path.splitext(filepath)[1].lstrip('.')
             factory = getattr(cls, f'from_{ext}')
             return factory(filepath, **options)
         except AttributeError:
