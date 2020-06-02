@@ -54,12 +54,12 @@ class Application(abc.ABC):
             setattr(self, name, value)
 
     @classmethod
-    def from_cmdline(cls, cmdline: List[str] = None) -> 'Application':
+    def from_cmdline(cls, cmdline: List[str] = None) -> Application:
         """Initialize via command line arguments (e.g., `sys.argv`)."""
         return cls.from_namespace(cls.interface.parse_args(cmdline))
 
     @classmethod
-    def from_namespace(cls, namespace: cli.Namespace) -> 'Application':
+    def from_namespace(cls, namespace: cli.Namespace) -> Application:
         """Initialize via existing namespace/namedtuple."""
         return cls(**vars(namespace))
 
@@ -111,7 +111,7 @@ class Application(abc.ABC):
     def __enter__(self) -> Application:
         """Place-holder for context manager."""
         return self
-    
+
     def __exit__(self, *exc) -> None:
         """Release resources."""
         pass

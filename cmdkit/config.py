@@ -100,7 +100,7 @@ class Namespace(dict):
         return env
 
     @classmethod
-    def from_local(cls, filepath: str, **options) -> 'Namespace':
+    def from_local(cls, filepath: str, **options) -> Namespace:
         """Generic factory method delegates based on filename extension."""
         try:
             ext = os.path.splitext(filepath)[1].lstrip('.')
@@ -110,7 +110,7 @@ class Namespace(dict):
             raise NotImplementedError(f'{cls.__class__.__name__} does not currently support "{ext}" files."')
 
     @classmethod
-    def from_yaml(cls, path_or_file: Union[str, IO], **options) -> 'Namespace':
+    def from_yaml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
         """Load a namespace from a YAML file."""
         import yaml
         if isinstance(path_or_file, str):
@@ -120,7 +120,7 @@ class Namespace(dict):
             return cls(yaml.load(path_or_file, Loader=yaml.FullLoader))
 
     @classmethod
-    def from_toml(cls, path_or_file: Union[str, IO], **options) -> 'Namespace':
+    def from_toml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
         """Load a namespace from a TOML file."""
         import toml
         if isinstance(path_or_file, str):
@@ -130,7 +130,7 @@ class Namespace(dict):
             return cls(toml.load(path_or_file))
 
     @classmethod
-    def from_json(cls, path_or_file: Union[str, IO], **options) -> 'Namespace':
+    def from_json(cls, path_or_file: Union[str, IO], **options) -> Namespace:
         """Load a namespace from a JSON file."""
         import json
         if isinstance(path_or_file, str):
