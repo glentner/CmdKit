@@ -16,7 +16,7 @@ local files and your environment.
 
 # type annotations
 from __future__ import annotations
-from typing import IO, TypeVar, Callable, Union
+from typing import IO, TypeVar, Callable, Union, Iterable, Any
 
 # standard libs
 import os
@@ -43,9 +43,9 @@ class Namespace(dict):
     Namespace({'x': 1, 'y': 2})
     """
 
-    def __init__(self, *args: Mapping, **kwargs: Any) -> None:
+    def __init__(self, *args: Union[Iterable, Mapping], **kwargs: Any) -> None:
         """Initialize namespace from same signature as `dict`."""
-        self.update(dict(*args, **kwargs))
+        super().__init__(*args, **kwargs)
 
     def __repr__(self) -> str:
         """Convert to string representation."""
