@@ -34,6 +34,7 @@ from datetime import datetime
 
 # external libs
 from logalpha.colors import Color
+from logalpha.levels import LEVELS
 from logalpha.loggers import Logger
 from logalpha.handlers import Handler
 from logalpha.messages import Message
