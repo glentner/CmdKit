@@ -16,7 +16,7 @@ local files and your environment.
 
 # type annotations
 from __future__ import annotations
-from typing import IO
+from typing import IO, TypeVar, Any
 
 # standard libs
 import os
@@ -182,6 +182,10 @@ class Namespace(dict):
     to_tml = to_toml
 
 
+# basic types automatically converted from environment variable
+ValueType = TypeVar('ValueType', str, int, float, bool, type(None))
+
+
 class Environ(Namespace):
     """
     A namespace from environment variables.
@@ -196,15 +200,34 @@ class Environ(Namespace):
         ns = Namespace.from_env(prefix=prefix, defaults=defaults)
         super().__init__(ns)
 
-    def reduce(self) -> Namespace:
+    def reduce(self, converter: Callable[[str], Any] = None) -> Namespace:
         """De-normalize the key-value pairs as a deep dictionary."""
+        coerced = converter or self._coerced
         ns = Namespace()
         for key, value in self.items():
             prefix, *sections = key.split('_')
             base = {}
-            reduce(lambda d, k: d.setdefault(k.lower(), {}), sections[:-1], base)[sections[-1].lower()] = value
+            reduce(lambda d, k: d.setdefault(k.lower(), {}), sections[:-1], base)[sections[-1].lower()] = coerced(value)
             ns.update(base)
         return ns
+
+    @staticmethod
+    def _coerced(var: str) -> ValueType:
+        """Automatically coerce input `var` to numeric if possible."""
+        if var.lower() in ('', 'null'):
+            return None
+        if var.lower() == 'true':
+            return True
+        if var.lower() == 'false':
+            return False
+        try:
+            return int(var)
+        except (ValueError, TypeError):
+            pass
+        try:
+            return float(var)
+        except(ValueError, TypeError):
+            return var
 
 
 class Configuration:
