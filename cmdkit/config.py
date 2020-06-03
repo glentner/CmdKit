@@ -16,7 +16,7 @@ local files and your environment.
 
 # type annotations
 from __future__ import annotations
-from typing import IO, TypeVar, Callable, Union, Iterable, Any
+from typing import IO, TypeVar, Callable, Union, Iterable, Any  # noqa (unused Any) FIXME: why?
 
 # standard libs
 import os
