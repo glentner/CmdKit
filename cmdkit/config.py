@@ -65,15 +65,15 @@ class Namespace(dict):
         else:
             super().__setitem__(key, value)
 
-    @staticmethod
-    def __depth_first_update(original: dict, new: dict) -> dict:
+    @classmethod
+    def __depth_first_update(cls, original: dict, new: dict) -> dict:
         """
         Like normal `dict.update` but if values in both are mappable descend
         a level deeper (recursive) and apply updates there instead.
         """
         for key, value in new.items():
             if isinstance(value, dict) and isinstance(original.get(key), dict):
-                original[key] = Namespace.__depth_first_update(original.get(key, {}), value)
+                original[key] = cls.__depth_first_update(original.get(key, {}), value)
             else:
                 original[key] = value
         return original
