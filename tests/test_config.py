@@ -361,3 +361,88 @@ def test_configuration_blending() -> None:
     assert cfg['a']['y'] == 2
     assert cfg['a']['z'] == 4
     assert cfg['b']['z'] == 3
+
+
+TEST_CONFIG_DEFAULT = """\
+[a]
+var0 = "default_var0"
+var1 = "default_var1"
+var2 = "default_var2"
+"""
+
+
+TEST_CONFIG_SYSTEM = """\
+[a]
+var1 = "system_var1"
+"""
+
+
+TEST_CONFIG_USER = """\
+[a]
+var2 = "user_var2"
+
+[b]
+var3 = "user_var3"
+"""
+
+
+TEST_CONFIG_LOCAL = """\
+[b]
+var3 = "local_var3"
+
+[c]
+var4 = "local_var4"
+"""
+
+
+TEST_CONFIG_ENVIRON = """\
+CMDKIT_C_VAR4=env_var4
+CMDKIT_C_VAR5=env_var5
+"""
+
+
+TEST_CONFIG_SOURCES = {'system': TEST_CONFIG_SYSTEM,
+                       'user': TEST_CONFIG_USER,
+                       'local': TEST_CONFIG_LOCAL}
+
+
+def test_configuration_from_local() -> None:
+    """Test Configuration.from_local factory method."""
+
+    # initial local files
+    for label, data in TEST_CONFIG_SOURCES.items():
+        with open(f'{TMPDIR}/{label}.toml', mode='w') as output:
+            output.write(data)
+
+    # clean environment of any existing variables with the prefix
+    PREFIX = 'CMDKIT'
+    for var in dict(os.environ):
+        if var.startswith(PREFIX):
+            os.environ.pop(var)
+
+    # populate environment with test variables
+    for line in TEST_CONFIG_ENVIRON.strip().split('\n'):
+        field, value = line.strip().split('=')
+        os.environ[field] = value
+
+    # build configuration
+    default = Namespace.from_toml(StringIO(TEST_CONFIG_DEFAULT))
+    cfg = Configuration.from_local(default=default, env=True, prefix=PREFIX,
+                                   system=f'{TMPDIR}/system.toml',
+                                   user=f'{TMPDIR}/user.toml',
+                                   local=f'{TMPDIR}/local.toml')
+
+    # verify namespace isolation
+    assert cfg.namespaces['default'] == Namespace.from_toml(StringIO(TEST_CONFIG_DEFAULT))
+    assert cfg.namespaces['system'] == Namespace.from_toml(StringIO(TEST_CONFIG_SYSTEM))
+    assert cfg.namespaces['user'] == Namespace.from_toml(StringIO(TEST_CONFIG_USER))
+    assert cfg.namespaces['local'] == Namespace.from_toml(StringIO(TEST_CONFIG_LOCAL))
+    assert cfg.namespaces['env'] == Environ(PREFIX).reduce()
+
+    # verify parameter lineage
+    assert cfg['a']['var0'] == 'default_var0'
+    assert cfg['a']['var1'] == 'system_var1'
+    assert cfg['a']['var2'] == 'user_var2'
+    assert cfg['b']['var3'] == 'local_var3'
+    assert cfg['c']['var4'] == 'env_var4'
+    assert cfg['c']['var5'] == 'env_var5'

@@ -239,12 +239,13 @@ class Configuration:
     Example
     -------
     >>> import os
-    >>> from cmdkit.config import Namespace, Configuration
+    >>> from cmdkit.config import Configuration
     >>> HOME, CWD = os.getenv('HOME'), os.getcwd()
-    >>> cfg = Configuration(system=Namespace.from_local('/etc/myapp.yml'),
-    ...                     user=Namespace.from_local(f'{HOME}/.myapp.yml'),
-    ...                     site=Namespace.from_local(f'{CWD}/.myapp.yml'),
-    ...                     env=Environ(prefix='MYAPP').reduce())
+    >>> cfg = Configuration.from_local(default={},
+    ...                                system='/etc/myapp.yml',
+    ...                                user=f'{HOME}/.myapp.yml',
+    ...                                local=f'{CWD}/.myapp.yml',
+    ...                                env=True, prefix='MYAPP')
     """
 
     _namespaces: Namespace = None
@@ -287,10 +288,10 @@ class Configuration:
 
     @classmethod
     def from_local(cls, *, env: bool = False, prefix: str = None,
-                   defaults: Mapping = None, **files: str) -> Configuration:
+                   default: Mapping = None, **files: str) -> Configuration:
         """Create configuration from cascade of `files`. Optionally include `env`."""
-        defaults_ = Namespace() if not defaults else Namespace(defaults)
-        cfg = cls(defaults=defaults_)
+        default_ = Namespace() if not default else Namespace(default)
+        cfg = cls(default=default_)
         for label, filepath in files.items():
             cfg.extend(**{label: Namespace.from_local(filepath, ignore_if_missing=True)})
         if env:
