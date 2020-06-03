@@ -36,7 +36,7 @@ The primary features are:
    automatically provides depth-first merge for dictionaries from local files,
    as well as automatic environment variable discovery.
 
-
+|
 
 Installation
 ------------
@@ -55,6 +55,8 @@ Documentation
 Documentation for getting started, the API, and common recipes are available at
 `cmdkit.readthedocs.io <https://cmdkit.readthedocs.io>`_.
 
+
+|
 
 Contributions
 -------------
