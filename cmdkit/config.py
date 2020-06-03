@@ -33,18 +33,16 @@ DictKeyIterator: type = type(iter({}))
 
 class Namespace(dict):
     """
-    Base level functionality for specific sub-classes (e.g., Environment).
-    A Namespace is a `dict` with additional features and factory methods.
-    It also overrides the `update` method to be a depth-first recursive update.
+    A dictionary with depth-first updates.
 
     Example:
-    >>> ns = Namespace({'x': 1, 'y': 2})
-    >>> ns
-    Namespace({'x': 1, 'y': 2})
+    >>> ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': 3})
+    >>> ns.update({'a': {'x': 4, 'z': 5}})
+    Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
     """
 
     def __init__(self, *args: Union[Iterable, Mapping], **kwargs: Any) -> None:
-        """Initialize namespace from same signature as `dict`."""
+        """Initialize from same signature as `dict`."""
         super().__init__(*args, **kwargs)
 
     def __repr__(self) -> str:
@@ -88,7 +86,10 @@ class Namespace(dict):
     def from_env(cls, prefix: str = '', defaults: dict = None) -> Namespace:
         """
         Create a `Namespace` from `os.environ`, optionally exclude variables
-        based on their name using `prefix` or `pattern`.
+        based on their name using `prefix`.
+
+        The `defaults` will be used if variables are not found in the
+        environment.
         """
         env = cls(defaults or {})
         if not prefix:
@@ -189,7 +190,18 @@ ValueType = TypeVar('ValueType', str, int, float, bool, type(None))
 
 class Environ(Namespace):
     """
-    A namespace from environment variables.
+    A Namespace initialize via Namespace.from_env. The special method
+    `.reduce` melts the normalized variables by splitting on underscores.
+
+    Example
+    -------
+    >>> from cmdkit.config import Environ
+    >>> env = Environ('MYAPP')
+    >>> env
+    Environ({'MYAPP_A_X': 1, 'MYAPP_A_Y': 2, 'MYAPP_B': 3})
+
+    >>> env.reduce()
+    Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
     """
 
     # remembers the prefix for use with `.reduce`
