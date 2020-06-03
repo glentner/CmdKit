@@ -16,7 +16,7 @@ local files and your environment.
 
 # type annotations
 from __future__ import annotations
-from typing import IO
+from typing import IO, TypeVar, Callable, Union, Iterable, Any  # noqa (unused Any) FIXME: why?
 
 # standard libs
 import os
@@ -33,19 +33,17 @@ DictKeyIterator: type = type(iter({}))
 
 class Namespace(dict):
     """
-    Base level functionality for specific sub-classes (e.g., Environment).
-    A Namespace is a `dict` with additional features and factory methods.
-    It also overrides the `update` method to be a depth-first recursive update.
+    A dictionary with depth-first updates.
 
     Example:
-    >>> ns = Namespace({'x': 1, 'y': 2})
-    >>> ns
-    Namespace({'x': 1, 'y': 2})
+    >>> ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': 3})
+    >>> ns.update({'a': {'x': 4, 'z': 5}})
+    Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
     """
 
-    def __init__(self, *args: Mapping, **kwargs: Any) -> None:
-        """Initialize namespace from same signature as `dict`."""
-        self.update(dict(*args, **kwargs))
+    def __init__(self, *args: Union[Iterable, Mapping], **kwargs: Any) -> None:
+        """Initialize from same signature as `dict`."""
+        super().__init__(*args, **kwargs)
 
     def __repr__(self) -> str:
         """Convert to string representation."""
@@ -67,18 +65,17 @@ class Namespace(dict):
         else:
             super().__setitem__(key, value)
 
-    @staticmethod
-    def __depth_first_update(original: dict, new: dict) -> dict:
+    @classmethod
+    def __depth_first_update(cls, original: dict, new: dict) -> dict:
         """
         Like normal `dict.update` but if values in both are mappable descend
         a level deeper (recursive) and apply updates there instead.
         """
         for key, value in new.items():
-            if isinstance(value, Mapping) and isinstance(original.get(key), Mapping):
-                original[key] = Namespace.__depth_first_update(original.get(key, {}), value)
+            if isinstance(value, dict) and isinstance(original.get(key), dict):
+                original[key] = cls.__depth_first_update(original.get(key, {}), value)
             else:
                 original[key] = value
-
         return original
 
     def update(self, *args, **kwargs) -> None:
@@ -89,7 +86,10 @@ class Namespace(dict):
     def from_env(cls, prefix: str = '', defaults: dict = None) -> Namespace:
         """
         Create a `Namespace` from `os.environ`, optionally exclude variables
-        based on their name using `prefix` or `pattern`.
+        based on their name using `prefix`.
+
+        The `defaults` will be used if variables are not found in the
+        environment.
         """
         env = cls(defaults or {})
         if not prefix:
@@ -100,17 +100,19 @@ class Namespace(dict):
         return env
 
     @classmethod
-    def from_local(cls, filepath: str, **options) -> 'Namespace':
+    def from_local(cls, filepath: str, ignore_if_missing: bool = False, **options) -> Namespace:
         """Generic factory method delegates based on filename extension."""
+        ext = os.path.splitext(filepath)[1].lstrip('.')
+        if not os.path.exists(filepath) and ignore_if_missing is True:
+            return Namespace()
         try:
-            ext = os.path.splitext(filepath)[1].lstrip('.')
-            factory = getattr(cls, f'_from_{ext}')
+            factory = getattr(cls, f'from_{ext}')
             return factory(filepath, **options)
         except AttributeError:
             raise NotImplementedError(f'{cls.__class__.__name__} does not currently support "{ext}" files."')
 
     @classmethod
-    def from_yaml(cls, path_or_file: Union[str, IO], **options) -> 'Namespace':
+    def from_yaml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
         """Load a namespace from a YAML file."""
         import yaml
         if isinstance(path_or_file, str):
@@ -120,7 +122,7 @@ class Namespace(dict):
             return cls(yaml.load(path_or_file, Loader=yaml.FullLoader))
 
     @classmethod
-    def from_toml(cls, path_or_file: Union[str, IO], **options) -> 'Namespace':
+    def from_toml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
         """Load a namespace from a TOML file."""
         import toml
         if isinstance(path_or_file, str):
@@ -130,7 +132,7 @@ class Namespace(dict):
             return cls(toml.load(path_or_file))
 
     @classmethod
-    def from_json(cls, path_or_file: Union[str, IO], **options) -> 'Namespace':
+    def from_json(cls, path_or_file: Union[str, IO], **options) -> Namespace:
         """Load a namespace from a JSON file."""
         import json
         if isinstance(path_or_file, str):
@@ -143,7 +145,7 @@ class Namespace(dict):
         """Output to local file. Format based on file extension."""
         ext = os.path.splitext(filepath)[1].lstrip('.')
         try:
-            factory = getattr(self, f'_to_{ext}')
+            factory = getattr(self, f'to_{ext}')
             return factory(filepath, **options)
         except AttributeError:
             raise NotImplementedError(f'{self.__class__.__name__} does not currently support "{ext}" files."')
@@ -182,9 +184,24 @@ class Namespace(dict):
     to_tml = to_toml
 
 
+# basic types automatically converted from environment variable
+ValueType = TypeVar('ValueType', str, int, float, bool, type(None))
+
+
 class Environ(Namespace):
     """
-    A namespace from environment variables.
+    A Namespace initialize via Namespace.from_env. The special method
+    `.reduce` melts the normalized variables by splitting on underscores.
+
+    Example
+    -------
+    >>> from cmdkit.config import Environ
+    >>> env = Environ('MYAPP')
+    >>> env
+    Environ({'MYAPP_A_X': 1, 'MYAPP_A_Y': 2, 'MYAPP_B': 3})
+
+    >>> env.reduce()
+    Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
     """
 
     # remembers the prefix for use with `.reduce`
@@ -196,15 +213,34 @@ class Environ(Namespace):
         ns = Namespace.from_env(prefix=prefix, defaults=defaults)
         super().__init__(ns)
 
-    def reduce(self) -> Namespace:
+    def reduce(self, converter: Callable[[str], Any] = None) -> Namespace:
         """De-normalize the key-value pairs as a deep dictionary."""
+        coerced = converter or self._coerced
         ns = Namespace()
         for key, value in self.items():
             prefix, *sections = key.split('_')
             base = {}
-            reduce(lambda d, k: d.setdefault(k.lower(), {}), sections[:-1], base)[sections[-1].lower()] = value
+            reduce(lambda d, k: d.setdefault(k.lower(), {}), sections[:-1], base)[sections[-1].lower()] = coerced(value)
             ns.update(base)
         return ns
+
+    @staticmethod
+    def _coerced(var: str) -> ValueType:
+        """Automatically coerce input `var` to numeric if possible."""
+        if var.lower() in ('', 'null'):
+            return None
+        if var.lower() == 'true':
+            return True
+        if var.lower() == 'false':
+            return False
+        try:
+            return int(var)
+        except (ValueError, TypeError):
+            pass
+        try:
+            return float(var)
+        except(ValueError, TypeError):
+            return var
 
 
 class Configuration:
@@ -214,12 +250,13 @@ class Configuration:
     Example
     -------
     >>> import os
-    >>> from cmdkit.config import Namespace, Configuration
+    >>> from cmdkit.config import Configuration
     >>> HOME, CWD = os.getenv('HOME'), os.getcwd()
-    >>> cfg = Configuration(system=Namespace.from_local('/etc/myapp.yml'),
-    ...                     user=Namespace.from_local(f'{HOME}/.myapp.yml'),
-    ...                     site=Namespace.from_local(f'{CWD}/.myapp.yml'),
-    ...                     env=Environ(prefix='MYAPP').reduce())
+    >>> cfg = Configuration.from_local(default={},
+    ...                                system='/etc/myapp.yml',
+    ...                                user=f'{HOME}/.myapp.yml',
+    ...                                local=f'{CWD}/.myapp.yml',
+    ...                                env=True, prefix='MYAPP')
     """
 
     _namespaces: Namespace = None
@@ -259,3 +296,15 @@ class Configuration:
         for name, mapping in others.items():
             self._namespaces[name] = Namespace(mapping)
             self._master.update(self.namespaces[name])
+
+    @classmethod
+    def from_local(cls, *, env: bool = False, prefix: str = None,
+                   default: Mapping = None, **files: str) -> Configuration:
+        """Create configuration from cascade of `files`. Optionally include `env`."""
+        default_ = Namespace() if not default else Namespace(default)
+        cfg = cls(default=default_)
+        for label, filepath in files.items():
+            cfg.extend(**{label: Namespace.from_local(filepath, ignore_if_missing=True)})
+        if env:
+            cfg.extend(**{'env': Environ(prefix).reduce()})
+        return cfg

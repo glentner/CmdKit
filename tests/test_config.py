@@ -168,16 +168,13 @@ CMDKIT_C_CC=ccc
 """
 
 
-FACTORIES = {'toml': TEST_TOML,
-             'yaml': TEST_YAML,
+FACTORIES = {'toml': TEST_TOML, 'tml': TEST_TOML,
+             'yaml': TEST_YAML, 'yml': TEST_YAML,
              'json': TEST_JSON}
 
 
 def test_namespace_factories() -> None:
     """Test all implemented factory equivalents."""
-
-    # base case
-    BASE = Namespace(TEST_DICT)
 
     # write all test data to local files
     for ftype, data in FACTORIES.items():
@@ -189,6 +186,56 @@ def test_namespace_factories() -> None:
             Namespace.from_toml(StringIO(TEST_TOML)) == Namespace.from_toml(f'{TMPDIR}/toml.toml') ==
             Namespace.from_yaml(StringIO(TEST_YAML)) == Namespace.from_yaml(f'{TMPDIR}/yaml.yaml') ==
             Namespace.from_json(StringIO(TEST_JSON)) == Namespace.from_json(f'{TMPDIR}/json.json'))
+
+
+def test_namespace_from_local() -> None:
+    """Test automatic file type deduction and allow for missing files."""
+
+    # clear existing files
+    for ftype in FACTORIES:
+        filepath = f'{TMPDIR}/{ftype}.{ftype}'
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+    with pytest.raises(FileNotFoundError):
+        Namespace.from_local(f'{TMPDIR}/toml.toml')
+    with pytest.raises(FileNotFoundError):
+        Namespace.from_local(f'{TMPDIR}/yaml.yaml')
+    with pytest.raises(FileNotFoundError):
+        Namespace.from_local(f'{TMPDIR}/json.json')
+
+    assert (Namespace() ==
+            Namespace.from_local(f'{TMPDIR}/toml.toml', ignore_if_missing=True) ==
+            Namespace.from_local(f'{TMPDIR}/yaml.yaml', ignore_if_missing=True) ==
+            Namespace.from_local(f'{TMPDIR}/json.json', ignore_if_missing=True))
+
+    with pytest.raises(NotImplementedError):
+        Namespace.from_local(f'{TMPDIR}/config.special')
+
+    # write all test data to local files
+    for ftype, data in FACTORIES.items():
+        with open(f'{TMPDIR}/{ftype}.{ftype}', mode='w') as output:
+            output.write(data)
+
+    assert (Namespace(TEST_DICT) ==
+            Namespace.from_local(f'{TMPDIR}/toml.toml') == Namespace.from_local(f'{TMPDIR}/tml.tml') ==
+            Namespace.from_local(f'{TMPDIR}/yaml.yaml') == Namespace.from_local(f'{TMPDIR}/yml.yml') ==
+            Namespace.from_local(f'{TMPDIR}/json.json'))
+
+
+def test_namespace_to_local() -> None:
+    """Test Namespace.to_local dispatch method."""
+
+    # test round trip
+    for ftype in FACTORIES:
+        ns = Namespace(TEST_DICT)
+        ns.to_local(f'{TMPDIR}/{ftype}.{ftype}')
+        assert ns == Namespace.from_local(f'{TMPDIR}/{ftype}.{ftype}')
+
+    # test not implemented
+    with pytest.raises(NotImplementedError):
+        ns = Namespace(TEST_DICT)
+        ns.to_local(f'{TMPDIR}/config.special')
 
 
 def test_environ() -> None:
@@ -207,13 +254,60 @@ def test_environ() -> None:
 
     # test base level Namespace|Environ equivalence
     assert Namespace.from_env(prefix=PREFIX) == Environ(prefix=PREFIX)
+    assert Environ(prefix=PREFIX).reduce() == Namespace(TEST_DICT)
 
-    # test reduction (non-string values are not automatically coerced)
+
+TEST_ENV_TYPES = """\
+CMDKIT_INT=1
+CMDKIT_FLOAT=3.14
+CMDKIT_TRUE=true
+CMDKIT_FALSE=false
+CMDKIT_NULL=null
+CMDKIT_STR=other
+"""
+
+
+def test_environ_coerce() -> None:
+    """Test automatic type coercion with Environ.reduce()."""
+
+    # clean environment of any existing variables with the prefix
+    PREFIX = 'CMDKIT'
+    for var in dict(os.environ):
+        if var.startswith(PREFIX):
+            os.environ.pop(var)
+
+    # populate environment with test variables
+    for line in TEST_ENV_TYPES.strip().split('\n'):
+        field, value = line.strip().split('=')
+        os.environ[field] = value
+
     env = Environ(prefix=PREFIX).reduce()
-    for part in list('abc'):
-        env.update({part: {part: int(env[part][part])}})
+    assert isinstance(env['int'], int) and env['int'] == 1
+    assert isinstance(env['float'], float) and env['float'] == 3.14
+    assert isinstance(env['true'], bool) and env['true'] is True
+    assert isinstance(env['false'], bool) and env['false'] is False
+    assert env['null'] is None
+    assert env['str'] == 'other'
 
-    assert env == Namespace(TEST_DICT)
+
+def test_environ_defaults() -> None:
+    """Test defaults for missing environment variables."""
+
+    # clean environment of any existing variables with the prefix
+    PREFIX = 'CMDKIT'
+    for var in dict(os.environ):
+        if var.startswith(PREFIX):
+            os.environ.pop(var)
+
+    # populate environment with test variables
+    for line in TEST_ENV_TYPES.strip().split('\n'):
+        field, value = line.strip().split('=')
+        os.environ[field] = value
+
+    # add default
+    env = Environ(prefix=PREFIX, defaults={'CMDKIT_DEFAULT_VALUE': '42'}).reduce()
+    value = env['default']['value']
+    assert isinstance(value, int) and value == 42
 
 
 def test_configuration() -> None:
@@ -264,3 +358,88 @@ def test_configuration_blending() -> None:
     assert cfg['a']['y'] == 2
     assert cfg['a']['z'] == 4
     assert cfg['b']['z'] == 3
+
+
+TEST_CONFIG_DEFAULT = """\
+[a]
+var0 = "default_var0"
+var1 = "default_var1"
+var2 = "default_var2"
+"""
+
+
+TEST_CONFIG_SYSTEM = """\
+[a]
+var1 = "system_var1"
+"""
+
+
+TEST_CONFIG_USER = """\
+[a]
+var2 = "user_var2"
+
+[b]
+var3 = "user_var3"
+"""
+
+
+TEST_CONFIG_LOCAL = """\
+[b]
+var3 = "local_var3"
+
+[c]
+var4 = "local_var4"
+"""
+
+
+TEST_CONFIG_ENVIRON = """\
+CMDKIT_C_VAR4=env_var4
+CMDKIT_C_VAR5=env_var5
+"""
+
+
+TEST_CONFIG_SOURCES = {'system': TEST_CONFIG_SYSTEM,
+                       'user': TEST_CONFIG_USER,
+                       'local': TEST_CONFIG_LOCAL}
+
+
+def test_configuration_from_local() -> None:
+    """Test Configuration.from_local factory method."""
+
+    # initial local files
+    for label, data in TEST_CONFIG_SOURCES.items():
+        with open(f'{TMPDIR}/{label}.toml', mode='w') as output:
+            output.write(data)
+
+    # clean environment of any existing variables with the prefix
+    PREFIX = 'CMDKIT'
+    for var in dict(os.environ):
+        if var.startswith(PREFIX):
+            os.environ.pop(var)
+
+    # populate environment with test variables
+    for line in TEST_CONFIG_ENVIRON.strip().split('\n'):
+        field, value = line.strip().split('=')
+        os.environ[field] = value
+
+    # build configuration
+    default = Namespace.from_toml(StringIO(TEST_CONFIG_DEFAULT))
+    cfg = Configuration.from_local(default=default, env=True, prefix=PREFIX,
+                                   system=f'{TMPDIR}/system.toml',
+                                   user=f'{TMPDIR}/user.toml',
+                                   local=f'{TMPDIR}/local.toml')
+
+    # verify namespace isolation
+    assert cfg.namespaces['default'] == Namespace.from_toml(StringIO(TEST_CONFIG_DEFAULT))
+    assert cfg.namespaces['system'] == Namespace.from_toml(StringIO(TEST_CONFIG_SYSTEM))
+    assert cfg.namespaces['user'] == Namespace.from_toml(StringIO(TEST_CONFIG_USER))
+    assert cfg.namespaces['local'] == Namespace.from_toml(StringIO(TEST_CONFIG_LOCAL))
+    assert cfg.namespaces['env'] == Environ(PREFIX).reduce()
+
+    # verify parameter lineage
+    assert cfg['a']['var0'] == 'default_var0'
+    assert cfg['a']['var1'] == 'system_var1'
+    assert cfg['a']['var2'] == 'user_var2'
+    assert cfg['b']['var3'] == 'local_var3'
+    assert cfg['c']['var4'] == 'env_var4'
+    assert cfg['c']['var5'] == 'env_var5'
