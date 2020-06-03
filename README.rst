@@ -1,7 +1,7 @@
 CmdKit
 ======
 
-CmdKit is a library for developing command line utilities in Python.
+A library for developing command line utilities in Python.
 
 .. image:: https://img.shields.io/badge/license-Apache-blue.svg?style=flat
     :target: https://www.apache.org/licenses/LICENSE-2.0
@@ -23,7 +23,7 @@ CmdKit is a library for developing command line utilities in Python.
     :target: https://pepy.tech/badge/cmdkit
     :alt: Downloads
 
----
+|
 
 The *cmdkit* library implements a few common patterns needed for commandline tools in Python.
 The idea is to reduce the boilerplate needed to get a full featured CLI off the ground.
@@ -37,6 +37,7 @@ The primary features are:
    as well as automatic environment variable discovery.
 
 
+
 Installation
 ------------
 
@@ -46,6 +47,7 @@ To install *cmdkit* use *Pip*:
 
     ➜ pip install cmdkit
 
+|
 
 Documentation
 -------------
