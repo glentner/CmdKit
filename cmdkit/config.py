@@ -145,7 +145,7 @@ class Namespace(dict):
         """Output to local file. Format based on file extension."""
         ext = os.path.splitext(filepath)[1].lstrip('.')
         try:
-            factory = getattr(self, f'_to_{ext}')
+            factory = getattr(self, f'to_{ext}')
             return factory(filepath, **options)
         except AttributeError:
             raise NotImplementedError(f'{self.__class__.__name__} does not currently support "{ext}" files."')

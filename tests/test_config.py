@@ -225,6 +225,22 @@ def test_namespace_from_local() -> None:
             Namespace.from_local(f'{TMPDIR}/yaml.yaml') == Namespace.from_local(f'{TMPDIR}/yml.yml') ==
             Namespace.from_local(f'{TMPDIR}/json.json'))
 
+
+def test_namespace_to_local() -> None:
+    """Test Namespace.to_local dispatch method."""
+
+    # test round trip
+    for ftype in FACTORIES:
+        ns = Namespace(TEST_DICT)
+        ns.to_local(f'{TMPDIR}/{ftype}.{ftype}')
+        assert ns == Namespace.from_local(f'{TMPDIR}/{ftype}.{ftype}')
+
+    # test not implemented
+    with pytest.raises(NotImplementedError):
+        ns = Namespace(TEST_DICT)
+        ns.to_local(f'{TMPDIR}/config.special')
+
+
 def test_environ() -> None:
     """Test environment variable initialization along with Environ.reduce()."""
 
