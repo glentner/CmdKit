@@ -74,11 +74,10 @@ class Namespace(dict):
         a level deeper (recursive) and apply updates there instead.
         """
         for key, value in new.items():
-            if isinstance(value, Mapping) and isinstance(original.get(key), Mapping):
+            if isinstance(value, dict) and isinstance(original.get(key), dict):
                 original[key] = Namespace.__depth_first_update(original.get(key, {}), value)
             else:
                 original[key] = value
-
         return original
 
     def update(self, *args, **kwargs) -> None:
