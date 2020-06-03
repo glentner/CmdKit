@@ -176,9 +176,6 @@ FACTORIES = {'toml': TEST_TOML, 'tml': TEST_TOML,
 def test_namespace_factories() -> None:
     """Test all implemented factory equivalents."""
 
-    # base case
-    BASE = Namespace(TEST_DICT)
-
     # write all test data to local files
     for ftype, data in FACTORIES.items():
         with open(f'{TMPDIR}/{ftype}.{ftype}', mode='w') as output:
@@ -201,11 +198,11 @@ def test_namespace_from_local() -> None:
             os.remove(filepath)
 
     with pytest.raises(FileNotFoundError):
-        ns = Namespace.from_local(f'{TMPDIR}/toml.toml')
+        Namespace.from_local(f'{TMPDIR}/toml.toml')
     with pytest.raises(FileNotFoundError):
-        ns = Namespace.from_local(f'{TMPDIR}/yaml.yaml')
+        Namespace.from_local(f'{TMPDIR}/yaml.yaml')
     with pytest.raises(FileNotFoundError):
-        ns = Namespace.from_local(f'{TMPDIR}/json.json')
+        Namespace.from_local(f'{TMPDIR}/json.json')
 
     assert (Namespace() ==
             Namespace.from_local(f'{TMPDIR}/toml.toml', ignore_if_missing=True) ==
@@ -213,7 +210,7 @@ def test_namespace_from_local() -> None:
             Namespace.from_local(f'{TMPDIR}/json.json', ignore_if_missing=True))
 
     with pytest.raises(NotImplementedError):
-        ns = Namespace.from_local(f'{TMPDIR}/config.special')
+        Namespace.from_local(f'{TMPDIR}/config.special')
 
     # write all test data to local files
     for ftype, data in FACTORIES.items():
