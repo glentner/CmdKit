@@ -12,20 +12,20 @@
 Application class implementation.
 """
 
-# allow for return annotations
+# type annotations
 from __future__ import annotations
+from typing import List, Dict, Callable, NamedTuple
 
 # standard libs
 import abc
-from typing import NamedTuple, List, Dict, Callable
+
 
 # internal libs
 from . import cli
-from . import config
 from .logging import log
 
 
-class exit_status:
+class ExitStatus(NamedTuple):
     """Collection of exit status values."""
     success:            int = 0
     usage:              int = 1
@@ -34,6 +34,10 @@ class exit_status:
     keyboard_interrupt: int = 4
     runtime_error:      int = 5
     uncaught_exception: int = 6
+
+
+# global shared instance
+exit_status = ExitStatus()
 
 
 class Application(abc.ABC):
