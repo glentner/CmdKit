@@ -125,3 +125,41 @@ class Application(abc.ABC):
     def __exit__(self, *exc) -> None:
         """Release resources."""
         pass
+
+
+class CompletedCommand(Exception):
+    """Contains the exit status of a member application's main method."""
+
+
+class ApplicationGroup(Application):
+    """
+    A group entry-point delegates to member `Applications`.
+    """
+
+    interface: cli.Interface = None
+    commands: Dict[str, Application] = None
+    command: str = None
+    cmdline: List[str] = None
+
+    exceptions = {
+        CompletedCommand: (lambda cmd: int(cmd.args[0]))
+    }
+
+    @classmethod
+    def from_cmdline(cls, cmdline: List[str] = None) -> Application:
+        """Initialize via command line arguments (e.g., `sys.argv`)."""
+        if not cmdline:
+            return super().from_cmdline(cmdline)
+        else:
+            first, *remainder = cmdline
+            self = super().from_cmdline([first])
+            self.cmdline = list(remainder)
+            return self
+
+    def run(self) -> None:
+        """Delegate to member application."""
+        if self.command in self.commands:
+            status = self.commands[self.command].main(self.cmdline)
+            raise CompletedCommand(status)
+        else:
+            raise cli.ArgumentError(f'unrecognized command: {self.command}')
