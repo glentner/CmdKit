@@ -43,14 +43,19 @@ exit_status = ExitStatus()
 class Application(abc.ABC):
     """
     Abstract base class for all application interfaces.
+
+    An application is typically initialized with one of the factory methods
+    :func:`~from_namespace` or :func:`~from_cmdline`. These parse command line
+    arguments using the member :class:`~Interface`. Direct initialization takes
+    named parameters that are simple assigned to the instance. These should be
+    existing class-level attributes with annotations.
     """
 
     interface: cli.Interface = None
     ALLOW_NOARGS: bool = False
 
     exceptions: Dict[Exception, Callable[[Exception], int]] = dict()
-    log_error: Callable[[str], None] = log.critical  # pylint: disable=no-member
-
+    log_error: Callable[[str], None] = log.critical
 
     def __init__(self, **parameters) -> None:
         """Direct initialization sets `parameters`."""
@@ -94,6 +99,7 @@ class Application(abc.ABC):
 
         except cli.ArgumentError as error:
             cls.log_error(error)
+
             return exit_status.bad_argument
 
         except KeyboardInterrupt:
