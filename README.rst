@@ -55,7 +55,7 @@ Installation
 
 *CmdKit* is built on Python 3.7+ and can be installed using Pip.
 
-.. code-block:: none
+.. code-block::
 
     ➜ pip install cmdkit
 
