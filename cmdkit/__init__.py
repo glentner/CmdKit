@@ -11,6 +11,10 @@
 """Package initialization for CmdKit."""
 
 
+from .__meta__ import (__pkgname__, __version__, __authors__, __contact__,\
+                       __license__, __copyright__, __description__)
+
 import sys
 if sys.version_info < (3, 7):
     raise SystemError('cmdkit requires at least Python 3.7 to run.')
+

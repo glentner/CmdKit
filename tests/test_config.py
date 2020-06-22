@@ -437,9 +437,10 @@ def test_configuration_from_local() -> None:
     assert cfg.namespaces['env'] == Environ(PREFIX).reduce()
 
     # verify parameter lineage
-    assert cfg['a']['var0'] == 'default_var0'
-    assert cfg['a']['var1'] == 'system_var1'
-    assert cfg['a']['var2'] == 'user_var2'
-    assert cfg['b']['var3'] == 'local_var3'
-    assert cfg['c']['var4'] == 'env_var4'
-    assert cfg['c']['var5'] == 'env_var5'
+    assert cfg['a']['var0'] == 'default_var0' and cfg.which('a', 'var0') == 'default'
+    assert cfg['a']['var1'] == 'system_var1' and cfg.which('a', 'var1') == 'system'
+    assert cfg['a']['var2'] == 'user_var2' and cfg.which('a', 'var2') == 'user'
+    assert cfg['b']['var3'] == 'local_var3' and cfg.which('b', 'var3') == 'local'
+    assert cfg['c']['var4'] == 'env_var4' and cfg.which('c', 'var4') == 'env'
+    assert cfg['c']['var5'] == 'env_var5' and cfg.which('c', 'var5') == 'env'
+

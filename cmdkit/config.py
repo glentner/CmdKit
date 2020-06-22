@@ -9,7 +9,7 @@
 # If not, see <https://www.apache.org/licenses/LICENSE-2.0>.
 
 """
-Configuration management. Classes and interfaces for management application level
+Configuration management. Classes and interfaces for managing application level
 parameters. Get a runtime configuration with a namespace-like interface from both
 local files and your environment.
 """
@@ -33,12 +33,19 @@ DictKeyIterator: type = type(iter({}))
 
 class Namespace(dict):
     """
-    A dictionary with depth-first updates.
+    A dictionary with depth-first updates and factory methods.
 
     Example:
-    >>> ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': 3})
-    >>> ns.update({'a': {'x': 4, 'z': 5}})
-    Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
+        >>> ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': 3})
+        >>> ns.update({'a': {'x': 4, 'z': 5}})
+        Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
+
+        >>> Namespace.from_local('config.toml', ignore_if_missing=True)
+        Namespace({})
+
+        >>> ns.to_local('config.toml')
+        >>> Namespace.from_local('config.toml', ignore_if_missing=True)
+        Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
     """
 
     def __init__(self, *args: Union[Iterable, Mapping], **kwargs: Any) -> None:
@@ -85,11 +92,17 @@ class Namespace(dict):
     @classmethod
     def from_env(cls, prefix: str = '', defaults: dict = None) -> Namespace:
         """
-        Create a `Namespace` from `os.environ`, optionally exclude variables
-        based on their name using `prefix`.
+        Create a :class:`~Namespace` from ``os.environ``, optionally filter
+        variables based on their name using ``prefix``.
 
-        The `defaults` will be used if variables are not found in the
-        environment.
+        Example:
+            >>> env = Namespace.from_env(prefix='MYAPP', defaults={
+            ...         'MYAPP_LOGGING_LEVEL': 'WARNING', })
+            >>> env
+            Namespace({'MYAPP_LOGGING_LEVEL': 'WARNING', 'MYAPP_COUNT': '42'})
+
+        See Also:
+            :class:`~Environ`: adds :func:`~Environ.reduce` method
         """
         env = cls(defaults or {})
         if not prefix:
@@ -190,37 +203,55 @@ ValueType = TypeVar('ValueType', str, int, float, bool, type(None))
 
 class Environ(Namespace):
     """
-    A Namespace initialize via Namespace.from_env. The special method
-    `.reduce` melts the normalized variables by splitting on underscores.
+    A Namespace initialized via :func:`~Namespace.from_env`.
+    The special method :func:`~reduce` melts the normalized variables
+    by splitting on underscores.
 
-    Example
-    -------
-    >>> from cmdkit.config import Environ
-    >>> env = Environ('MYAPP')
-    >>> env
-    Environ({'MYAPP_A_X': 1, 'MYAPP_A_Y': 2, 'MYAPP_B': 3})
+    Example:
+        >>> from cmdkit.config import Environ
+        >>> env = Environ('MYAPP')
+        >>> env
+        Environ({'MYAPP_A_X': '1', 'MYAPP_A_Y': '2', 'MYAPP_B': '3'})
 
-    >>> env.reduce()
-    Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
+        >>> env.reduce()
+        Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
     """
 
     # remembers the prefix for use with `.reduce`
     _prefix: str = ''
 
-    def __init__(self, prefix: str = '', defaults: dict = None) -> None:
-        """Built via `Namespace.from_env`."""
+    def __init__(self, prefix: str = '', defaults: Namespace = None) -> None:
+        """Built via :func:`~Namespace.from_env`."""
         self._prefix = prefix
         ns = Namespace.from_env(prefix=prefix, defaults=defaults)
         super().__init__(ns)
 
     def reduce(self, converter: Callable[[str], Any] = None) -> Namespace:
-        """De-normalize the key-value pairs as a deep dictionary."""
+        """
+        De-normalize the key-value pairs into a nested dictionary.
+        The ``prefix`` is stripped away and structure is derived by
+        splitting on underscores.
+
+        The `converter` should be a function that accepts an input value
+        and returns a new value appropriately coerced. The default converter
+        attempts first to coerce a value to an integer if possible, then
+        a float, with the exception of the following special values.
+        Otherwise, the string remains.
+
+        ======================== ========================
+        Input Value              Output Value
+        ======================== ========================
+        ``''``, ``'null'``       ``None``
+        ``'true'`` / ``'false'`` ``True`` / ``False``
+        ======================== ========================
+        """
         coerced = converter or self._coerced
         ns = Namespace()
         for key, value in self.items():
             prefix, *sections = key.split('_')
             base = {}
-            reduce(lambda d, k: d.setdefault(k.lower(), {}), sections[:-1], base)[sections[-1].lower()] = coerced(value)
+            reduce(lambda d, k: d.setdefault(k.lower(), {}),
+                   sections[:-1], base)[sections[-1].lower()] = coerced(value)
             ns.update(base)
         return ns
 
@@ -246,17 +277,17 @@ class Environ(Namespace):
 class Configuration:
     """
     An ordered collection of `Namespace` dictionaries.
+    The update behavior of :class:`~Namespace` is used to
+    provide a layering effect for configuration parameters.
 
-    Example
-    -------
-    >>> import os
-    >>> from cmdkit.config import Configuration
-    >>> HOME, CWD = os.getenv('HOME'), os.getcwd()
-    >>> cfg = Configuration.from_local(default={},
-    ...                                system='/etc/myapp.yml',
-    ...                                user=f'{HOME}/.myapp.yml',
-    ...                                local=f'{CWD}/.myapp.yml',
-    ...                                env=True, prefix='MYAPP')
+    Example:
+        >>> from cmdkit.config import Namespace, Configuration
+        >>> cfg = Configuration(A=Namespace({'x': 1, 'y': 2}),
+        ...                     B=Namespace({'x': 3, 'z': 4})
+        >>> cfg['x'], cfg['y'], cfg['z']
+        (3, 2, 4)
+        >>> cfg.namespaces['A']['x']
+        1
     """
 
     _namespaces: Namespace = None
@@ -270,41 +301,109 @@ class Configuration:
 
     @property
     def namespaces(self) -> Dict[str, Namespace]:
-        """Access to namespaces."""
+        """
+        Access to namespaces.
+
+        Example:
+            >>> cfg.namespaces['A']
+            Namespace({'x': 1, 'y': 2})
+        """
         return self._namespaces
 
     def __getitem__(self, key: str) -> Any:
-        """Access parameter from Configuration."""
+        """
+        Access parameter from Configuration.
+
+        Example:
+            >>> cfg['x']
+            3
+        """
         return self._master[key]
 
     def __repr__(self) -> str:
         """String representation of Configuration."""
-        kwargs = ', '.join([f'{k} = ' + v.__repr__()
-                            for k, v in self.namespaces.items()])
-        return f'Configuration({kwargs})'
+        kwargs = ', '.join([f'{k} = ' + v.__repr__() for k, v in self.namespaces.items()])
+        return f'{self.__class__.__name__}({kwargs})'
 
     def keys(self) -> DictKeys:
-        """A set-like object providing a view on the merged keys"""
+        """
+        A set-like object providing a view on the merged keys.
+
+        Example:
+            >>> cfg.keys()
+            dict_keys(['A', 'B'])
+        """
         return self._master.keys()
 
     def values(self) -> DictValues:
-        """An object providing a view on the merged values"""
+        """
+        An object providing a view on the merged values.
+
+        Example:
+            >>> cfg.values()
+            dict_values(['x', 'y', 'z'])
+        """
         return self._master.values()
 
-    def extend(self, **others: dict) -> None:
-        """Apply update to master dict with `other`."""
+    def extend(self, **others: Namespace) -> None:
+        """
+        Extend the configuration by adding namespaces.
+
+        Example:
+            >>> cfg.extend(C=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}}))
+            >>> cfg
+            Configuration(A=Namespace({'x': 1, 'y': 2}),
+                          B=Namespace({'x': 3, 'z': 4}),
+                          C=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}})
+        """
         for name, mapping in others.items():
             self._namespaces[name] = Namespace(mapping)
             self._master.update(self.namespaces[name])
 
     @classmethod
     def from_local(cls, *, env: bool = False, prefix: str = None,
-                   default: Mapping = None, **files: str) -> Configuration:
-        """Create configuration from cascade of `files`. Optionally include `env`."""
+                   default: Namespace = None, **files: str) -> Configuration:
+        """
+        Create configuration from a cascade of `files`. Optionally include `env`.
+
+        Example:
+            >>> import os
+            >>> HOME, CWD = os.getenv('HOME'), os.getcwd()
+            >>> cfg = Configuration.from_local(
+            ...             default=None, env=True, prefix='MYAPP',
+            ...             system='/etc/myapp.yml',
+            ...             user=f'{HOME}/.myapp.yml',
+            ...             local=f'{CWD}/.myapp.yml')
+        """
         default_ = Namespace() if not default else Namespace(default)
         cfg = cls(default=default_)
         for label, filepath in files.items():
             cfg.extend(**{label: Namespace.from_local(filepath, ignore_if_missing=True)})
         if env:
-            cfg.extend(**{'env': Environ(prefix).reduce()})
+            cfg.extend(env=Environ(prefix).reduce())
         return cfg
+
+    def which(self, *path: str) -> str:
+        """
+        Derive which member namespace takes precedent for the given variable.
+
+        Example:
+            >>> cfg.which('x')
+            'B'
+
+            >>> cfg.which('y')
+            'C'
+
+            >>> cfg.which('u', 'i')
+            'C'
+        """
+        for label in reversed(self.namespaces):
+            try:
+                sub = self.namespaces[label]
+                for p in path:
+                    sub = sub[p]
+                return label
+            except KeyError:
+                pass
+        else:
+            raise KeyError(f'not found: {path}')

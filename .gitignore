@@ -3,17 +3,15 @@
 .pytest_cache/
 .vscode/
 .idea/
+.ropeproject/
 
 # build files
 *.egg-info/
 build/
 dist/
-*.egg-info/
-docs/_build/
 
 # cache
 __pycache__/
 
 # pipenv
-Pipfile.lock
 .env

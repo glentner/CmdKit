@@ -11,6 +11,7 @@
 """Build and installation script for CmdKit."""
 
 # standard libs
+import os
 from setuptools import setup, find_packages
 
 # internal libs
@@ -22,8 +23,17 @@ from cmdkit.__meta__ import (__pkgname__,
                              __description__)
 
 
-with open('README.md', mode='r') as readme:
+with open('README.rst', mode='r') as readme:
     long_description = readme.read()
+
+
+# core dependencies
+DEPENDENCIES = ['logalpha>=2.0.2', ]
+
+
+# add dependencies for readthedocs.io
+if os.environ.get('READTHEDOCS') == 'True':
+    DEPENDENCIES.extend(['pydata-sphinx-theme'])
 
 
 setup(
@@ -37,7 +47,6 @@ setup(
     url              = 'https://cmdkit.readthedocs.io',
     packages         = find_packages(),
     long_description = long_description,
-    long_description_content_type='text/markdown',
     classifiers      = ['Development Status :: 5 - Production/Stable',
                         'Topic :: Software Development :: Libraries :: Application Frameworks',
                         'Programming Language :: Python :: 3',
@@ -45,7 +54,7 @@ setup(
                         'Programming Language :: Python :: 3.8',
                         'License :: OSI Approved :: Apache Software License', ],
     entry_points     = {'console_scripts': []},
-    install_requires = ['logalpha>=2.0.2', ],
+    install_requires = DEPENDENCIES,
     extras_require  = {
         'toml': ['toml', ],
         'yaml': ['pyyaml', ],

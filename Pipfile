@@ -4,19 +4,19 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-cmdkit = {editable = true,path = "."}
 toml = "*"
 pyyaml = "*"
 pytest = "*"
 pylint = "*"
 hypothesis = "*"
 sphinx = "*"
-sphinx-rtd-theme = "*"
 ipython = "*"
 twine = "*"
+pydata-sphinx-theme = "*"
 
 [packages]
 logalpha = ">=2.0.2"
+cmdkit = {editable = true, path = "."}
 
 [requires]
 python_version = "3.8"

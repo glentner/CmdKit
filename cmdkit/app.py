@@ -12,20 +12,20 @@
 Application class implementation.
 """
 
-# allow for return annotations
+# type annotations
 from __future__ import annotations
+from typing import List, Dict, Callable, NamedTuple
 
 # standard libs
 import abc
-from typing import NamedTuple, List, Dict, Callable
+
 
 # internal libs
 from . import cli
-from . import config
 from .logging import log
 
 
-class exit_status:
+class ExitStatus(NamedTuple):
     """Collection of exit status values."""
     success:            int = 0
     usage:              int = 1
@@ -36,17 +36,26 @@ class exit_status:
     uncaught_exception: int = 6
 
 
+# global shared instance
+exit_status = ExitStatus()
+
+
 class Application(abc.ABC):
     """
     Abstract base class for all application interfaces.
+
+    An application is typically initialized with one of the factory methods
+    :func:`~from_namespace` or :func:`~from_cmdline`. These parse command line
+    arguments using the member :class:`~Interface`. Direct initialization takes
+    named parameters that are simple assigned to the instance. These should be
+    existing class-level attributes with annotations.
     """
 
     interface: cli.Interface = None
     ALLOW_NOARGS: bool = False
 
     exceptions: Dict[Exception, Callable[[Exception], int]] = dict()
-    log_error: Callable[[str], None] = log.critical  # pylint: disable=no-member
-
+    log_error: Callable[[str], None] = log.critical
 
     def __init__(self, **parameters) -> None:
         """Direct initialization sets `parameters`."""
@@ -90,6 +99,7 @@ class Application(abc.ABC):
 
         except cli.ArgumentError as error:
             cls.log_error(error)
+
             return exit_status.bad_argument
 
         except KeyboardInterrupt:
@@ -115,3 +125,41 @@ class Application(abc.ABC):
     def __exit__(self, *exc) -> None:
         """Release resources."""
         pass
+
+
+class CompletedCommand(Exception):
+    """Contains the exit status of a member application's main method."""
+
+
+class ApplicationGroup(Application):
+    """
+    A group entry-point delegates to member `Applications`.
+    """
+
+    interface: cli.Interface = None
+    commands: Dict[str, Application] = None
+    command: str = None
+    cmdline: List[str] = None
+
+    exceptions = {
+        CompletedCommand: (lambda cmd: int(cmd.args[0]))
+    }
+
+    @classmethod
+    def from_cmdline(cls, cmdline: List[str] = None) -> Application:
+        """Initialize via command line arguments (e.g., `sys.argv`)."""
+        if not cmdline:
+            return super().from_cmdline(cmdline)
+        else:
+            first, *remainder = cmdline
+            self = super().from_cmdline([first])
+            self.cmdline = list(remainder)
+            return self
+
+    def run(self) -> None:
+        """Delegate to member application."""
+        if self.command in self.commands:
+            status = self.commands[self.command].main(self.cmdline)
+            raise CompletedCommand(status)
+        else:
+            raise cli.ArgumentError(f'unrecognized command: {self.command}')

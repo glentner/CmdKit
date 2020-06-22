@@ -27,21 +27,19 @@ Namespace = _argparse.Namespace
 
 
 class HelpOption(Exception):
-    """Raised when the `-h|--help` flag is given."""
+    """Raised by :class:`~Interface` when the help option is passed."""
 
 class VersionOption(Exception):
-    """Raised when the `--version` flag is given."""
+    """Raised by :class:`~Interface` whenever ``action='version'``."""
 
 class ArgumentError(Exception):
-    """Exceptions originating from `argparse`."""
+    """Raised by :class:`~Interface` on bad arguments."""
 
 
+# override version action to raise instead
 def _version_action(self, parser, namespace, values, option_string=None) -> None:
     raise VersionOption(self.version if self.version is not None else parser.version)
-
-
-# override version action to raise exception
-_argparse._VersionAction.__call__ = _version_action
+_argparse._VersionAction.__call__ = _version_action  # noqa (protected)
 
 
 class Interface(_argparse.ArgumentParser):
@@ -51,7 +49,7 @@ class Interface(_argparse.ArgumentParser):
 
     Example:
         >>> from cmdkit.cli import Interface
-        >>> interface = Interface('my_app', 'usage: ...', 'help: ...')
+        >>> interface = Interface('myapp', 'usage: myapp ...', 'help: ...')
         >>> interface.add_argument('--verbose', action='store_true')
     """
 

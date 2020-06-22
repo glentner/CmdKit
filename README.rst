@@ -1,7 +1,7 @@
 CmdKit
 ======
 
-Release v\ |release|. (:ref:`Tutorial <tutorial>`)
+A library for developing command line utilities in Python.
 
 .. image:: https://img.shields.io/badge/license-Apache-blue.svg?style=flat
     :target: https://www.apache.org/licenses/LICENSE-2.0
@@ -31,18 +31,18 @@ The idea is to reduce the boilerplate needed to get a full featured CLI off the 
 Applications developed using *cmdkit* are easy to implement, easy to maintain, and easy to
 understand.
 
+|
+
 -------------------
 
 Features
 --------
 
-- An :class:`~cmdkit.cli.Interface` class for parsing commandline arguments.
-- An :class:`~cmdkit.app.Application` class that provides the boilerplate for
-  a good entry-point.
-- Basic :mod:`~cmdkit.logging`.
-- A :class:`~cmdkit.config.Configuration` class built on top of a
-  :class:`~cmdkit.config.Namespace` class that provides
-  automatic depth-first merging of dictionaries from local files,
+- An ``~cmdkit.cli.Interface`` class for parsing commandline arguments.
+- An ``~cmdkit.app.Application`` class that provides the boilerplate for a good entry-point.
+- Basic ``~cmdkit.logging``.
+- A ``~cmdkit.config.Configuration`` class built on top of a ``~cmdkit.config.Namespace``
+  class that provides automatic depth-first merging of dictionaries from local files,
   as well as automatic environment variable discovery.
 
 |
@@ -65,7 +65,7 @@ Installation
 Getting Started
 ---------------
 
-Checkout the :ref:`Tutorial <tutorial>` for examples.
+Checkout the `Tutorial <https://cmdkit.readthedocs.io/tutorial>`_ for examples.
 
 You can also checkout how `cmdkit` is being used by other projects.
 
@@ -79,16 +79,24 @@ Project                                                   Description
 `delete-cli <https://github.com/glentner/delete-cli>`_    A simple, cross-platform, commandline move-to-trash.
 ========================================================  =======================================================
 
+|
 
 -------------------
 
+Documentation
+-------------
+
+Documentation for getting started, the API, and common recipes are available at
+`cmdkit.readthedocs.io <https://cmdkit.readthedocs.io>`_.
+
 |
 
-**Table of Contents**
+-------------------
 
-.. toctree::
+Contributions
+-------------
 
-    api/index
-    tutorial/index
-    contributing
-    license
+Contributions are welcome in the form of suggestions for additional features, pull requests with
+new features or bug fixes, etc. If you find bugs or have questions, open an *Issue* here. If and
+when the project grows, a code of conduct will be provided along side a more comprehensive set of
+guidelines for contributing; until then, just be nice.

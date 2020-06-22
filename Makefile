@@ -4,7 +4,7 @@ install:
 	@pipenv install --dev
 
 test:
-	@pipenv run pytest
+	@pipenv run pytest -v
 
 dist:
 	@pipenv run setup.py sdist bdist_wheel
