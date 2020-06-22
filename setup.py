@@ -22,7 +22,7 @@ from cmdkit.__meta__ import (__pkgname__,
                              __description__)
 
 
-with open('README.md', mode='r') as readme:
+with open('README.rst', mode='r') as readme:
     long_description = readme.read()
 
 
