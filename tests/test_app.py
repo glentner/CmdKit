@@ -19,7 +19,7 @@ import pytest
 from hypothesis import given, strategies
 
 # internal libs
-from cmdkit.app import Application, exit_status
+from cmdkit.app import Application, ApplicationGroup, exit_status
 from cmdkit.cli import Interface, ArgumentError
 
 
@@ -38,13 +38,14 @@ usage: demo_app <arg_1> [-o | --option VALUE] [-d | --debug]
 DEMO_HELP = f"""\
 {DEMO_USAGE}
 
-Options:
+options:
 <arg_1>               First input argument.
 
 -o, --option VALUE    Some option with a value.
 -d, --debug           Turn on debugging messages.
 -h, --help            Show this message and exit.
 """
+
 
 class DemoApp(Application):
     """Fixture for Application class to run unit tests against."""
@@ -63,6 +64,18 @@ class DemoApp(Application):
     def run(self) -> None:
         """Business logic of application."""
         pass
+
+
+class FileApp(DemoApp):
+    """DemoApp opens a non-existent file."""
+    def run(self) -> None:
+        with open('NONEXISTENT-FILE', mode='r') as source:
+            pass
+
+
+class FileAppWithExceptionHandling(FileApp):
+    """FileApp catches FileNotFoundError."""
+    exceptions = {FileNotFoundError: (lambda exc: 1)}
 
 
 def test_app_noargs(capsys) -> None:
@@ -158,3 +171,199 @@ def test_app_invalid_options(opt):
         with pytest.raises(ArgumentError):
             with DemoApp.from_cmdline(['arg_1', f'--{opt}']) as app:
                 pass
+
+
+def test_app_exceptions() -> None:
+    """Test exception handling."""
+    with pytest.raises(FileNotFoundError):
+        FileApp.main(['-'])
+    status = FileAppWithExceptionHandling.main(['-'])
+    assert status == 1
+
+
+CMD1 = 'aaaa'
+CMD1_USAGE = """\
+usage: app aaaa [-h] ARG [-d] [-o VALUE]
+Subcommand one.
+"""
+CMD1_HELP = """\
+{CMD1_USAGE}
+options:
+ARG                   Some positional argument.
+
+-o, --option VALUE    Some option with a value.
+-d, --debug           Turn on debugging messages.
+-h, --help            Show this message and exit.
+"""
+
+
+class Command1(Application):
+
+    interface = Interface(CMD1, CMD1_USAGE, CMD1_HELP)
+
+    arg: str = None
+    interface.add_argument('arg')
+
+    option: int = 42  # arbitrary
+    interface.add_argument('-o', '--option', type=int, default=option)
+
+    debug: bool = False
+    interface.add_argument('-d', '--debug', action='store_true')
+
+    def run(self) -> None:
+        print(f'arg: {self.arg}, option:{self.option}, debug:{self.debug}')
+
+
+CMD2 = 'bbbb'
+CMD2_USAGE = """\
+usage: app bbbb [-h] ARG [-d] [-o VALUE]
+Subcommand two.
+"""
+CMD2_HELP = """\
+{CMD2_USAGE}
+options:
+ARG                   Some positional argument.
+
+-o, --option VALUE    Some option with a value.
+-d, --debug           Turn on debugging messages.
+-h, --help            Show this message and exit.
+"""
+
+
+class Command2(Application):
+
+    interface = Interface(CMD2, CMD2_USAGE, CMD2_HELP)
+
+    arg: str = None
+    interface.add_argument('arg')
+
+    option: int = 42  # arbitrary
+    interface.add_argument('-o', '--option', type=int, default=option)
+
+    debug: bool = False
+    interface.add_argument('-d', '--debug', action='store_true')
+
+    def run(self) -> None:
+        print(f'arg: {self.arg}, option:{self.option}, debug:{self.debug}')
+
+
+APP = 'app'
+APP_USAGE = """\
+usage: app [-h] <command> [<options>...]
+Some application.
+"""
+APP_HELP = """\
+{CMD2_USAGE}
+commands:
+aaaa                  Subcommand one.
+bbbb                  Subcommand two.
+
+options:
+-v, --version         Show version number and exit.
+-h, --help            Show this message and exit.
+"""
+
+class Group(ApplicationGroup):
+
+    interface = Interface(APP, APP_USAGE, APP_HELP)
+    commands = {CMD1: Command1, CMD2: Command2}
+
+    command: str = None
+    interface.add_argument('command')
+
+    version: str = '1.2.3'
+    interface.add_argument('-v', '--version', action='version', version=version)
+
+
+def test_app_group_noargs() -> None:
+    """Initialize and run the application."""
+    with pytest.raises(ArgumentError):
+        Group.from_cmdline([])
+
+
+def test_app_group_usage(capsys) -> None:
+    """Usage statement printed to <stdout> on no arguments."""
+    status = Group.main([])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == APP_USAGE.strip()
+    assert status == exit_status.usage
+
+
+def test_app_group_help_1(capsys) -> None:
+    """Help statement printed to <stdout> with `-h`."""
+    status = Group.main(['-h'])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == APP_HELP.strip()
+    assert status == exit_status.success
+
+
+def test_app_group_help_2(capsys) -> None:
+    """Help statement printed to <stdout> with `--help`."""
+    status = Group.main(['--help'])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == APP_HELP.strip()
+    assert status == exit_status.success
+
+
+def test_app_group_version_1(capsys) -> None:
+    """Version number printed to <stdout> with `-v`."""
+    status = Group.main(['-v'])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == Group.version
+    assert status == exit_status.success
+
+
+def test_app_group_version_2(capsys) -> None:
+    """Version number printed to <stdout> with `--version`."""
+    status = Group.main(['--version'])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == Group.version
+    assert status == exit_status.success
+
+
+def test_app_group_cmd1_usage(capsys) -> None:
+    """Usage statement printed to <stdout> on no arguments."""
+    status = Group.main([CMD1])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == CMD1_USAGE.strip()
+    assert status == exit_status.usage
+
+
+def test_app_group_cmd1_help_1(capsys) -> None:
+    """Help statement printed to <stdout> with `-h`."""
+    status = Group.main([CMD1, '-h'])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == CMD1_HELP.strip()
+    assert status == exit_status.success
+
+
+def test_app_group_cmd1_help_2(capsys) -> None:
+    """Help statement printed to <stdout> with `--help`."""
+    status = Group.main([CMD1, '--help'])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == CMD1_HELP.strip()
+    assert status == exit_status.success
+
+
+def test_app_group_cmd2_usage(capsys) -> None:
+    """Usage statement printed to <stdout> on no arguments."""
+    status = Group.main([CMD2])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == CMD2_USAGE.strip()
+    assert status == exit_status.usage
+
+
+def test_app_group_cmd2_help_1(capsys) -> None:
+    """Help statement printed to <stdout> with `-h`."""
+    status = Group.main([CMD2, '-h'])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == CMD2_HELP.strip()
+    assert status == exit_status.success
+
+
+def test_app_group_cmd2_help_2(capsys) -> None:
+    """Help statement printed to <stdout> with `--help`."""
+    status = Group.main([CMD2, '--help'])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == CMD2_HELP.strip()
+    assert status == exit_status.success
