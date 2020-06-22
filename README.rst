@@ -38,7 +38,7 @@ Features
 
 - An `Interface <https://cmdkit.readthedocs.io/en/latest/api/cli.html#cmdkit.cli.Interface>`_
   class for parsing command line arguments.
-- An `Application <https://cmdkit.readthedocs.io/en/latest/api/cli.html#cmdkit.app.Application>`_
+- An `Application <https://cmdkit.readthedocs.io/en/latest/api/app.html#cmdkit.app.Application>`_
   class that provides the boilerplate for a good entry-point.
 - Basic `Logging <https://cmdkit.readthedocs.io/en/latest/api/logging.html>`_ via the
   `logalpha <https://logalpha.readthedocs.io>`_ package.
