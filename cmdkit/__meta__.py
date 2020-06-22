@@ -12,7 +12,7 @@
 
 
 __pkgname__   = 'cmdkit'
-__version__   = '1.5.2'
+__version__   = '1.5.3'
 __authors__   = 'Geoffrey Lentner'
 __contact__   = '<glentner@gmail.com>'
 __license__   = 'Apache License'
