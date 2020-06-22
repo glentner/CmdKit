@@ -39,7 +39,7 @@ Features
 - An :class:`~cmdkit.cli.Interface` class for parsing commandline arguments.
 - An :class:`~cmdkit.app.Application` class that provides the boilerplate for
   a good entry-point.
-- Basic :mod:`~cmdkit.logging`via the `logalpha <https://logalpha.readthedocs.io>`_ package.
+- Basic :mod:`~cmdkit.logging` via the `logalpha <https://logalpha.readthedocs.io>`_ package.
 - A :class:`~cmdkit.config.Configuration` class built on top of a
   :class:`~cmdkit.config.Namespace` class that provides
   automatic depth-first merging of dictionaries from local files,
