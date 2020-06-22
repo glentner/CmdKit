@@ -33,21 +33,22 @@ understand.
 
 |
 
--------------------
-
 Features
 --------
 
-- An ``~cmdkit.cli.Interface`` class for parsing commandline arguments.
-- An ``~cmdkit.app.Application`` class that provides the boilerplate for a good entry-point.
-- Basic ``~cmdkit.logging``.
-- A ``~cmdkit.config.Configuration`` class built on top of a ``~cmdkit.config.Namespace``
+- An `Interface <https://cmdkit.readthedocs.io/en/latest/api/cli.html#cmdkit.cli.Interface>`_
+  class for parsing command line arguments.
+- An `Application <https://cmdkit.readthedocs.io/en/latest/api/cli.html#cmdkit.app.Application>`_
+  class that provides the boilerplate for a good entry-point.
+- Basic `Logging <https://cmdkit.readthedocs.io/en/latest/api/logging.html>`_ via the
+  `logalpha <https://logalpha.readthedocs.io>`_ package.
+- A `Configuration <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Configuration>`_
+  class built on top of a
+  `Namespace <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Namespace>`_
   class that provides automatic depth-first merging of dictionaries from local files,
-  as well as automatic environment variable discovery.
+  as well as automatic environment variable discovery and type-coercion.
 
 |
-
--------------------
 
 Installation
 ------------
@@ -60,12 +61,10 @@ Installation
 
 |
 
--------------------
-
 Getting Started
 ---------------
 
-Checkout the `Tutorial <https://cmdkit.readthedocs.io/tutorial>`_ for examples.
+Checkout the `Tutorial <https://cmdkit.readthedocs.io/en/latest/tutorial/>`_ for examples.
 
 You can also checkout how `cmdkit` is being used by other projects.
 
@@ -81,7 +80,6 @@ Project                                                   Description
 
 |
 
--------------------
 
 Documentation
 -------------
@@ -90,8 +88,6 @@ Documentation for getting started, the API, and common recipes are available at
 `cmdkit.readthedocs.io <https://cmdkit.readthedocs.io>`_.
 
 |
-
--------------------
 
 Contributions
 -------------
