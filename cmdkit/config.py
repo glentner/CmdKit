@@ -96,9 +96,8 @@ class Namespace(dict):
         variables based on their name using ``prefix``.
 
         Example:
-            >>> env = Namespace.from_env(prefix='MYAPP', defaults={
-            ...         'MYAPP_LOGGING_LEVEL': 'WARNING', })
-            >>> env
+            >>> Namespace.from_env(prefix='MYAPP',
+            ...     defaults={'MYAPP_LOGGING_LEVEL': 'WARNING', })
             Namespace({'MYAPP_LOGGING_LEVEL': 'WARNING', 'MYAPP_COUNT': '42'})
 
         See Also:
@@ -247,8 +246,9 @@ class Environ(Namespace):
         """
         coerced = converter or self._coerced
         ns = Namespace()
+        offset = len(self._prefix) + 1
         for key, value in self.items():
-            prefix, *sections = key.split('_')
+            sections = key[offset:].split('_')
             base = {}
             reduce(lambda d, k: d.setdefault(k.lower(), {}),
                    sections[:-1], base)[sections[-1].lower()] = coerced(value)
