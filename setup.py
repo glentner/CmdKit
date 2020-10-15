@@ -28,7 +28,7 @@ with open('README.rst', mode='r') as readme:
 
 
 # core dependencies
-DEPENDENCIES = ['logalpha>=2.0.2', ]
+DEPENDENCIES = ['logalpha==2.0.2', ]
 
 
 # add dependencies for readthedocs.io
@@ -53,11 +53,12 @@ setup(
                         'Programming Language :: Python :: 3',
                         'Programming Language :: Python :: 3.7',
                         'Programming Language :: Python :: 3.8',
+                        'Programming Language :: Python :: 3.9',
                         'License :: OSI Approved :: Apache Software License', ],
     entry_points     = {'console_scripts': []},
     install_requires = DEPENDENCIES,
     extras_require  = {
-        'toml': ['toml', ],
-        'yaml': ['pyyaml', ],
+        'toml': ['toml>=0.10.1', ],
+        'yaml': ['pyyaml>=5.3.1', ],
     },
 )
