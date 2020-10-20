@@ -9,4 +9,3 @@ Complete API reference for `cmdkit`.
     app
     cli
     config
-    logging

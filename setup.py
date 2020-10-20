@@ -28,7 +28,7 @@ with open('README.rst', mode='r') as readme:
 
 
 # core dependencies
-DEPENDENCIES = ['logalpha==2.0.2', ]
+DEPENDENCIES = []
 
 
 # add dependencies for readthedocs.io

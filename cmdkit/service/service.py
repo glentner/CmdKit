@@ -30,14 +30,12 @@ class Service(Daemon):
         """
         Initialization. You must call `.start()` before `.run()` is called.
 
-        Arguments
-        ---------
-        pidfile: str
-            Path to a process ID file. This file is created with
-            the process ID so it can be stopped later.
-
-        daemonize: bool (default=False)
-            Run service as a daemon process.
+        Arguments:
+            pidfile (str):
+                Path to a process ID file. This file is created with
+                the process ID so it can be stopped later.
+            daemon (bool):
+                Run service as a daemon process (default: False).
         """
         super().__init__(pidfile)
         self.is_daemon = daemon
@@ -59,3 +57,6 @@ class Service(Daemon):
             self.__is_daemon = bool(other)
         else:
             raise ValueError(f'{self.__class__.__name__}.is_daemon expects True/False.')
+
+    def run(self) -> None:
+        raise NotImplementedError()

@@ -25,7 +25,7 @@ Release v\ |release|. (:ref:`Tutorial <tutorial>`)
 
 |
 
-The *cmdkit* library implements a few common patterns needed for commandline tools in Python.
+The *cmdkit* library implements a few common patterns needed for command-line tools in Python.
 It only touches a few concepts but it implements them well.
 The idea is to reduce the boilerplate needed to get a full featured CLI off the ground.
 Applications developed using *cmdkit* are easy to implement, easy to maintain, and easy to
@@ -36,10 +36,9 @@ understand.
 Features
 --------
 
-- An :class:`~cmdkit.cli.Interface` class for parsing commandline arguments.
+- An :class:`~cmdkit.cli.Interface` class for parsing command-line arguments.
 - An :class:`~cmdkit.app.Application` class that provides the boilerplate for
   a good entry-point.
-- Basic :mod:`~cmdkit.logging` via the `logalpha <https://logalpha.readthedocs.io>`_ package.
 - A :class:`~cmdkit.config.Configuration` class built on top of a
   :class:`~cmdkit.config.Namespace` class that provides
   automatic depth-first merging of dictionaries from local files,
@@ -76,7 +75,7 @@ Project                                                   Description
 `hyper-shell <https://github.com/glentner/hyper-shell>`_  Hyper-shell is an elegant, cross-platform, high-performance
                                                           computing utility for processing shell commands over a
                                                           distributed, asynchronous queue.
-`delete-cli <https://github.com/glentner/delete-cli>`_    A simple, cross-platform, commandline move-to-trash.
+`delete-cli <https://github.com/glentner/delete-cli>`_    A simple, cross-platform, command-line move-to-trash.
 ========================================================  =======================================================
 
 

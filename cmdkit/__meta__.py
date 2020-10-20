@@ -12,9 +12,9 @@
 
 
 __pkgname__   = 'cmdkit'
-__version__   = '1.5.5'
+__version__   = '2.0.0'
 __authors__   = 'Geoffrey Lentner'
 __contact__   = '<glentner@gmail.com>'
 __license__   = 'Apache License'
 __copyright__ = 'Copyright (c) Geoffrey Lentner 2019. All Rights Reserved.'
-__description__ = 'A commandline utility toolkit.'
+__description__ = 'A command-line utility toolkit.'

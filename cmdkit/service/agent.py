@@ -15,12 +15,10 @@ Agent implementation.
 # standard libs
 import time
 from datetime import datetime, timedelta
-from multiprocessing import Process
 from abc import abstractmethod
 
 # internal libs
 from .service import Service
-from ..logging import log
 
 
 class Agent(Service):

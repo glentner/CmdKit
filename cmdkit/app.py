@@ -18,11 +18,13 @@ from typing import List, Dict, Callable, NamedTuple
 
 # standard libs
 import abc
-
+import logging
 
 # internal libs
 from . import cli
-from .logging import log
+
+
+log = logging.getLogger(__name__)
 
 
 class ExitStatus(NamedTuple):
@@ -45,9 +47,9 @@ class Application(abc.ABC):
     Abstract base class for all application interfaces.
 
     An application is typically initialized with one of the factory methods
-    :func:`~from_namespace` or :func:`~from_cmdline`. These parse command line
+    :func:`~from_namespace` or :func:`~from_cmdline`. These parse command-line
     arguments using the member :class:`~Interface`. Direct initialization takes
-    named parameters that are simple assigned to the instance. These should be
+    named parameters and are simply assigned to the instance. These should be
     existing class-level attributes with annotations.
     """
 
@@ -55,7 +57,8 @@ class Application(abc.ABC):
     ALLOW_NOARGS: bool = False
 
     exceptions: Dict[Exception, Callable[[Exception], int]] = dict()
-    log_error: Callable[[str], None] = log.critical
+    log_critical: Callable[[str], None] = log.critical
+    log_exception: Callable[[str], None] = log.exception
 
     def __init__(self, **parameters) -> None:
         """Direct initialization sets `parameters`."""
@@ -74,7 +77,13 @@ class Application(abc.ABC):
 
     @classmethod
     def main(cls, cmdline: List[str] = None) -> int:
-        """Entry-point for application."""
+        """
+        Entry-point for application.
+        This is a try-except block that handles standard scenarios.
+
+        See Also:
+            :data:`~Application.exceptions`
+        """
 
         try:
             if not cmdline:
@@ -98,19 +107,18 @@ class Application(abc.ABC):
             return exit_status.success
 
         except cli.ArgumentError as error:
-            cls.log_error(error)
-
+            cls.log_critical(error)
             return exit_status.bad_argument
 
         except KeyboardInterrupt:
-            cls.log_error('keyboard-interrupt: going down now!')
+            cls.log_critical('keyboard-interrupt: going down now!')
             return exit_status.keyboard_interrupt
 
         except Exception as error:
             for exc_type, exc_handler in cls.exceptions.items():
                 if isinstance(error, exc_type):
                     return exc_handler(error)
-            cls.log_error('uncaught exception occurred!')
+            cls.log_exception('uncaught exception occurred!')
             raise
 
     @abc.abstractmethod

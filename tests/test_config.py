@@ -18,8 +18,6 @@ from string import ascii_letters
 
 # external libs
 import pytest
-from hypothesis import given
-from hypothesis.strategies import lists, text, integers
 
 # internal libs
 from cmdkit.config import Namespace, Environ, Configuration
