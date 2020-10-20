@@ -219,7 +219,7 @@ class Environ(Namespace):
     # remembers the prefix for use with `.reduce`
     _prefix: str = ''
 
-    def __init__(self, prefix: str = '', defaults: Namespace = None) -> None:
+    def __init__(self, prefix: str = '', defaults: dict = None) -> None:
         """Built via :func:`~Namespace.from_env`."""
         self._prefix = prefix
         ns = Namespace.from_env(prefix=prefix, defaults=defaults)
@@ -362,7 +362,7 @@ class Configuration:
 
     @classmethod
     def from_local(cls, *, env: bool = False, prefix: str = None,
-                   default: Namespace = None, **files: str) -> Configuration:
+                   default: dict = None, **files: str) -> Configuration:
         """
         Create configuration from a cascade of `files`. Optionally include `env`.
 
