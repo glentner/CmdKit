@@ -25,8 +25,8 @@ Release v\ |release|. (:ref:`Tutorial <tutorial>`)
 
 |
 
-The *cmdkit* library implements a few common patterns needed for command-line tools in Python.
-It only touches a few concepts but it implements them well.
+The *cmdkit* library implements a few common patterns needed by well-formed command-line
+applications in Python. It only touches a few concepts but it implements them well.
 The idea is to reduce the boilerplate needed to get a full featured CLI off the ground.
 Applications developed using *cmdkit* are easy to implement, easy to maintain, and easy to
 understand.

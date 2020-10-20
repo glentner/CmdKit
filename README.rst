@@ -40,8 +40,6 @@ Features
   class for parsing command-line arguments.
 - An `Application <https://cmdkit.readthedocs.io/en/latest/api/app.html#cmdkit.app.Application>`_
   class that provides the boilerplate for a good entry-point.
-- Basic `Logging <https://cmdkit.readthedocs.io/en/latest/api/logging.html>`_ via the
-  `logalpha <https://logalpha.readthedocs.io>`_ package.
 - A `Configuration <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Configuration>`_
   class built on top of a
   `Namespace <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Namespace>`_
