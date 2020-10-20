@@ -13,8 +13,7 @@
 # standard libs
 import os
 import time
-import random
-import string
+import logging
 from multiprocessing import Process
 from subprocess import check_call, CalledProcessError
 
@@ -24,11 +23,10 @@ import pytest
 # internal libs
 from cmdkit.service.daemon import Daemon
 from cmdkit.service.agent import Agent
-from cmdkit.logging import log, ConsoleHandler, LEVELS
 
 
-# setup logging in debug mode
-log.handlers.append(ConsoleHandler(LEVELS[0]))
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
 
 
 PID_PATH = '/tmp/cmdkit_tests/run/{}.pid'

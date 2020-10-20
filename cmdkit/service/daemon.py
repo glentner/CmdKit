@@ -18,16 +18,16 @@ import time
 import atexit
 import signal
 import abc
+import logging
 
-# internal libs
-from ..logging import log
+
+log = logging.getLogger(__name__)
 
 
 class Daemon(abc.ABC):
     """Abstract base class for Daemon processes."""
 
     _pidfile: str  # path to file for saving process ID
-
 
     def __init__(self, pidfile: str) -> None:
         """
@@ -48,11 +48,9 @@ class Daemon(abc.ABC):
             pid = os.fork()
             if pid > 0:
                 sys.exit(0)  # exit first parent
-
-        except OSError as error:
-            log.critical(f'{self.__class__.__name__}.daemonize: failed to create first fork. '
-                         f'Error was, "{error}".')
-            sys.exit(1)
+        except OSError:
+            log.critical('failed to create first fork')
+            sys.exit(6)
 
         # decouple from parent environment
         os.chdir('/')
@@ -64,11 +62,9 @@ class Daemon(abc.ABC):
             pid = os.fork()
             if pid > 0:
                 sys.exit(0)  # exit second parent
-
-        except OSError as error:
-            log.critical(f'{self.__class__.__name__}.daemonize: failed to create second fork. '
-                         f'Error was, "{error}".')
-            sys.exit(1)
+        except OSError:
+            log.critical('failed to create second fork')
+            sys.exit(6)
 
         # redirect standard file descriptors
         sys.stdout.flush()
@@ -85,7 +81,6 @@ class Daemon(abc.ABC):
         atexit.register(self.__remove_pidfile)
 
         pid = str(os.getpid())
-        log.debug(f'{self.__class__.__name__.lower()}: writing {pid} to {self.pidfile}.')
         with open(self.pidfile, 'w+') as fh:
             fh.write(pid)
 
@@ -102,8 +97,7 @@ class Daemon(abc.ABC):
             pid = None
 
         if pid:
-            log.error(f'{self.__class__.__name__.lower()}: {self.pidfile} already exists. '
-                      f'Daemon already running at {pid}.')
+            log.error(f'daemon already running ({pid}), {self.pidfile} exists')
             sys.exit(1)
 
         self.daemonize()
@@ -120,12 +114,9 @@ class Daemon(abc.ABC):
             pid = None
 
         if not pid:
-            log.error(f'{self.__class__.__name__.lower()}: {self.pidfile} does not exist. '
-                      f'Daemon not running.')
             return  # not an error in a restart
 
         try:
-            log.info(f'stopping {self.__class__.__name__.lower()}')
             while True:
                 os.kill(pid, signal.SIGTERM)
                 time.sleep(0.1)
@@ -136,9 +127,8 @@ class Daemon(abc.ABC):
                 if os.path.exists(self.pidfile):
                     os.remove(self.pidfile)
             else:
-                log.error(f'{self.__class__.__name__.lower()}: could not stop daemon. '
-                          f'Error was: "{error}"')
-                sys.exit(1)
+                log.error(f'could not stop daemon')
+                sys.exit(6)
 
     def restart(self) -> None:
         """Restart the daemon."""

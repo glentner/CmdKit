@@ -14,10 +14,11 @@ mypy = ">=0.790"
 ipython = ">=7.18.1"
 sphinx = ">=3.2.1"
 pydata-sphinx-theme = ">=0.4.1"
+sphinx-autobuild = ">=2020.9.1"
 twine = ">=3.2.0"
 
+
 [packages]
-logalpha = "2.0.2"
 cmdkit = {editable = true, path = "."}
 
 [requires]
