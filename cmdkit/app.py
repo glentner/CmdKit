@@ -67,7 +67,7 @@ class Application(abc.ABC):
 
     @classmethod
     def from_cmdline(cls, cmdline: List[str] = None) -> Application:
-        """Initialize via command line arguments (e.g., `sys.argv`)."""
+        """Initialize via command-line arguments (e.g., `sys.argv`)."""
         return cls.from_namespace(cls.interface.parse_args(cmdline))
 
     @classmethod
@@ -155,7 +155,7 @@ class ApplicationGroup(Application):
 
     @classmethod
     def from_cmdline(cls, cmdline: List[str] = None) -> Application:
-        """Initialize via command line arguments (e.g., `sys.argv`)."""
+        """Initialize via command-line arguments (e.g., `sys.argv`)."""
         if not cmdline:
             return super().from_cmdline(cmdline)
         else:

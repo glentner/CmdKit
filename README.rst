@@ -1,7 +1,7 @@
 CmdKit
 ======
 
-A library for developing command line utilities in Python.
+A library for developing command-line applications in Python.
 
 .. image:: https://img.shields.io/badge/license-Apache-blue.svg?style=flat
     :target: https://www.apache.org/licenses/LICENSE-2.0
@@ -25,8 +25,8 @@ A library for developing command line utilities in Python.
 
 |
 
-The *cmdkit* library implements a few common patterns needed for command-line tools in Python.
-It only touches a few concepts but it implements them well.
+The *cmdkit* library implements a few common patterns needed by well-formed command-line
+applications in Python. It only touches a few concepts but it implements them well.
 The idea is to reduce the boilerplate needed to get a full featured CLI off the ground.
 Applications developed using *cmdkit* are easy to implement, easy to maintain, and easy to
 understand.
@@ -37,7 +37,7 @@ Features
 --------
 
 - An `Interface <https://cmdkit.readthedocs.io/en/latest/api/cli.html#cmdkit.cli.Interface>`_
-  class for parsing command line arguments.
+  class for parsing command-line arguments.
 - An `Application <https://cmdkit.readthedocs.io/en/latest/api/app.html#cmdkit.app.Application>`_
   class that provides the boilerplate for a good entry-point.
 - Basic `Logging <https://cmdkit.readthedocs.io/en/latest/api/logging.html>`_ via the
@@ -64,7 +64,7 @@ Installation
 Getting Started
 ---------------
 
-Checkout the `Tutorial <https://cmdkit.readthedocs.io/en/latest/tutorial/>`_ for examples.
+See the `Tutorial <https://cmdkit.readthedocs.io/en/latest/tutorial/>`_ for examples.
 
 You can also checkout how `cmdkit` is being used by other projects.
 
