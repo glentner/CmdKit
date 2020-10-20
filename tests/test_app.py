@@ -25,7 +25,7 @@ from cmdkit.cli import Interface, ArgumentError
 
 DEMO_NAME = 'demo_app'
 DEMO_DESCRIPTION = """\
-Demonstation program for unit testing purposes.
+Demonstration program for unit testing purposes.
 """
 
 DEMO_USAGE = f"""\
@@ -69,7 +69,7 @@ class DemoApp(Application):
 class FileApp(DemoApp):
     """DemoApp opens a non-existent file."""
     def run(self) -> None:
-        with open('NONEXISTENT-FILE', mode='r') as source:
+        with open('NONEXISTENT-FILE', mode='r'):
             pass
 
 
@@ -81,7 +81,7 @@ class FileAppWithExceptionHandling(FileApp):
 def test_app_noargs(capsys) -> None:
     """Initialize and run the application."""
     with pytest.raises(ArgumentError):
-        with DemoApp.from_cmdline([]) as app:
+        with DemoApp.from_cmdline([]):
             pass
 
 
@@ -111,10 +111,10 @@ def test_app_option_1_given(value) -> None:
 def test_app_option_1_is_integer(value) -> None:
     """The optional argument was given a non-integer value."""
     with pytest.raises(ArgumentError):
-        with DemoApp.from_cmdline(['arg_1', '--option', str(value)]) as app:
+        with DemoApp.from_cmdline(['arg_1', '--option', str(value)]):
             pass
     with pytest.raises(ArgumentError):
-        with DemoApp.from_cmdline(['arg_1', '-o', str(value)]) as app:
+        with DemoApp.from_cmdline(['arg_1', '-o', str(value)]):
             pass
 
 
@@ -160,7 +160,7 @@ def test_app_help_2(capsys) -> None:
 def test_app_invalid_number_of_positional(count) -> None:
     """Too many positional arguments are given."""
     with pytest.raises(ArgumentError):
-        with DemoApp.from_cmdline(['arg']*count) as app:
+        with DemoApp.from_cmdline(['arg']*count):
             pass
 
 
@@ -169,7 +169,7 @@ def test_app_invalid_options(opt):
     """An invalid option is given."""
     if opt not in ('debug', 'option'):
         with pytest.raises(ArgumentError):
-            with DemoApp.from_cmdline(['arg_1', f'--{opt}']) as app:
+            with DemoApp.from_cmdline(['arg_1', f'--{opt}']):
                 pass
 
 

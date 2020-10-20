@@ -1,7 +1,7 @@
 :mod:`cmdkit.app`
 =================
 
-The :class:`~Application` class provides structure to commandline interfaces.
+The :class:`~Application` class provides structure to command-line interfaces.
 Create a new derived application class to share the common boilerplate among
 all the entry-points in your project.
 
@@ -21,7 +21,7 @@ all the entry-points in your project.
 
     .. autoattribute:: interface
 
-        The commandline argument parser for this application.
+        The command-line argument parser for this application.
         Calls to :func:`~cmdkit.cli.Interface.add_argument` should have their destination
         set to class-level attribute names.
 
@@ -81,10 +81,10 @@ all the entry-points in your project.
 
     |
 
-    .. autoattribute:: Application.log_error
-        :annotation: : Callable[[str], None] = <bound method Logger.critical of <logalpha.loggers.Logger>>
+    .. autoattribute:: Application.log_critical
+    .. autoattribute:: Application.log_exception
 
-        A bound method used by :func:`~main` to log error messages.
+        Bound methods used by :func:`~main` to log messages.
         In the main try/except block, this method is called with a message.
         This can be overridden by any function with the same interface.
         It is recommended to override this with your own logger.

@@ -17,13 +17,27 @@ local files and your environment.
 .. autoclass:: Namespace
     :show-inheritance:
 
+    |
+
     .. automethod:: update
+
+    |
+
     .. automethod:: from_local
     .. automethod:: to_local
+
+    |
+
     .. automethod:: from_env
+
+    |
+
     .. automethod:: from_yaml
     .. automethod:: from_toml
     .. automethod:: from_json
+
+    |
+
     .. automethod:: to_yaml
     .. automethod:: to_toml
     .. automethod:: to_json
@@ -34,7 +48,12 @@ local files and your environment.
 
 .. autoclass:: Environ
     :show-inheritance:
-    :members: reduce
+
+    |
+
+    .. automethod:: reduce
+
+    |
 
 -------------------
 
@@ -42,13 +61,33 @@ local files and your environment.
 
 .. autoclass:: Configuration
 
+    |
+
     .. automethod:: keys
     .. automethod:: values
+
+    |
+
     .. automethod:: __getitem__
+
+    |
+
     .. autoproperty:: namespaces
+
+    |
+
     .. automethod:: extend
+
+    |
+
     .. automethod:: from_local
+
+    |
+
     .. automethod:: which
+
+|
+
 
 
 .. toctree::
