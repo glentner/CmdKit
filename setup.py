@@ -12,19 +12,21 @@
 
 # standard libs
 import os
+import re
 from setuptools import setup, find_packages
 
-# internal libs
-from cmdkit.__meta__ import (__pkgname__,
-                             __version__,
-                             __authors__,
-                             __contact__,
-                             __license__,
-                             __description__)
 
-
+# get long description from README.rst
 with open('README.rst', mode='r') as readme:
     long_description = readme.read()
+
+
+# get package metadata by parsing __meta__ module
+with open('cmdkit/__meta__.py', mode='r') as source:
+    content = source.read().strip()
+    metadata = {key: re.search(key + r'\s*=\s*[\'"]([^\'"]*)[\'"]', content).group(1)
+                for key in ['__pkgname__', '__version__', '__authors__', '__contact__',
+                            '__description__', '__license__']}
 
 
 # core dependencies
@@ -37,12 +39,12 @@ if os.environ.get('READTHEDOCS') == 'True':
 
 
 setup(
-    name             = __pkgname__,
-    version          = __version__,
-    author           = __authors__,
-    author_email     = __contact__,
-    description      = __description__,
-    license          = __license__,
+    name             = metadata['__pkgname__'],
+    version          = metadata['__version__'],
+    author           = metadata['__authors__'],
+    author_email     = metadata['__contact__'],
+    description      = metadata['__description__'],
+    license          = metadata['__license__'],
     keywords         = 'command-line utility toolkit',
     url              = 'https://cmdkit.readthedocs.io',
     packages         = find_packages(),
