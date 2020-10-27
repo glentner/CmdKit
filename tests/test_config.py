@@ -29,7 +29,7 @@ os.makedirs(TMPDIR, exist_ok=True)
 
 
 def test_namespace_init() -> None:
-    """Construct a namespace from a dictionary compatable initialization."""
+    """Construct a namespace from a dictionary compatible initialization."""
     assert (Namespace({'A': 1, 'B': 2, 'C': {'X': 'hello', 'Y': 'world'}}) ==
             Namespace([('A', 1), ('B', 2), ('C', Namespace([('X', 'hello'), ('Y', 'world')]))]) ==
             Namespace(A=1, B=2, C=Namespace(X='hello', Y='world')))
@@ -236,10 +236,35 @@ def test_namespace_to_local() -> None:
         ns.to_local(f'{TMPDIR}/config.special')
 
 
+def test_namespace_attribute() -> None:
+    """Test attribute access is the same as getitem."""
+    ns = Namespace({'a': 1, 'b': 'foo', 'c': {'x': 3.14}})
+    assert 1 == ns['a'] == ns.a
+    assert 'foo' == ns['b'] == ns.b
+    assert 3.14 == ns['c']['x'] == ns.c.x
+
+
+def test_namespace_attribute_expand_env() -> None:
+    """Test transparent environment variable expansion."""
+    os.environ['CMDKIT_TEST_A'] = 'foo-bar'
+    ns = Namespace({'test_env': 'CMDKIT_TEST_A'})
+    assert ns.get('test') is None
+    assert ns.get('test_env') == 'CMDKIT_TEST_A'
+    assert ns.test == 'foo-bar'
+
+
+def test_namespace_attribute_expand_eval() -> None:
+    """Test transparent shell expression expansion."""
+    ns = Namespace({'test_eval': 'echo foo-bar'})
+    assert ns.get('test') is None
+    assert ns.get('test_eval') == 'echo foo-bar'
+    assert ns.test == 'foo-bar'
+
+
 def test_environ() -> None:
     """Test environment variable initialization along with Environ.reduce()."""
 
-    # clean environment of any existing variables with the prefix
+    # clean environment of any existing variables with the item
     PREFIX = 'CMDKIT'
     for var in dict(os.environ):
         if var.startswith(PREFIX):
@@ -268,7 +293,7 @@ CMDKIT_STR=other
 def test_environ_coerce() -> None:
     """Test automatic type coercion with Environ.reduce()."""
 
-    # clean environment of any existing variables with the prefix
+    # clean environment of any existing variables with the item
     PREFIX = 'CMDKIT'
     for var in dict(os.environ):
         if var.startswith(PREFIX):
@@ -291,7 +316,7 @@ def test_environ_coerce() -> None:
 def test_environ_defaults() -> None:
     """Test defaults for missing environment variables."""
 
-    # clean environment of any existing variables with the prefix
+    # clean environment of any existing variables with the item
     PREFIX = 'CMDKIT'
     for var in dict(os.environ):
         if var.startswith(PREFIX):
@@ -409,7 +434,7 @@ def test_configuration_from_local() -> None:
         with open(f'{TMPDIR}/{label}.toml', mode='w') as output:
             output.write(data)
 
-    # clean environment of any existing variables with the prefix
+    # clean environment of any existing variables with the item
     PREFIX = 'CMDKIT'
     for var in dict(os.environ):
         if var.startswith(PREFIX):
@@ -441,4 +466,3 @@ def test_configuration_from_local() -> None:
     assert cfg['b']['var3'] == 'local_var3' and cfg.which('b', 'var3') == 'local'
     assert cfg['c']['var4'] == 'env_var4' and cfg.which('c', 'var4') == 'env'
     assert cfg['c']['var5'] == 'env_var5' and cfg.which('c', 'var5') == 'env'
-

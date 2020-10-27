@@ -60,19 +60,11 @@ local files and your environment.
 |
 
 .. autoclass:: Configuration
+    :show-inheritance:
 
     |
 
-    .. automethod:: keys
-    .. automethod:: values
-
-    |
-
-    .. automethod:: __getitem__
-
-    |
-
-    .. autoproperty:: namespaces
+    .. autoattribute:: namespaces
 
     |
 
@@ -87,8 +79,6 @@ local files and your environment.
     .. automethod:: which
 
 |
-
-
 
 .. toctree::
     :maxdepth: 3

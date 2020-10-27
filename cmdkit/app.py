@@ -14,7 +14,7 @@ Application class implementation.
 
 # type annotations
 from __future__ import annotations
-from typing import List, Dict, Callable, NamedTuple
+from typing import List, Dict, Callable, NamedTuple, Type
 
 # standard libs
 import abc
@@ -56,7 +56,7 @@ class Application(abc.ABC):
     interface: cli.Interface = None
     ALLOW_NOARGS: bool = False
 
-    exceptions: Dict[Exception, Callable[[Exception], int]] = dict()
+    exceptions: Dict[Type[Exception], Callable[[Exception], int]] = dict()
     log_critical: Callable[[str], None] = log.critical
     log_exception: Callable[[str], None] = log.exception
 

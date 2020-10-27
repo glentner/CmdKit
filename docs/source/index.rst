@@ -39,7 +39,7 @@ Features
 - An :class:`~cmdkit.cli.Interface` class for parsing command-line arguments.
 - An :class:`~cmdkit.app.Application` class that provides the boilerplate for
   a good entry-point.
-- A :class:`~cmdkit.config.Configuration` class built on top of a
+- A :class:`~cmdkit.config.Configuration` class built on top of a recursive
   :class:`~cmdkit.config.Namespace` class that provides
   automatic depth-first merging of dictionaries from local files,
   as well as automatic environment variable discovery and type-coercion.
