@@ -16,13 +16,12 @@ local files and your environment.
 
 # type annotations
 from __future__ import annotations
-from typing import IO, TypeVar, Callable, Union, Iterable, Any  # noqa (unused Any) FIXME: why?
+from typing import Tuple, IO, Dict, TypeVar, Callable, Union, Iterable, Optional, Any
 
 # standard libs
 import os
 from collections.abc import Mapping
 from functools import reduce
-from typing import Any, Dict
 
 
 DictKeys: type = type({}.keys())
