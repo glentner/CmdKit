@@ -89,7 +89,8 @@ class NSCoreMixin(dict):
 
     def __getattr__(self, item: str) -> Any:
         """
-        Get member item.
+        Get attribute by calling :meth:`__getitem__`.
+        Transparently expand `_env` and `_eval` variants.
         """
         variants = [f'{item}_env', f'{item}_eval']
         if item in self:
