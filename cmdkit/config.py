@@ -20,6 +20,8 @@ from typing import Tuple, IO, Dict, TypeVar, Callable, Union, Iterable, Optional
 
 # standard libs
 import os
+import functools
+import subprocess
 from collections.abc import Mapping
 from functools import reduce
 
@@ -30,7 +32,104 @@ DictItems: type = type({}.items())
 DictKeyIterator: type = type(iter({}))
 
 
-class Namespace(dict):
+class NSCoreMixin(dict):
+    """Core namespace mechanics used by `Namespace` and `Configuration`."""
+
+    def __init__(self, *args: Union[Iterable, Mapping], **kwargs: Any) -> None:
+        """Initialize from same signature as `dict`."""
+        super().__init__(*args, **kwargs)
+
+    def __getitem__(self, key: str) -> Any:
+        """Like `dict.__getitem__` but return Namespace if value is a mappable."""
+        value = super().__getitem__(key)
+        if isinstance(value, Mapping):
+            return Namespace(value)
+        else:
+            return value
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Strip special type if `value` is Namespace."""
+        if isinstance(value, Mapping):
+            super().__setitem__(key, dict(value))
+        else:
+            super().__setitem__(key, value)
+
+    def get(self, key: Any, default: Any = None) -> Optional[Any]:
+        """Like `dict.get` but return Namespace if value is a mappable."""
+        value = super().get(key, default)
+        if isinstance(value, Mapping):
+            return Namespace(value)
+        else:
+            return value
+
+    def items(self) -> Iterable[Tuple[str, Any]]:
+        """Yield key, value pairs."""
+        for key, value in super().items():
+            if isinstance(value, Mapping):
+                yield key, Namespace(value)
+            else:
+                yield key, value
+
+    @classmethod
+    def _depth_first_update(cls, original: dict, new: dict) -> dict:
+        """
+        Like normal `dict.update` but if values in both are mappable descend
+        a level deeper (recursive) and apply updates there instead.
+        """
+        for key, value in new.items():
+            if isinstance(value, dict) and isinstance(original.get(key), dict):
+                original[key] = cls._depth_first_update(original.get(key, {}), value)
+            else:
+                original[key] = value
+        return original
+
+    def update(self, *args, **kwargs) -> None:
+        """Implements a recursive, depth-first update (i.e., an "override")."""
+        self._depth_first_update(self, dict(*args, **kwargs))
+
+    def __getattr__(self, item: str) -> Any:
+        """
+        Get member item.
+        """
+        variants = [f'{item}_env', f'{item}_eval']
+        if item in self:
+            return self[item]
+        for variant in variants:
+            if variant in self:
+                return self._expand_attr(item)
+        else:
+            raise AttributeError(f'missing \'{item}\'')
+
+    def _expand_attr(self, item: str) -> str:
+        """Interpolate values if `_env` or `_eval` present."""
+
+        getters = {f'{item}': (lambda: self[item]),
+                   f'{item}_env': functools.partial(self._expand_attr_env, item),
+                   f'{item}_eval': functools.partial(self._expand_attr_eval, item)}
+
+        items = [key for key in self if key in getters]
+        if len(items) == 0:
+            raise ConfigurationError(f'\'{item}\' not found')
+        elif len(items) == 1:
+            return getters[items[0]]()
+        else:
+            raise ConfigurationError(f'\'{item}\' has more than one variant')
+
+    def _expand_attr_env(self, item: str) -> str:
+        """Expand `item` as an environment variable."""
+        return os.getenv(str(self[f'{item}_env']), None)
+
+    def _expand_attr_eval(self, item: str) -> str:
+        """Expand `item` as a shell expression."""
+        return subprocess.check_output(str(self[f'{item}_eval']), shell=True).decode().strip()
+
+    def __repr__(self) -> str:
+        """Convert to string representation."""
+        original = super().__repr__()
+        return f'{self.__class__.__name__}({original})'
+
+
+class Namespace(NSCoreMixin):
     """
     A dictionary with depth-first updates and factory methods.
 
@@ -47,56 +146,22 @@ class Namespace(dict):
         Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
     """
 
-    def __init__(self, *args: Union[Iterable, Mapping], **kwargs: Any) -> None:
-        """Initialize from same signature as `dict`."""
-        super().__init__(*args, **kwargs)
-
-    def __repr__(self) -> str:
-        """Convert to string representation."""
-        original = super().__repr__()
-        return f'{self.__class__.__name__}({original})'
-
-    def __getitem__(self, key: str) -> Any:
-        """Like `dict.__getitem__` but return Namespace if value is `dict`."""
-        value = super().__getitem__(key)
-        if isinstance(value, Mapping):
-            return self.__class__(value)
-        else:
-            return value
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        """Strip special type if `value` is Namespace."""
-        if isinstance(value, Mapping):
-            super().__setitem__(key, dict(value))
-        else:
-            super().__setitem__(key, value)
-
     @classmethod
-    def __depth_first_update(cls, original: dict, new: dict) -> dict:
+    def from_env(cls, prefix: str = '', defaults: Dict[str, Any] = None) -> Namespace:
         """
-        Like normal `dict.update` but if values in both are mappable descend
-        a level deeper (recursive) and apply updates there instead.
-        """
-        for key, value in new.items():
-            if isinstance(value, dict) and isinstance(original.get(key), dict):
-                original[key] = cls.__depth_first_update(original.get(key, {}), value)
-            else:
-                original[key] = value
-        return original
+        Create a :class:`~Namespace` from :data:`os.environ`,
+        optionally filtering variables based on their name using `prefix`.
 
-    def update(self, *args, **kwargs) -> None:
-        """Implements a recursive, depth-first update (i.e., an "override")."""
-        self.__depth_first_update(self, dict(*args, **kwargs))
-
-    @classmethod
-    def from_env(cls, prefix: str = '', defaults: dict = None) -> Namespace:
-        """
-        Create a :class:`~Namespace` from ``os.environ``, optionally filter
-        variables based on their name using ``prefix``.
+        Args:
+            prefix (str):
+                An optional prefix to filter the environment variables.
+                The results will be any variable that starts with this prefix.
+            defaults (dict):
+                An existing Namespace of defaults to be overriden if
+                present in the environment.
 
         Example:
-            >>> Namespace.from_env(prefix='MYAPP',
-            ...     defaults={'MYAPP_LOGGING_LEVEL': 'WARNING', })
+            >>> Namespace.from_env(item='MYAPP', defaults={'MYAPP_LOGGING_LEVEL': 'WARNING', })
             Namespace({'MYAPP_LOGGING_LEVEL': 'WARNING', 'MYAPP_COUNT': '42'})
 
         See Also:
@@ -115,12 +180,12 @@ class Namespace(dict):
         """Generic factory method delegates based on filename extension."""
         ext = os.path.splitext(filepath)[1].lstrip('.')
         if not os.path.exists(filepath) and ignore_if_missing is True:
-            return Namespace()
+            return cls()
         try:
             factory = getattr(cls, f'from_{ext}')
             return factory(filepath, **options)
         except AttributeError:
-            raise NotImplementedError(f'{cls.__class__.__name__} does not currently support "{ext}" files."')
+            raise NotImplementedError(f'{cls.__class__.__name__} does not currently support \'{ext}\' files')
 
     @classmethod
     def from_yaml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
@@ -196,10 +261,10 @@ class Namespace(dict):
 
 
 # basic types automatically converted from environment variable
-ValueType = TypeVar('ValueType', str, int, float, bool, type(None))
+_VT = TypeVar('_VT', str, int, float, bool, type(None))
 
 
-class Environ(Namespace):
+class Environ(NSCoreMixin):
     """
     A Namespace initialized via :func:`~Namespace.from_env`.
     The special method :func:`~reduce` melts the normalized variables
@@ -215,7 +280,7 @@ class Environ(Namespace):
         Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
     """
 
-    # remembers the prefix for use with `.reduce`
+    # remembers the item for use with `.reduce`
     _prefix: str = ''
 
     def __init__(self, prefix: str = '', defaults: dict = None) -> None:
@@ -227,7 +292,7 @@ class Environ(Namespace):
     def reduce(self, converter: Callable[[str], Any] = None) -> Namespace:
         """
         De-normalize the key-value pairs into a nested dictionary.
-        The ``prefix`` is stripped away and structure is derived by
+        The ``item`` is stripped away and structure is derived by
         splitting on underscores.
 
         The `converter` should be a function that accepts an input value
@@ -255,7 +320,7 @@ class Environ(Namespace):
         return ns
 
     @staticmethod
-    def _coerced(var: str) -> ValueType:
+    def _coerced(var: str) -> _VT:
         """Automatically coerce input `var` to numeric if possible."""
         if var.lower() in ('', 'null'):
             return None
@@ -273,91 +338,61 @@ class Environ(Namespace):
             return var
 
 
-class Configuration:
+class ConfigurationError(Exception):
+    """Exception specific to configuration errors."""
+
+
+class Configuration(NSCoreMixin):
     """
     An ordered collection of `Namespace` dictionaries.
     The update behavior of :class:`~Namespace` is used to
     provide a layering effect for configuration parameters.
 
     Example:
-        >>> from cmdkit.config import Namespace, Configuration
-        >>> cfg = Configuration(A=Namespace({'x': 1, 'y': 2}),
-        ...                     B=Namespace({'x': 3, 'z': 4})
-        >>> cfg['x'], cfg['y'], cfg['z']
+        >>> conf = Configuration(one=Namespace({'x': 1, 'y': 2}),
+        ...                      two=Namespace({'x': 3, 'z': 4})
+
+        >>> conf
+        Configuration(one=Namespace({'x': 1, 'y': 2}), two=Namespace({'x': 3, 'z': 4}))
+
+        >>> conf.x, conf.y, conf.z
         (3, 2, 4)
-        >>> cfg.namespaces['A']['x']
+
+        >>> conf.namespaces.keys()
+        dict_keys(['one', 'two'])
+
+        >>> conf.namespaces.one.x
         1
     """
 
-    _namespaces: Namespace = None
-    _master: Namespace = None
+    namespaces: Namespace = None
 
     def __init__(self, **namespaces: Namespace) -> None:
         """Retain source `namespaces` and create master namespace."""
-        self._namespaces = Namespace()
-        self._master = Namespace()
+        super().__init__()
+        self.namespaces = Namespace()
+        # self._master = Namespace()
         self.extend(**namespaces)
-
-    @property
-    def namespaces(self) -> Dict[str, Namespace]:
-        """
-        Access to namespaces.
-
-        Example:
-            >>> cfg.namespaces['A']
-            Namespace({'x': 1, 'y': 2})
-        """
-        return self._namespaces
-
-    def __getitem__(self, key: str) -> Any:
-        """
-        Access parameter from Configuration.
-
-        Example:
-            >>> cfg['x']
-            3
-        """
-        return self._master[key]
 
     def __repr__(self) -> str:
         """String representation of Configuration."""
-        kwargs = ', '.join([f'{k} = ' + v.__repr__() for k, v in self.namespaces.items()])
+        kwargs = ', '.join([f'{k}=' + repr(v) for k, v in self.namespaces.items()])
         return f'{self.__class__.__name__}({kwargs})'
-
-    def keys(self) -> DictKeys:
-        """
-        A set-like object providing a view on the merged keys.
-
-        Example:
-            >>> cfg.keys()
-            dict_keys(['A', 'B'])
-        """
-        return self._master.keys()
-
-    def values(self) -> DictValues:
-        """
-        An object providing a view on the merged values.
-
-        Example:
-            >>> cfg.values()
-            dict_values(['x', 'y', 'z'])
-        """
-        return self._master.values()
 
     def extend(self, **others: Namespace) -> None:
         """
         Extend the configuration by adding namespaces.
 
         Example:
-            >>> cfg.extend(C=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}}))
-            >>> cfg
-            Configuration(A=Namespace({'x': 1, 'y': 2}),
-                          B=Namespace({'x': 3, 'z': 4}),
-                          C=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}})
+            >>> conf.extend(three=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}}))
+            >>> conf
+            Configuration(one=Namespace({'x': 1, 'y': 2}),
+                          two=Namespace({'x': 3, 'z': 4}),
+                          three=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}})
         """
         for name, mapping in others.items():
-            self._namespaces[name] = Namespace(mapping)
-            self._master.update(self.namespaces[name])
+            self.namespaces[name] = Namespace(mapping)
+            self.update(self.namespaces[name])
 
     @classmethod
     def from_local(cls, *, env: bool = False, prefix: str = None,
@@ -368,11 +403,11 @@ class Configuration:
         Example:
             >>> import os
             >>> HOME, CWD = os.getenv('HOME'), os.getcwd()
-            >>> cfg = Configuration.from_local(
-            ...             default=None, env=True, prefix='MYAPP',
-            ...             system='/etc/myapp.yml',
-            ...             user=f'{HOME}/.myapp.yml',
-            ...             local=f'{CWD}/.myapp.yml')
+            >>> conf = Configuration.from_local(default=Namespace(),
+            ...                                 env=True, prefix='MYAPP',
+            ...                                 system='/etc/myapp.yml',
+            ...                                 user=f'{HOME}/.myapp.yml',
+            ...                                 local=f'{CWD}/.myapp.yml')
         """
         default_ = Namespace() if not default else Namespace(default)
         cfg = cls(default=default_)
@@ -387,13 +422,13 @@ class Configuration:
         Derive which member namespace takes precedent for the given variable.
 
         Example:
-            >>> cfg.which('x')
+            >>> conf.which('x')
             'B'
 
-            >>> cfg.which('y')
+            >>> conf.which('y')
             'C'
 
-            >>> cfg.which('u', 'i')
+            >>> conf.which('u', 'i')
             'C'
         """
         for label in reversed(self.namespaces):
