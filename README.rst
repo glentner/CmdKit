@@ -41,7 +41,7 @@ Features
 - An `Application <https://cmdkit.readthedocs.io/en/latest/api/app.html#cmdkit.app.Application>`_
   class that provides the boilerplate for a good entry-point.
 - A `Configuration <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Configuration>`_
-  class built on top of a
+  class built on top of a recursive
   `Namespace <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Namespace>`_
   class that provides automatic depth-first merging of dictionaries from local files,
   as well as automatic environment variable discovery and type-coercion.
