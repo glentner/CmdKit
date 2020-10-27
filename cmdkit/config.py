@@ -161,7 +161,7 @@ class Namespace(NSCoreMixin):
                 present in the environment.
 
         Example:
-            >>> Namespace.from_env(item='MYAPP', defaults={'MYAPP_LOGGING_LEVEL': 'WARNING', })
+            >>> Namespace.from_env(prefix='MYAPP', defaults={'MYAPP_LOGGING_LEVEL': 'WARNING', })
             Namespace({'MYAPP_LOGGING_LEVEL': 'WARNING', 'MYAPP_COUNT': '42'})
 
         See Also:
@@ -280,7 +280,7 @@ class Environ(NSCoreMixin):
         Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
     """
 
-    # remembers the item for use with `.reduce`
+    # remembers the prefix for use with `.reduce`
     _prefix: str = ''
 
     def __init__(self, prefix: str = '', defaults: dict = None) -> None:
@@ -292,7 +292,7 @@ class Environ(NSCoreMixin):
     def reduce(self, converter: Callable[[str], Any] = None) -> Namespace:
         """
         De-normalize the key-value pairs into a nested dictionary.
-        The ``item`` is stripped away and structure is derived by
+        The `prefix` is stripped away and structure is derived by
         splitting on underscores.
 
         The `converter` should be a function that accepts an input value
