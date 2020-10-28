@@ -328,7 +328,7 @@ def test_environ_flatten() -> None:
         os.environ[field] = value
 
     env = Namespace.from_env(PREFIX)
-    assert env == env.expand().flatten()
+    assert env == env.expand().flatten(prefix=PREFIX)
 
 
 def test_environ_defaults() -> None:

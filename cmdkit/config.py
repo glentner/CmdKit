@@ -247,12 +247,16 @@ class Namespace(NSCoreMixin):
 
         Example:
             >>> Namespace.from_env(prefix='MYAPP', defaults={'MYAPP_LOGGING_LEVEL': 'WARNING', })
-            Namespace({'MYAPP_LOGGING_LEVEL': 'WARNING', 'MYAPP_COUNT': '42'})
+            Environ({'MYAPP_LOGGING_LEVEL': 'WARNING', 'MYAPP_COUNT': '42'})
 
         See Also:
-            :class:`~Environ`: adds :func:`~Environ.reduce` method
+            :class:`~Environ`: adds :func:`~Environ.expand` method
         """
         return Environ(prefix=prefix, defaults=defaults)
+
+    def to_env(self) -> Environ:
+        """Translate namespace to an :class:`Environ` namespace."""
+        return Environ(defaults=self)
 
 
 # basic types automatically converted from environment variable
@@ -317,9 +321,6 @@ class Environ(NSCoreMixin):
 
         >>> env.expand()
         Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
-
-        >>> env.expand().flatten()
-        Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
     """
 
     # remembers the prefix for use with `.reduce`
@@ -375,16 +376,22 @@ class Environ(NSCoreMixin):
         Collapse a namespace down to a single level by merging keys with their
         parent section by underscore.
 
-        Example:
-            >>> env = Namespace.from_env('MYAPP')
-            >>> assert env == env.expand().flatten()
+    Example:
+        >>> env = Namespace.from_env('MYAPP')
+        >>> env
+        Environ({'MYAPP_A_X': '1', 'MYAPP_A_Y': '2', 'MYAPP_B': '3'})
+
+        >>> env.expand()
+        Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
+
+        >>> env.expand().flatten(prefix='MYAPP')
+        Environ({'MYAPP_A_X': '1', 'MYAPP_A_Y': '2', 'MYAPP_B': '3'})
         """
-        _prefix = prefix or self._prefix
-        ns = self.__class__(defaults=_flatten(self, prefix=_prefix))
-        ns._prefix = _prefix
+        ns = self.__class__(defaults=_flatten(self, prefix=prefix))
+        ns._prefix = prefix
         return ns
 
-    def to_env(self, prefix: str = None) -> None:
+    def export(self, prefix: str = None) -> None:
         """Calls :meth:`flatten` before persisting members to :data:`os.environ`."""
         env = self.flatten(prefix=prefix)
         for key, value in env.items():
@@ -437,6 +444,8 @@ class Configuration(NSCoreMixin):
         Extend the configuration by adding namespaces.
 
         Example:
+            >>> conf = Configuration(one=Namespace({'x': 1, 'y': 2}),
+            ...                      two=Namespace({'x': 3, 'z': 4})
             >>> conf.extend(three=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}}))
             >>> conf
             Configuration(one=Namespace({'x': 1, 'y': 2}),
@@ -475,14 +484,18 @@ class Configuration(NSCoreMixin):
         Derive which member namespace takes precedent for the given variable.
 
         Example:
+            >>> conf = Configuration(one=Namespace({'x': 1, 'y': 2}),
+            ...                      two=Namespace({'x': 3, 'z': 4})
+            >>> conf.extend(three=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}}))
+
             >>> conf.which('x')
-            'B'
+            'two'
 
             >>> conf.which('y')
-            'C'
+            'three'
 
             >>> conf.which('u', 'i')
-            'C'
+            'three'
         """
         for label in reversed(self.namespaces):
             try:
