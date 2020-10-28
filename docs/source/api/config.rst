@@ -10,6 +10,20 @@ Configuration management. Classes and interfaces for management application leve
 parameters. Get a runtime configuration with a namespace-like interface from both
 local files and your environment.
 
+|
+
+.. note::
+
+    Because of an implementation detail regarding the way nested members are
+    handled recursively by these data structures, in-place assignments of such
+    nested members will not have an effect.
+
+    These objects are then to be treated as read-only in the sense that they can
+    only allow :func:`update` (for :class:`Namespace`) and :func:`extend`
+    (for :class:`Configuration`).
+
+|
+
 -------------------
 
 |
@@ -28,10 +42,6 @@ local files and your environment.
 
     |
 
-    .. automethod:: from_env
-
-    |
-
     .. automethod:: from_yaml
     .. automethod:: from_toml
     .. automethod:: from_json
@@ -42,6 +52,13 @@ local files and your environment.
     .. automethod:: to_toml
     .. automethod:: to_json
 
+    |
+
+    .. automethod:: from_env
+    .. automethod:: to_env
+
+|
+
 -------------------
 
 |
@@ -51,7 +68,12 @@ local files and your environment.
 
     |
 
-    .. automethod:: reduce
+    .. automethod:: expand
+    .. automethod:: flatten
+
+    |
+
+    .. automethod:: export
 
     |
 
