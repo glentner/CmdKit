@@ -277,7 +277,7 @@ def test_environ() -> None:
 
     # test base level Namespace|Environ equivalence
     assert Namespace.from_env(prefix=PREFIX) == Environ(prefix=PREFIX)
-    assert Environ(prefix=PREFIX).reduce() == Namespace(TEST_DICT)
+    assert Environ(prefix=PREFIX).expand() == Namespace(TEST_DICT)
 
 
 TEST_ENV_TYPES = """\
@@ -290,7 +290,7 @@ CMDKIT_STR=other
 """
 
 
-def test_environ_coerce() -> None:
+def test_environ_expand() -> None:
     """Test automatic type coercion with Environ.reduce()."""
 
     # clean environment of any existing variables with the item
@@ -304,13 +304,31 @@ def test_environ_coerce() -> None:
         field, value = line.strip().split('=')
         os.environ[field] = value
 
-    env = Environ(prefix=PREFIX).reduce()
+    env = Environ(prefix=PREFIX).expand()
     assert isinstance(env['int'], int) and env['int'] == 1
     assert isinstance(env['float'], float) and env['float'] == 3.14
     assert isinstance(env['true'], bool) and env['true'] is True
     assert isinstance(env['false'], bool) and env['false'] is False
     assert env['null'] is None
     assert env['str'] == 'other'
+
+
+def test_environ_flatten() -> None:
+    """Test round-trip Environ('...').expand().flatten()."""
+
+    # clean environment of any existing variables with the item
+    PREFIX = 'CMDKIT'
+    for var in dict(os.environ):
+        if var.startswith(PREFIX):
+            os.environ.pop(var)
+
+    # populate environment with test variables
+    for line in TEST_ENV_TYPES.strip().split('\n'):
+        field, value = line.strip().split('=')
+        os.environ[field] = value
+
+    env = Namespace.from_env(PREFIX)
+    assert env == env.expand().flatten()
 
 
 def test_environ_defaults() -> None:

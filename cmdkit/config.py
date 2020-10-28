@@ -148,35 +148,6 @@ class Namespace(NSCoreMixin):
     """
 
     @classmethod
-    def from_env(cls, prefix: str = '', defaults: Dict[str, Any] = None) -> Namespace:
-        """
-        Create a :class:`~Namespace` from :data:`os.environ`,
-        optionally filtering variables based on their name using `prefix`.
-
-        Args:
-            prefix (str):
-                An optional prefix to filter the environment variables.
-                The results will be any variable that starts with this prefix.
-            defaults (dict):
-                An existing Namespace of defaults to be overriden if
-                present in the environment.
-
-        Example:
-            >>> Namespace.from_env(prefix='MYAPP', defaults={'MYAPP_LOGGING_LEVEL': 'WARNING', })
-            Namespace({'MYAPP_LOGGING_LEVEL': 'WARNING', 'MYAPP_COUNT': '42'})
-
-        See Also:
-            :class:`~Environ`: adds :func:`~Environ.reduce` method
-        """
-        env = cls(defaults or {})
-        if not prefix:
-            env.update(dict(os.environ))
-        else:
-            env.update({name: value for name, value in os.environ.items()
-                        if name.startswith(prefix)})
-        return env
-
-    @classmethod
     def from_local(cls, filepath: str, ignore_if_missing: bool = False, **options) -> Namespace:
         """Generic factory method delegates based on filename extension."""
         ext = os.path.splitext(filepath)[1].lstrip('.')
@@ -260,37 +231,109 @@ class Namespace(NSCoreMixin):
     to_yml = to_yaml
     to_tml = to_toml
 
+    @classmethod
+    def from_env(cls, prefix: str = None, defaults: Dict[str, Any] = None) -> Environ:
+        """
+        Create a :class:`~Namespace` from :data:`os.environ`,
+        optionally filtering variables based on their name using `prefix`.
+
+        Args:
+            prefix (str):
+                An optional prefix to filter the environment variables.
+                The results will be any variable that starts with this prefix.
+            defaults (dict):
+                An existing Namespace of defaults to be overriden if
+                present in the environment.
+
+        Example:
+            >>> Namespace.from_env(prefix='MYAPP', defaults={'MYAPP_LOGGING_LEVEL': 'WARNING', })
+            Namespace({'MYAPP_LOGGING_LEVEL': 'WARNING', 'MYAPP_COUNT': '42'})
+
+        See Also:
+            :class:`~Environ`: adds :func:`~Environ.reduce` method
+        """
+        return Environ(prefix=prefix, defaults=defaults)
+
 
 # basic types automatically converted from environment variable
 _VT = TypeVar('_VT', str, int, float, bool, type(None))
 
 
+def _coerced(var: str) -> _VT:
+    """Automatically coerce input `var` to numeric if possible."""
+    if var.lower() in ('', 'null'):
+        return None
+    if var.lower() == 'true':
+        return True
+    if var.lower() == 'false':
+        return False
+    try:
+        return int(var)
+    except (ValueError, TypeError):
+        pass
+    try:
+        return float(var)
+    except(ValueError, TypeError):
+        return var
+
+
+def _de_coerced(var: _VT) -> str:
+    """Automatically de-coerce input `var` to consistent string value."""
+    if var is None:
+        return 'null'
+    if var is True:
+        return 'true'
+    if var is False:
+        return 'false'
+    else:
+        return str(var)
+
+
+# helper function recursively normalizes a dictionary to depth-1.
+def _flatten(ns: dict, prefix: str = None) -> dict:
+    new = {}
+    for key, value in dict(ns).items():
+        if not isinstance(value, dict):
+            new[key.upper()] = _de_coerced(value)
+        else:
+            for subkey, subvalue in _flatten(value).items():
+                new['_'.join([key.upper(), subkey.upper()])] = _de_coerced(subvalue)
+    if prefix is None:
+        return new
+    else:
+        return {f'{prefix}_{key}': value for key, value in new.items()}
+
+
 class Environ(NSCoreMixin):
     """
     A Namespace initialized via :func:`~Namespace.from_env`.
-    The special method :func:`~reduce` melts the normalized variables
-    by splitting on underscores.
+    The special method :func:`~expand` melts the normalized variables
+    by splitting on underscores into a full heirarchy.
 
     Example:
-        >>> from cmdkit.config import Environ
-        >>> env = Environ('MYAPP')
+        >>> env = Namespace.from_env('MYAPP')
         >>> env
         Environ({'MYAPP_A_X': '1', 'MYAPP_A_Y': '2', 'MYAPP_B': '3'})
 
-        >>> env.reduce()
+        >>> env.expand()
+        Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
+
+        >>> env.expand().flatten()
         Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
     """
 
     # remembers the prefix for use with `.reduce`
-    _prefix: str = ''
+    _prefix: Optional[str] = None
 
-    def __init__(self, prefix: str = '', defaults: dict = None) -> None:
+    def __init__(self, prefix: str = None, defaults: dict = None) -> None:
         """Built via :func:`~Namespace.from_env`."""
+        super().__init__(defaults or {})
         self._prefix = prefix
-        ns = Namespace.from_env(prefix=prefix, defaults=defaults)
-        super().__init__(ns)
+        if prefix is not None:
+            self.update({name: value for name, value in os.environ.items()
+                         if name.startswith(prefix)})
 
-    def reduce(self, converter: Callable[[str], Any] = None) -> Namespace:
+    def expand(self, converter: Callable[[str], Any] = None) -> Environ:
         """
         De-normalize the key-value pairs into a nested dictionary.
         The `prefix` is stripped away and structure is derived by
@@ -309,34 +352,43 @@ class Environ(NSCoreMixin):
         ``'true'`` / ``'false'`` ``True`` / ``False``
         ======================== ========================
         """
-        coerced = converter or self._coerced
-        ns = Namespace()
+        coerced = converter or _coerced
+        partial = Namespace({})
         offset = len(self._prefix) + 1
         for key, value in self.items():
             sections = key[offset:].split('_')
             base = {}
             reduce(lambda d, k: d.setdefault(k.lower(), {}),
                    sections[:-1], base)[sections[-1].lower()] = coerced(value)
-            ns.update(base)
+            partial.update(base)
+        ns = Environ()
+        ns.update(partial)
+        ns._prefix = self._prefix
         return ns
 
-    @staticmethod
-    def _coerced(var: str) -> _VT:
-        """Automatically coerce input `var` to numeric if possible."""
-        if var.lower() in ('', 'null'):
-            return None
-        if var.lower() == 'true':
-            return True
-        if var.lower() == 'false':
-            return False
-        try:
-            return int(var)
-        except (ValueError, TypeError):
-            pass
-        try:
-            return float(var)
-        except(ValueError, TypeError):
-            return var
+    def reduce(self, *args, **kwargs) -> Environ:
+        """Deprecated. See :meth:`expand`."""
+        return self.expand(*args, **kwargs)
+
+    def flatten(self, prefix: str = None) -> Environ:
+        """
+        Collapse a namespace down to a single level by merging keys with their
+        parent section by underscore.
+
+        Example:
+            >>> env = Namespace.from_env('MYAPP')
+            >>> assert env == env.expand().flatten()
+        """
+        _prefix = prefix or self._prefix
+        ns = self.__class__(defaults=_flatten(self, prefix=_prefix))
+        ns._prefix = _prefix
+        return ns
+
+    def to_env(self, prefix: str = None) -> None:
+        """Calls :meth:`flatten` before persisting members to :data:`os.environ`."""
+        env = self.flatten(prefix=prefix)
+        for key, value in env.items():
+            os.environ[key] = value
 
 
 class ConfigurationError(Exception):
@@ -380,7 +432,7 @@ class Configuration(NSCoreMixin):
         kwargs = ', '.join([f'{k}=' + repr(v) for k, v in self.namespaces.items()])
         return f'{self.__class__.__name__}({kwargs})'
 
-    def extend(self, **others: Namespace) -> None:
+    def extend(self, **others: Union[Namespace, Environ]) -> None:
         """
         Extend the configuration by adding namespaces.
 
