@@ -148,6 +148,7 @@ class ApplicationGroup(Application):
     commands: Dict[str, Application] = None
     command: str = None
     cmdline: List[str] = None
+    ALLOW_PARSE: bool = False
 
     exceptions = {
         CompletedCommand: (lambda cmd: int(cmd.args[0]))
@@ -159,9 +160,15 @@ class ApplicationGroup(Application):
         if not cmdline:
             return super().from_cmdline(cmdline)
         else:
-            first, *remainder = cmdline
-            self = super().from_cmdline([first])
-            self.cmdline = list(remainder)
+            if (hasattr(cls, 'ALLOW_PARSE') and cls.ALLOW_PARSE is True and
+                not any(arg in cmdline for arg in {'-h', '--help'})):
+                first, remainder = cls.interface.parse_known_intermixed_args(cmdline)
+                self = super().from_namespace(first)
+                self.cmdline = remainder
+            else:
+                first, *remainder = cmdline
+                self = super().from_cmdline([first])
+                self.cmdline = list(remainder)
             return self
 
     def run(self) -> None:
