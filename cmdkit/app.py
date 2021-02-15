@@ -14,7 +14,7 @@ Application class implementation.
 
 # type annotations
 from __future__ import annotations
-from typing import List, Dict, Callable, NamedTuple, Type
+from typing import List, Dict, Callable, NamedTuple, Type, TypeVar
 
 # standard libs
 import abc
@@ -24,6 +24,8 @@ import logging
 from . import cli
 from .config import Namespace
 
+TApp = TypeVar('TApp', bound='Application')
+TAppGrp = TypeVar('TAppGrp', bound='ApplicationGroup')
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +60,6 @@ class Application(abc.ABC):
     ALLOW_NOARGS: bool = False
 
     shared: Namespace = None
-    parameters: Namespace = None
 
     exceptions: Dict[Type[Exception], Callable[[Exception], int]] = dict()
     log_critical: Callable[[str], None] = log.critical
@@ -66,17 +67,16 @@ class Application(abc.ABC):
 
     def __init__(self, **parameters) -> None:
         """Direct initialization sets `parameters`."""
-        self.parameters = Namespace(parameters)
         for name, value in parameters.items():
             setattr(self, name, value)
 
     @classmethod
-    def from_cmdline(cls, cmdline: List[str] = None) -> Application:
+    def from_cmdline(cls: Type[TApp], cmdline: List[str] = None) -> TApp:
         """Initialize via command-line arguments (e.g., `sys.argv`)."""
         return cls.from_namespace(cls.interface.parse_args(cmdline))
 
     @classmethod
-    def from_namespace(cls, namespace: cli.Namespace) -> Application:
+    def from_namespace(cls: Type[TApp], namespace: cli.Namespace) -> TApp:
         """Initialize via existing namespace/namedtuple."""
         return cls(**vars(namespace))
 
@@ -163,14 +163,14 @@ class ApplicationGroup(Application):
     }
 
     @classmethod
-    def from_cmdline(cls, cmdline: List[str] = None) -> ApplicationGroup:
+    def from_cmdline(cls: Type[TAppGrp], cmdline: List[str] = None) -> TAppGrp:
         """Initialize via command-line arguments (e.g., `sys.argv`)."""
         if not cmdline:
-            return cls(**super().from_cmdline(cmdline).parameters)
+            return super().from_cmdline(cmdline)
         else:
             if cls.ALLOW_PARSE is True and not any(arg in cmdline for arg in {'-h', '--help'}):
                 known, remainder = cls.interface.parse_known_intermixed_args(cmdline)
-                self = cls.from_namespace(known)
+                self = super().from_namespace(known)
                 self.cmdline = remainder
                 self.shared = Namespace(vars(known))
                 self.shared.pop('command')
