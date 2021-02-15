@@ -22,6 +22,7 @@ import logging
 
 # internal libs
 from . import cli
+from .config import Namespace
 
 
 log = logging.getLogger(__name__)
@@ -56,12 +57,16 @@ class Application(abc.ABC):
     interface: cli.Interface = None
     ALLOW_NOARGS: bool = False
 
+    shared: Namespace = None
+    parameters: Namespace = None
+
     exceptions: Dict[Type[Exception], Callable[[Exception], int]] = dict()
     log_critical: Callable[[str], None] = log.critical
     log_exception: Callable[[str], None] = log.exception
 
     def __init__(self, **parameters) -> None:
         """Direct initialization sets `parameters`."""
+        self.parameters = Namespace(parameters)
         for name, value in parameters.items():
             setattr(self, name, value)
 
@@ -76,7 +81,7 @@ class Application(abc.ABC):
         return cls(**vars(namespace))
 
     @classmethod
-    def main(cls, cmdline: List[str] = None) -> int:
+    def main(cls, cmdline: List[str] = None, shared: Namespace = None) -> int:
         """
         Entry-point for application.
         This is a try-except block that handles standard scenarios.
@@ -94,6 +99,8 @@ class Application(abc.ABC):
                     return exit_status.usage
 
             with cls.from_cmdline(cmdline) as app:
+                if shared is not None:
+                    app.shared = Namespace(shared) if not app.shared else Namespace({**shared, **app.shared})
                 app.run()
 
             return exit_status.success
@@ -147,34 +154,37 @@ class ApplicationGroup(Application):
     interface: cli.Interface = None
     commands: Dict[str, Application] = None
     command: str = None
-    cmdline: List[str] = None
+
     ALLOW_PARSE: bool = False
+    cmdline: List[str] = None
 
     exceptions = {
         CompletedCommand: (lambda cmd: int(cmd.args[0]))
     }
 
     @classmethod
-    def from_cmdline(cls, cmdline: List[str] = None) -> Application:
+    def from_cmdline(cls, cmdline: List[str] = None) -> ApplicationGroup:
         """Initialize via command-line arguments (e.g., `sys.argv`)."""
         if not cmdline:
-            return super().from_cmdline(cmdline)
+            return cls(**super().from_cmdline(cmdline).parameters)
         else:
-            if (hasattr(cls, 'ALLOW_PARSE') and cls.ALLOW_PARSE is True and
-                not any(arg in cmdline for arg in {'-h', '--help'})):
-                first, remainder = cls.interface.parse_known_intermixed_args(cmdline)
-                self = super().from_namespace(first)
+            if cls.ALLOW_PARSE is True and not any(arg in cmdline for arg in {'-h', '--help'}):
+                known, remainder = cls.interface.parse_known_intermixed_args(cmdline)
+                self = cls.from_namespace(known)
                 self.cmdline = remainder
+                self.shared = Namespace(vars(known))
+                self.shared.pop('command')
             else:
                 first, *remainder = cmdline
-                self = super().from_cmdline([first])
+                self = super().from_cmdline([first, ])
                 self.cmdline = list(remainder)
             return self
 
     def run(self) -> None:
         """Delegate to member application."""
         if self.command in self.commands:
-            status = self.commands[self.command].main(self.cmdline)
+            app = self.commands[self.command]
+            status = app.main(self.cmdline, shared=self.shared)
             raise CompletedCommand(status)
         else:
             raise cli.ArgumentError(f'unrecognized command: {self.command}')
