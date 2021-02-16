@@ -24,8 +24,10 @@ import logging
 from . import cli
 from .config import Namespace
 
+
 TApp = TypeVar('TApp', bound='Application')
 TAppGrp = TypeVar('TAppGrp', bound='ApplicationGroup')
+
 
 log = logging.getLogger(__name__)
 
@@ -89,7 +91,6 @@ class Application(abc.ABC):
         See Also:
             :data:`~Application.exceptions`
         """
-
         try:
             if not cmdline:
                 if hasattr(cls, 'ALLOW_NOARGS') and cls.ALLOW_NOARGS is True:
@@ -166,7 +167,7 @@ class ApplicationGroup(Application):
     def from_cmdline(cls: Type[TAppGrp], cmdline: List[str] = None) -> TAppGrp:
         """Initialize via command-line arguments (e.g., `sys.argv`)."""
         if not cmdline:
-            return super().from_cmdline(cmdline)
+            return super().from_cmdline(cmdline)  # noqa: FIXME: typing
         else:
             if cls.ALLOW_PARSE is True and not any(arg in cmdline for arg in {'-h', '--help'}):
                 known, remainder = cls.interface.parse_known_intermixed_args(cmdline)
@@ -178,7 +179,7 @@ class ApplicationGroup(Application):
                 first, *remainder = cmdline
                 self = super().from_cmdline([first, ])
                 self.cmdline = list(remainder)
-            return self
+            return self  # noqa: FIXME: typing
 
     def run(self) -> None:
         """Delegate to member application."""
