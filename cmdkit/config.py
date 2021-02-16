@@ -506,7 +506,7 @@ class Configuration(NSCoreMixin):
             >>> conf.which('u', 'i')
             'three'
         """
-        for label in reversed(self.namespaces):
+        for label in reversed(list(self.namespaces.keys())):
             try:
                 sub = self.namespaces[label]
                 for p in path:
