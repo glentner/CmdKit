@@ -23,6 +23,10 @@ A library for developing command-line applications in Python.
     :target: https://pepy.tech/badge/cmdkit
     :alt: Downloads
 
+.. image:: https://github.com/glentner/CmdKit/workflows/tests/badge.svg
+    :target: https://github.com/glentner/cmdkit/actions
+    :alt: Downloads
+
 |
 
 The *cmdkit* library implements a few common patterns needed by well-formed command-line
