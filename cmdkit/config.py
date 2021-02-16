@@ -148,6 +148,11 @@ class Namespace(NSCoreMixin):
     """
 
     @classmethod
+    def from_dict(cls, other: Dict[str, Any]) -> Namespace:
+        """Explicitly create a Namespace from existing dictionary."""
+        return cls(other)
+
+    @classmethod
     def from_local(cls, filepath: str, ignore_if_missing: bool = False, **options) -> Namespace:
         """Generic factory method delegates based on filename extension."""
         ext = os.path.splitext(filepath)[1].lstrip('.')
@@ -189,6 +194,10 @@ class Namespace(NSCoreMixin):
         else:
             return cls(json.load(path_or_file))
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Explicitly coerce a Namespace to dictionary."""
+        return dict(self)
+
     def to_local(self, filepath: str, **options) -> None:
         """Output to local file. Format based on file extension."""
         ext = os.path.splitext(filepath)[1].lstrip('.')
@@ -203,27 +212,27 @@ class Namespace(NSCoreMixin):
         import yaml
         if isinstance(path_or_file, str):
             with open(path_or_file, mode='w', encoding=encoding) as output:
-                yaml.dump(self, output, **kwargs)
+                yaml.dump(self.to_dict(), output, **kwargs)
         else:
-            yaml.dump(self, path_or_file, **kwargs)
+            yaml.dump(self.to_dict(), path_or_file, **kwargs)
 
     def to_toml(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', **kwargs) -> None:
         """Output to TOML file."""
         import toml
         if isinstance(path_or_file, str):
             with open(path_or_file, mode='w', encoding=encoding) as output:
-                toml.dump(self, output, **kwargs)
+                toml.dump(self.to_dict(), output, **kwargs)
         else:
-            toml.dump(self, path_or_file, **kwargs)
+            toml.dump(self.to_dict(), path_or_file, **kwargs)
 
     def to_json(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', indent: int = 4, **kwargs) -> None:
         """Output to JSON file."""
         import json
         if isinstance(path_or_file, str):
             with open(path_or_file, mode='w', encoding=encoding) as output:
-                json.dump(self, output, indent=indent, **kwargs)
+                json.dump(self.to_dict(), output, indent=indent, **kwargs)
         else:
-            json.dump(self, path_or_file, indent=indent, **kwargs)
+            json.dump(self.to_dict(), path_or_file, indent=indent, **kwargs)
 
     # short-hand
     from_yml = from_yaml
