@@ -104,13 +104,20 @@ def test_agent() -> None:
     if os.path.exists(datfile):
         os.remove(datfile)
 
+    # clear previous pidfile (should not exist though)
+    pidfile = f'{DemoAgent.pid_dir}/{DemoAgent.name}.pid'
+    if os.path.exists(pidfile):
+        os.remove(pidfile)
+
     # start the daemon
     log.debug(f'starting agent')
     p = Process(target=DemoAgent.test, args=('start', ))
     p.start(); p.join()
 
+    # wait for PIDFILE to be created
+    time.sleep(1)
+
     # verify exists and scrape PID
-    pidfile = f'{DemoAgent.pid_dir}/{DemoAgent.name}.pid'
     with open(pidfile, mode='r') as f:
         PID = int(f.read().strip())
         log.debug(f'agent had pid={PID}')
