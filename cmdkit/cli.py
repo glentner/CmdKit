@@ -72,6 +72,7 @@ class Interface(_argparse.ArgumentParser):
         --------
         `argparse.ArgumentParser`
         """
+
         self.program = program
         self.usage_text = usage_text
         self.help_text = help_text
@@ -99,3 +100,4 @@ class Interface(_argparse.ArgumentParser):
     # simple raise, no printing
     def error(self, message: str) -> None:
         raise ArgumentError(message)
+

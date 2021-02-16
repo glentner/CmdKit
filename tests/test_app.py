@@ -21,6 +21,7 @@ from hypothesis import given, strategies
 # internal libs
 from cmdkit.app import Application, ApplicationGroup, exit_status
 from cmdkit.cli import Interface, ArgumentError
+from cmdkit.config import Namespace
 
 
 DEMO_NAME = 'demo_app'
@@ -211,7 +212,7 @@ class Command1(Application):
     interface.add_argument('-d', '--debug', action='store_true')
 
     def run(self) -> None:
-        print(f'arg: {self.arg}, option:{self.option}, debug:{self.debug}')
+        print(f'arg: {self.arg}, option: {self.option}, debug: {self.debug}')
 
 
 CMD2 = 'bbbb'
@@ -244,7 +245,7 @@ class Command2(Application):
     interface.add_argument('-d', '--debug', action='store_true')
 
     def run(self) -> None:
-        print(f'arg: {self.arg}, option:{self.option}, debug:{self.debug}')
+        print(f'arg: {self.arg}, option: {self.option}, debug: {self.debug}')
 
 
 APP = 'app'
@@ -259,9 +260,11 @@ aaaa                  Subcommand one.
 bbbb                  Subcommand two.
 
 options:
+-g, --global          Global option.
 -v, --version         Show version number and exit.
 -h, --help            Show this message and exit.
 """
+
 
 class Group(ApplicationGroup):
 
@@ -367,3 +370,47 @@ def test_app_group_cmd2_help_2(capsys) -> None:
     captured = capsys.readouterr()
     assert captured.out.strip() == CMD2_HELP.strip()
     assert status == exit_status.success
+
+
+def test_shared_group_construction(capsys) -> None:
+    app = Group.from_cmdline([CMD2, 'foo', '--debug'])
+    assert isinstance(app, ApplicationGroup)
+    assert app.command == CMD2
+    assert app.shared is None
+    assert app.cmdline == ['foo', '--debug']
+
+
+class Command3(Command2):
+    def run(self) -> None:
+        print(f'arg: {self.arg}, option: {self.option}, debug: {self.debug}, shared: {self.shared.opt}')
+
+
+class SharedGroup(ApplicationGroup):
+
+    interface = Interface(APP, APP_USAGE, APP_HELP)
+    commands = {CMD1: Command1, CMD2: Command3}
+    ALLOW_PARSE = True
+
+    command: str = None
+    interface.add_argument('command')
+
+    version: str = '1.2.3'
+    interface.add_argument('-v', '--version', action='version', version=version)
+
+    opt: bool = False
+    interface.add_argument('-g', '--global', action='store_true', dest='opt')
+
+
+def test_app_group_cmd3_global_and_local_opt(capsys) -> None:
+    status = SharedGroup.main(['--global', CMD2, 'foo', '--debug'])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == f'arg: foo, option: 42, debug: True, shared: True'
+    assert status == exit_status.success
+
+
+def test_shared_group_option(capsys) -> None:
+    app = SharedGroup.from_cmdline([CMD2, 'foo', '--debug'])
+    assert isinstance(app, ApplicationGroup)
+    assert app.command == CMD2
+    assert app.shared == Namespace({'opt': False})
+    assert app.cmdline == ['foo', '--debug']

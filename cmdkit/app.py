@@ -14,7 +14,7 @@ Application class implementation.
 
 # type annotations
 from __future__ import annotations
-from typing import List, Dict, Callable, NamedTuple, Type
+from typing import List, Dict, Callable, NamedTuple, Type, TypeVar
 
 # standard libs
 import abc
@@ -22,6 +22,11 @@ import logging
 
 # internal libs
 from . import cli
+from .config import Namespace
+
+
+TApp = TypeVar('TApp', bound='Application')
+TAppGrp = TypeVar('TAppGrp', bound='ApplicationGroup')
 
 
 log = logging.getLogger(__name__)
@@ -56,6 +61,8 @@ class Application(abc.ABC):
     interface: cli.Interface = None
     ALLOW_NOARGS: bool = False
 
+    shared: Namespace = None
+
     exceptions: Dict[Type[Exception], Callable[[Exception], int]] = dict()
     log_critical: Callable[[str], None] = log.critical
     log_exception: Callable[[str], None] = log.exception
@@ -66,17 +73,17 @@ class Application(abc.ABC):
             setattr(self, name, value)
 
     @classmethod
-    def from_cmdline(cls, cmdline: List[str] = None) -> Application:
+    def from_cmdline(cls: Type[TApp], cmdline: List[str] = None) -> TApp:
         """Initialize via command-line arguments (e.g., `sys.argv`)."""
         return cls.from_namespace(cls.interface.parse_args(cmdline))
 
     @classmethod
-    def from_namespace(cls, namespace: cli.Namespace) -> Application:
+    def from_namespace(cls: Type[TApp], namespace: cli.Namespace) -> TApp:
         """Initialize via existing namespace/namedtuple."""
         return cls(**vars(namespace))
 
     @classmethod
-    def main(cls, cmdline: List[str] = None) -> int:
+    def main(cls, cmdline: List[str] = None, shared: Namespace = None) -> int:
         """
         Entry-point for application.
         This is a try-except block that handles standard scenarios.
@@ -84,7 +91,6 @@ class Application(abc.ABC):
         See Also:
             :data:`~Application.exceptions`
         """
-
         try:
             if not cmdline:
                 if hasattr(cls, 'ALLOW_NOARGS') and cls.ALLOW_NOARGS is True:
@@ -94,6 +100,8 @@ class Application(abc.ABC):
                     return exit_status.usage
 
             with cls.from_cmdline(cmdline) as app:
+                if shared is not None:
+                    app.shared = Namespace(shared) if not app.shared else Namespace({**shared, **app.shared})
                 app.run()
 
             return exit_status.success
@@ -147,6 +155,8 @@ class ApplicationGroup(Application):
     interface: cli.Interface = None
     commands: Dict[str, Application] = None
     command: str = None
+
+    ALLOW_PARSE: bool = False
     cmdline: List[str] = None
 
     exceptions = {
@@ -154,20 +164,28 @@ class ApplicationGroup(Application):
     }
 
     @classmethod
-    def from_cmdline(cls, cmdline: List[str] = None) -> Application:
+    def from_cmdline(cls: Type[TAppGrp], cmdline: List[str] = None) -> TAppGrp:
         """Initialize via command-line arguments (e.g., `sys.argv`)."""
         if not cmdline:
-            return super().from_cmdline(cmdline)
+            return super().from_cmdline(cmdline)  # noqa: FIXME: typing
         else:
-            first, *remainder = cmdline
-            self = super().from_cmdline([first])
-            self.cmdline = list(remainder)
-            return self
+            if cls.ALLOW_PARSE is True and not any(arg in cmdline for arg in {'-h', '--help'}):
+                known, remainder = cls.interface.parse_known_intermixed_args(cmdline)
+                self = super().from_namespace(known)
+                self.cmdline = remainder
+                self.shared = Namespace(vars(known))
+                self.shared.pop('command')
+            else:
+                first, *remainder = cmdline
+                self = super().from_cmdline([first, ])
+                self.cmdline = list(remainder)
+            return self  # noqa: FIXME: typing
 
     def run(self) -> None:
         """Delegate to member application."""
         if self.command in self.commands:
-            status = self.commands[self.command].main(self.cmdline)
+            app = self.commands[self.command]
+            status = app.main(self.cmdline, shared=self.shared)
             raise CompletedCommand(status)
         else:
             raise cli.ArgumentError(f'unrecognized command: {self.command}')
