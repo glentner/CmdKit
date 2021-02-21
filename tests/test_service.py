@@ -10,6 +10,7 @@
 
 """Unit tests for `cmdkit.service`."""
 
+
 # standard libs
 import os
 import time
