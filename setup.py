@@ -48,6 +48,7 @@ setup(
     keywords         = 'command-line utility toolkit',
     url              = 'https://cmdkit.readthedocs.io',
     packages         = find_packages(),
+    include_package_data = True,
     long_description = long_description,
     long_description_content_type = 'text/x-rst',
     classifiers      = ['Development Status :: 5 - Production/Stable',
@@ -59,7 +60,7 @@ setup(
                         'License :: OSI Approved :: Apache Software License', ],
     entry_points     = {'console_scripts': []},
     install_requires = DEPENDENCIES,
-    extras_require  = {
+    extras_require   = {
         'toml': ['toml>=0.10.1', ],
         'yaml': ['pyyaml>=5.3.1', ],
     },
