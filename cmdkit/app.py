@@ -24,6 +24,9 @@ import logging
 from . import cli
 from .config import Namespace
 
+# public interface
+__all__ = ['exit_status', 'Application', 'ApplicationGroup', 'CompletedCommand', ]
+
 
 TApp = TypeVar('TApp', bound='Application')
 TAppGrp = TypeVar('TAppGrp', bound='ApplicationGroup')

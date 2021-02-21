@@ -22,6 +22,9 @@ instead of trying to exit the program immediately.
 # standard libs
 import argparse as _argparse
 
+# public interface
+__all__ = ['Interface', ]
+
 # elevate to this module
 Namespace = _argparse.Namespace
 

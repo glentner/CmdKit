@@ -25,7 +25,10 @@ import subprocess
 from collections.abc import Mapping
 from functools import reduce
 
+# public interface
+__all__ = ['Namespace', 'Environ', 'Configuration', 'ConfigurationError', ]
 
+# type aliases
 DictKeys: type = type({}.keys())
 DictValues: type = type({}.values())
 DictItems: type = type({}.items())
