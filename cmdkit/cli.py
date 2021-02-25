@@ -22,6 +22,9 @@ instead of trying to exit the program immediately.
 # standard libs
 import argparse as _argparse
 
+# public interface
+__all__ = ['Interface', ]
+
 # elevate to this module
 Namespace = _argparse.Namespace
 
@@ -29,17 +32,19 @@ Namespace = _argparse.Namespace
 class HelpOption(Exception):
     """Raised by :class:`~Interface` when the help option is passed."""
 
+
 class VersionOption(Exception):
     """Raised by :class:`~Interface` whenever ``action='version'``."""
+
 
 class ArgumentError(Exception):
     """Raised by :class:`~Interface` on bad arguments."""
 
 
 # override version action to raise instead
-def _version_action(self, parser, namespace, values, option_string=None) -> None:
+def _version_action(self, parser, namespace, values, option_string=None) -> None:  # noqa: unused args
     raise VersionOption(self.version if self.version is not None else parser.version)
-_argparse._VersionAction.__call__ = _version_action  # noqa (protected)
+_argparse._VersionAction.__call__ = _version_action   # noqa: (protected)
 
 
 class Interface(_argparse.ArgumentParser):
@@ -100,4 +105,3 @@ class Interface(_argparse.ArgumentParser):
     # simple raise, no printing
     def error(self, message: str) -> None:
         raise ArgumentError(message)
-
