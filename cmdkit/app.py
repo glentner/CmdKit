@@ -157,7 +157,7 @@ class ApplicationGroup(Application):
     """
 
     interface: cli.Interface = None
-    commands: Dict[str, Application] = None
+    commands: Dict[str, Type[Application]] = None
     command: str = None
 
     ALLOW_PARSE: bool = False
