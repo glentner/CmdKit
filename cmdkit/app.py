@@ -67,6 +67,14 @@ class Application(abc.ABC):
     log_critical: Callable[[str], None] = log.critical
     log_exception: Callable[[str], None] = log.exception
 
+    @classmethod
+    def log_help(cls, message: str) -> None:
+        print(message)
+
+    @classmethod
+    def log_version(cls, *args) -> None:
+        print(*args)
+
     def __init__(self, **parameters) -> None:
         """Direct initialization sets `parameters`."""
         for name, value in parameters.items():
@@ -107,11 +115,11 @@ class Application(abc.ABC):
             return exit_status.success
 
         except cli.HelpOption as help_text:
-            print(help_text)
+            cls.log_help(help_text)
             return exit_status.success
 
         except cli.VersionOption as version:
-            print(*version.args)
+            cls.log_version(*version.args)
             return exit_status.success
 
         except cli.ArgumentError as error:
