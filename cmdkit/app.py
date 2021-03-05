@@ -68,11 +68,11 @@ class Application(abc.ABC):
     log_exception: Callable[[str], None] = log.exception
 
     @classmethod
-    def log_help(cls, message: str) -> None:
+    def handle_help(cls, message: str) -> None:
         print(message)
 
     @classmethod
-    def log_version(cls, *args) -> None:
+    def handle_version(cls, *args) -> None:
         print(*args)
 
     def __init__(self, **parameters) -> None:
@@ -115,11 +115,11 @@ class Application(abc.ABC):
             return exit_status.success
 
         except cli.HelpOption as help_text:
-            cls.log_help(help_text)
+            cls.handle_help(help_text)
             return exit_status.success
 
         except cli.VersionOption as version:
-            cls.log_version(*version.args)
+            cls.handle_version(*version.args)
             return exit_status.success
 
         except cli.ArgumentError as error:
