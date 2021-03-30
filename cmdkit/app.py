@@ -12,6 +12,7 @@
 Application class implementation.
 """
 
+
 # type annotations
 from __future__ import annotations
 from typing import List, Dict, Callable, NamedTuple, Type, TypeVar
@@ -23,6 +24,9 @@ import logging
 # internal libs
 from . import cli
 from .config import Namespace
+
+# public interface
+__all__ = ['exit_status', 'Application', 'ApplicationGroup', 'CompletedCommand', ]
 
 
 TApp = TypeVar('TApp', bound='Application')
@@ -75,6 +79,10 @@ class Application(abc.ABC):
     def handle_version(cls, *args) -> None:
         print(*args)
 
+    @classmethod
+    def handle_usage(cls, message: str) -> None:
+        print(message)
+
     def __init__(self, **parameters) -> None:
         """Direct initialization sets `parameters`."""
         for name, value in parameters.items():
@@ -104,7 +112,7 @@ class Application(abc.ABC):
                 if hasattr(cls, 'ALLOW_NOARGS') and cls.ALLOW_NOARGS is True:
                     pass
                 else:
-                    print(cls.interface.usage_text)
+                    cls.handle_usage(cls.interface.usage_text)
                     return exit_status.usage
 
             with cls.from_cmdline(cmdline) as app:
@@ -157,7 +165,7 @@ class CompletedCommand(Exception):
 
 class ApplicationGroup(Application):
     """
-    A group entry-point delegates to member `Applications`.
+    A group entry-point delegates to member `Application`.
     """
 
     interface: cli.Interface = None
@@ -175,19 +183,19 @@ class ApplicationGroup(Application):
     def from_cmdline(cls: Type[TAppGrp], cmdline: List[str] = None) -> TAppGrp:
         """Initialize via command-line arguments (e.g., `sys.argv`)."""
         if not cmdline:
-            return super().from_cmdline(cmdline)  # noqa: FIXME: typing
+            return super(ApplicationGroup, cls).from_cmdline(cmdline)
         else:
             if cls.ALLOW_PARSE is True and not any(arg in cmdline for arg in {'-h', '--help'}):
                 known, remainder = cls.interface.parse_known_intermixed_args(cmdline)
-                self = super().from_namespace(known)
+                self = super(ApplicationGroup, cls).from_namespace(known)
                 self.cmdline = remainder
                 self.shared = Namespace(vars(known))
                 self.shared.pop('command')
             else:
                 first, *remainder = cmdline
-                self = super().from_cmdline([first, ])
+                self = super(ApplicationGroup, cls).from_cmdline([first, ])
                 self.cmdline = list(remainder)
-            return self  # noqa: FIXME: typing
+            return self
 
     def run(self) -> None:
         """Delegate to member application."""

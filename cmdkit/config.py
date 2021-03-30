@@ -14,6 +14,7 @@ parameters. Get a runtime configuration with a namespace-like interface from bot
 local files and your environment.
 """
 
+
 # type annotations
 from __future__ import annotations
 from typing import Tuple, IO, Dict, TypeVar, Callable, Union, Iterable, Optional, Any
@@ -25,7 +26,10 @@ import subprocess
 from collections.abc import Mapping
 from functools import reduce
 
+# public interface
+__all__ = ['Namespace', 'Environ', 'Configuration', 'ConfigurationError', ]
 
+# type aliases
 DictKeys: type = type({}.keys())
 DictValues: type = type({}.values())
 DictItems: type = type({}.items())
