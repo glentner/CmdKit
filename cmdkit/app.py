@@ -79,6 +79,10 @@ class Application(abc.ABC):
     def handle_version(cls, *args) -> None:
         print(*args)
 
+    @classmethod
+    def handle_usage(cls, message: str) -> None:
+        print(message)
+
     def __init__(self, **parameters) -> None:
         """Direct initialization sets `parameters`."""
         for name, value in parameters.items():
@@ -108,7 +112,7 @@ class Application(abc.ABC):
                 if hasattr(cls, 'ALLOW_NOARGS') and cls.ALLOW_NOARGS is True:
                     pass
                 else:
-                    print(cls.interface.usage_text)
+                    cls.handle_usage(cls.interface.usage_text)
                     return exit_status.usage
 
             with cls.from_cmdline(cmdline) as app:
