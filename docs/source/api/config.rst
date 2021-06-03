@@ -6,21 +6,9 @@
 
 |
 
-Configuration management. Classes and interfaces for management application level
-parameters. Get a runtime configuration with a namespace-like interface from both
-local files and your environment.
-
-|
-
-.. note::
-
-    Because of an implementation detail regarding the way nested members are
-    handled recursively by these data structures, in-place assignments of such
-    nested members will not have an effect.
-
-    These objects are then to be treated as read-only in the sense that they can
-    only allow :func:`update` (for :class:`Namespace`) and :func:`extend`
-    (for :class:`Configuration`).
+Classes and interfaces for managing application level configuration parameters.
+Get a runtime configuration with a namespace-like interface from both
+local files and environment variables with appropriate precedent.
 
 |
 
@@ -99,6 +87,21 @@ local files and your environment.
     |
 
     .. automethod:: which
+
+|
+
+.. note::
+
+    Because of an implementation detail regarding the way the :class:`Configuration`
+    class is implemented, using the :func:`update` method directly will have the intended
+    effect on the immediate representation of the structure, but knowledge of where that
+    change occurred will be lost.
+
+    Similarly, directly modifying parameters will work as expected with the exception that
+    the now current value will lose its provenance.
+
+    **This behavior is not considered part of the public API and may in future releases be
+    changed without notice and is not considered a major change.**
 
 |
 

@@ -1,12 +1,5 @@
-# This program is free software: you can redistribute it and/or modify it under the
-# terms of the Apache License (v2.0) as published by the Apache Software Foundation.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-# PARTICULAR PURPOSE. See the Apache License for more details.
-#
-# You should have received a copy of the Apache License along with this program.
-# If not, see <https://www.apache.org/licenses/LICENSE-2.0>.
+# SPDX-FileCopyrightText: 2021 CmdKit Developers
+# SPDX-License-Identifier: Apache-2.0
 
 """Build and installation script for CmdKit."""
 
@@ -57,6 +50,7 @@ setup(
                         'Programming Language :: Python :: 3.7',
                         'Programming Language :: Python :: 3.8',
                         'Programming Language :: Python :: 3.9',
+                        'Programming Language :: Python :: 3.10',
                         'License :: OSI Approved :: Apache Software License', ],
     entry_points     = {'console_scripts': []},
     install_requires = DEPENDENCIES,
