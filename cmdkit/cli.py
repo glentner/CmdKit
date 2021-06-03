@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2021 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
-
 """
 Implements the `Interface` class.
 
@@ -12,11 +11,12 @@ Further, it suppresses the exit behavior and always raises an `ArgumentError`
 instead of trying to exit the program immediately.
 """
 
+
 # standard libs
 import argparse as _argparse
 
 # public interface
-__all__ = ['Interface', ]
+__all__ = ['Interface', 'ArgumentError', ]
 
 # elevate to this module
 Namespace = _argparse.Namespace

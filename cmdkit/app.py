@@ -1,9 +1,7 @@
 # SPDX-FileCopyrightText: 2021 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Application class implementation.
-"""
+"""Application class implementation."""
 
 
 # type annotations
