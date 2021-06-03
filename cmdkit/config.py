@@ -36,43 +36,39 @@ DictItems: type = type({}.items())
 DictKeyIterator: type = type(iter({}))
 
 
+T = TypeVar('T')
+def _as_namespace(ns: T) -> Union[T, Namespace]:
+    """If `ns` is a mappable, coerce to Namespace, recursively, otherwise pass."""
+    return ns if not isinstance(ns, Mapping) else Namespace({k: _as_namespace(v) for k, v in dict(ns).items()})
+
+
+def _as_dict(ns: NSCoreMixin) -> dict:
+    """If `ns` is a mappable, coerce to dict, recursively, otherwise pass."""
+    return {k: v if not isinstance(v, Mapping) else _as_dict(v) for k, v in dict(ns).items()}
+
+
 class NSCoreMixin(dict):
     """Core namespace mechanics used by `Namespace` and `Configuration`."""
 
     def __init__(self, *args: Union[Iterable, Mapping], **kwargs: Any) -> None:
         """Initialize from same signature as `dict`."""
-        super().__init__(*args, **kwargs)
-
-    def __getitem__(self, key: str) -> Any:
-        """Like `dict.__getitem__` but return Namespace if value is a mappable."""
-        value = super().__getitem__(key)
-        if isinstance(value, Mapping):
-            return Namespace(value)
-        else:
-            return value
+        super().__init__()
+        for k, v in dict(*args, **kwargs).items():
+            self[k] = _as_namespace(v)
 
     def __setitem__(self, key: str, value: Any) -> None:
-        """Strip special type if `value` is Namespace."""
-        if isinstance(value, Mapping):
-            super().__setitem__(key, dict(value))
-        else:
+        """Strip special type if `value` is Namespace-like."""
+        if not isinstance(value, Mapping):
             super().__setitem__(key, value)
-
-    def get(self, key: Any, default: Any = None) -> Optional[Any]:
-        """Like `dict.get` but return Namespace if value is a mappable."""
-        value = super().get(key, default)
-        if isinstance(value, Mapping):
-            return Namespace(value)
         else:
-            return value
+            super().__setitem__(key, _as_namespace(dict(value)))
 
-    def items(self) -> Iterable[Tuple[str, Any]]:
-        """Yield key, value pairs."""
-        for key, value in super().items():
-            if isinstance(value, Mapping):
-                yield key, Namespace(value)
-            else:
-                yield key, value
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Alias for index notation (if already present)."""
+        if name in self:
+            self[name] = value
+        else:
+            super().__setattr__(name, value)
 
     @classmethod
     def _depth_first_update(cls, original: dict, new: dict) -> dict:
@@ -93,7 +89,7 @@ class NSCoreMixin(dict):
 
     def __getattr__(self, item: str) -> Any:
         """
-        Get attribute by calling :meth:`__getitem__`.
+        Alias for index notation.
         Transparently expand `_env` and `_eval` variants.
         """
         variants = [f'{item}_env', f'{item}_eval']
@@ -130,8 +126,7 @@ class NSCoreMixin(dict):
 
     def __repr__(self) -> str:
         """Convert to string representation."""
-        original = super().__repr__()
-        return f'{self.__class__.__name__}({original})'
+        return f'{self.__class__.__name__}({repr(_as_dict(self))})'
 
 
 class Namespace(NSCoreMixin):
@@ -141,6 +136,7 @@ class Namespace(NSCoreMixin):
     Example:
         >>> ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': 3})
         >>> ns.update({'a': {'x': 4, 'z': 5}})
+        >>> ns
         Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
 
         >>> Namespace.from_local('config.toml', ignore_if_missing=True)
@@ -200,7 +196,7 @@ class Namespace(NSCoreMixin):
 
     def to_dict(self) -> Dict[str, Any]:
         """Explicitly coerce a Namespace to dictionary."""
-        return dict(self)
+        return _as_dict(self)
 
     def to_local(self, filepath: str, **options) -> None:
         """Output to local file. Format based on file extension."""
