@@ -378,16 +378,16 @@ class Environ(NSCoreMixin):
         Collapse a namespace down to a single level by merging keys with their
         parent section by underscore.
 
-    Example:
-        >>> env = Namespace.from_env('MYAPP')
-        >>> env
-        Environ({'MYAPP_A_X': '1', 'MYAPP_A_Y': '2', 'MYAPP_B': '3'})
+        Example:
+            >>> env = Namespace.from_env('MYAPP')
+            >>> env
+            Environ({'MYAPP_A_X': '1', 'MYAPP_A_Y': '2', 'MYAPP_B': '3'})
 
-        >>> env.expand()
-        Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
+            >>> env.expand()
+            Environ({'a': {'x': 1, 'y': 2}, 'b': 3})
 
-        >>> env.expand().flatten(prefix='MYAPP')
-        Environ({'MYAPP_A_X': '1', 'MYAPP_A_Y': '2', 'MYAPP_B': '3'})
+            >>> env.expand().flatten(prefix='MYAPP')
+            Environ({'MYAPP_A_X': '1', 'MYAPP_A_Y': '2', 'MYAPP_B': '3'})
         """
         ns = self.__class__(defaults=_flatten(self, prefix=prefix))
         ns._prefix = prefix
