@@ -89,7 +89,7 @@ def test_namespace_update_simple() -> None:
 
 
 def test_namespace_update_complex() -> None:
-    """Test Namespace.update() behavior"""
+    """Test Namespace.update() behavior."""
 
     ns = Namespace({'a': {'x': 1, 'y': 2}})
 
@@ -101,6 +101,18 @@ def test_namespace_update_complex() -> None:
 
     ns.update({'a': {'x': 5}})
     assert ns == {'a': {'x': 5, 'y': 2, 'z': 3}, 'b': {'z': 3}}
+
+
+def test_namespace_deep_inplace_assignment() -> None:
+    """Test Namespace attribute access behavior."""
+
+    ns = Namespace({'a': {'x': 1, 'y': 2}})
+    assert isinstance(ns.a, Namespace)
+    assert ns.a == {'x': 1, 'y': 2}
+    assert ns.a.x == 1 and ns.a.y == 2
+
+    ns.a.x = 3
+    assert ns.a.x == 3
 
 
 TEST_DICT = {
@@ -265,9 +277,9 @@ def test_environ() -> None:
     """Test environment variable initialization along with Environ.reduce()."""
 
     # clean environment of any existing variables with the item
-    PREFIX = 'CMDKIT'
+    prefix = 'CMDKIT'
     for var in dict(os.environ):
-        if var.startswith(PREFIX):
+        if var.startswith(prefix):
             os.environ.pop(var)
 
     # populate environment with test variables
@@ -276,8 +288,8 @@ def test_environ() -> None:
         os.environ[field] = value
 
     # test base level Namespace|Environ equivalence
-    assert Namespace.from_env(prefix=PREFIX) == Environ(prefix=PREFIX)
-    assert Environ(prefix=PREFIX).expand() == Namespace(TEST_DICT)
+    assert Namespace.from_env(prefix=prefix) == Environ(prefix=prefix)
+    assert Environ(prefix=prefix).expand() == Namespace(TEST_DICT)
 
 
 TEST_ENV_TYPES = """\
@@ -294,9 +306,9 @@ def test_environ_expand() -> None:
     """Test automatic type coercion with Environ.reduce()."""
 
     # clean environment of any existing variables with the item
-    PREFIX = 'CMDKIT'
+    prefix = 'CMDKIT'
     for var in dict(os.environ):
-        if var.startswith(PREFIX):
+        if var.startswith(prefix):
             os.environ.pop(var)
 
     # populate environment with test variables
@@ -304,7 +316,7 @@ def test_environ_expand() -> None:
         field, value = line.strip().split('=')
         os.environ[field] = value
 
-    env = Environ(prefix=PREFIX).expand()
+    env = Environ(prefix=prefix).expand()
     assert isinstance(env['int'], int) and env['int'] == 1
     assert isinstance(env['float'], float) and env['float'] == 3.14
     assert isinstance(env['true'], bool) and env['true'] is True
@@ -317,9 +329,9 @@ def test_environ_flatten() -> None:
     """Test round-trip Environ('...').expand().flatten()."""
 
     # clean environment of any existing variables with the item
-    PREFIX = 'CMDKIT'
+    prefix = 'CMDKIT'
     for var in dict(os.environ):
-        if var.startswith(PREFIX):
+        if var.startswith(prefix):
             os.environ.pop(var)
 
     # populate environment with test variables
@@ -327,17 +339,17 @@ def test_environ_flatten() -> None:
         field, value = line.strip().split('=')
         os.environ[field] = value
 
-    env = Namespace.from_env(PREFIX)
-    assert env == env.expand().flatten(prefix=PREFIX)
+    env = Namespace.from_env(prefix)
+    assert env == env.expand().flatten(prefix=prefix)
 
 
 def test_environ_defaults() -> None:
     """Test defaults for missing environment variables."""
 
     # clean environment of any existing variables with the item
-    PREFIX = 'CMDKIT'
+    prefix = 'CMDKIT'
     for var in dict(os.environ):
-        if var.startswith(PREFIX):
+        if var.startswith(prefix):
             os.environ.pop(var)
 
     # populate environment with test variables
@@ -346,7 +358,7 @@ def test_environ_defaults() -> None:
         os.environ[field] = value
 
     # add default
-    env = Environ(prefix=PREFIX, defaults={'CMDKIT_DEFAULT_VALUE': '42'}).reduce()
+    env = Environ(prefix=prefix, defaults={'CMDKIT_DEFAULT_VALUE': '42'}).reduce()
     value = env['default']['value']
     assert isinstance(value, int) and value == 42
 
