@@ -1,9 +1,7 @@
 # SPDX-FileCopyrightText: 2021 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Implementation of Service class.
-"""
+"""Service class implementation."""
 
 # internal libs
 from .daemon import Daemon

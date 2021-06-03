@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: 2021 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Agent implementation.
-"""
+"""Agent class implementation."""
+
 
 # standard libs
 import time
