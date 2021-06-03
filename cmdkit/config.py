@@ -1,12 +1,5 @@
-# This program is free software: you can redistribute it and/or modify it under the
-# terms of the Apache License (v2.0) as published by the Apache Software Foundation.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-# PARTICULAR PURPOSE. See the Apache License for more details.
-#
-# You should have received a copy of the Apache License along with this program.
-# If not, see <https://www.apache.org/licenses/LICENSE-2.0>.
+# SPDX-FileCopyrightText: 2021 CmdKit Developers
+# SPDX-License-Identifier: Apache-2.0
 
 """
 Configuration management. Classes and interfaces for managing application level
@@ -17,7 +10,7 @@ local files and your environment.
 
 # type annotations
 from __future__ import annotations
-from typing import Tuple, IO, Dict, TypeVar, Callable, Union, Iterable, Optional, Any
+from typing import IO, Dict, TypeVar, Callable, Union, Iterable, Optional, Any
 
 # standard libs
 import os
