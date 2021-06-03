@@ -25,7 +25,7 @@ A library for developing command-line applications in Python.
 
 .. image:: https://github.com/glentner/CmdKit/workflows/tests/badge.svg
     :target: https://github.com/glentner/cmdkit/actions
-    :alt: Downloads
+    :alt: Pytest
 
 |
 
