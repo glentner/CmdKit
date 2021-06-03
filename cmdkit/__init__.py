@@ -9,5 +9,5 @@ from .__meta__ import (__pkgname__, __version__, __authors__, __contact__,\
                        __license__, __copyright__, __description__)
 
 
-# top-level logger
+# null-handler for library
 logging.getLogger(__name__).addHandler(logging.NullHandler())
