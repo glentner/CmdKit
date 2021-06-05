@@ -458,9 +458,9 @@ def test_configuration_from_local() -> None:
             output.write(data)
 
     # clean environment of any existing variables with the item
-    PREFIX = 'CMDKIT'
+    prefix = 'CMDKIT'
     for var in dict(os.environ):
-        if var.startswith(PREFIX):
+        if var.startswith(prefix):
             os.environ.pop(var)
 
     # populate environment with test variables
@@ -470,7 +470,7 @@ def test_configuration_from_local() -> None:
 
     # build configuration
     default = Namespace.from_toml(StringIO(TEST_CONFIG_DEFAULT))
-    cfg = Configuration.from_local(default=default, env=True, prefix=PREFIX,
+    cfg = Configuration.from_local(default=default, env=True, prefix=prefix,
                                    system=f'{TMPDIR}/system.toml',
                                    user=f'{TMPDIR}/user.toml',
                                    local=f'{TMPDIR}/local.toml')
@@ -480,7 +480,7 @@ def test_configuration_from_local() -> None:
     assert cfg.namespaces['system'] == Namespace.from_toml(StringIO(TEST_CONFIG_SYSTEM))
     assert cfg.namespaces['user'] == Namespace.from_toml(StringIO(TEST_CONFIG_USER))
     assert cfg.namespaces['local'] == Namespace.from_toml(StringIO(TEST_CONFIG_LOCAL))
-    assert cfg.namespaces['env'] == Environ(PREFIX).reduce()
+    assert cfg.namespaces['env'] == Environ(prefix).reduce()
 
     # verify parameter lineage
     assert cfg['a']['var0'] == 'default_var0' and cfg.which('a', 'var0') == 'default'
@@ -489,3 +489,27 @@ def test_configuration_from_local() -> None:
     assert cfg['b']['var3'] == 'local_var3' and cfg.which('b', 'var3') == 'local'
     assert cfg['c']['var4'] == 'env_var4' and cfg.which('c', 'var4') == 'env'
     assert cfg['c']['var5'] == 'env_var5' and cfg.which('c', 'var5') == 'env'
+
+
+def test_configuration_live_update() -> None:
+    """Do not allow the direct use of `update` on Configuration class."""
+
+    cfg = Configuration(a=Namespace(x=1))
+    assert repr(cfg) == 'Configuration(a=Namespace({\'x\': 1}))'
+    assert dict(cfg) == {'x': 1}
+    assert cfg.which('x') == 'a'
+
+    cfg.x = 2
+    assert repr(cfg) == 'Configuration(a=Namespace({\'x\': 1}), _=Namespace({\'x\': 2}))'
+    assert dict(cfg) == {'x': 2}
+    assert cfg.which('x') == '_'
+
+    cfg.update(y=2)
+    assert dict(cfg) == {'x': 2, 'y': 2}
+    assert repr(cfg) == 'Configuration(a=Namespace({\'x\': 1}), _=Namespace({\'x\': 2, \'y\': 2}))'
+    assert cfg.which('y') == '_'
+
+    cfg.update(y=3)
+    assert dict(cfg) == {'x': 2, 'y': 3}
+    assert repr(cfg) == 'Configuration(a=Namespace({\'x\': 1}), _=Namespace({\'x\': 2, \'y\': 3}))'
+    assert cfg.which('y') == '_'

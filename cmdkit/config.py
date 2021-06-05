@@ -64,21 +64,21 @@ class NSCoreMixin(dict):
             super().__setattr__(name, value)
 
     @classmethod
-    def _depth_first_update(cls, original: dict, new: dict) -> dict:
+    def __depth_first_update(cls, original: dict, new: dict) -> dict:
         """
-        Like normal `dict.update` but if values in both are mappable descend
+        Like normal `dict.update` but if values in both are mappable, descend
         a level deeper (recursive) and apply updates there instead.
         """
         for key, value in new.items():
             if isinstance(value, dict) and isinstance(original.get(key), dict):
-                original[key] = cls._depth_first_update(original.get(key, {}), value)
+                original[key] = cls.__depth_first_update(original.get(key, {}), value)
             else:
                 original[key] = value
         return original
 
     def update(self, *args, **kwargs) -> None:
-        """Implements a recursive, depth-first update (i.e., an "override")."""
-        self._depth_first_update(self, dict(*args, **kwargs))
+        """Depth-first update method."""
+        self.__depth_first_update(self, dict(*args, **kwargs))
 
     def __getattr__(self, item: str) -> Any:
         """
@@ -90,16 +90,16 @@ class NSCoreMixin(dict):
             return self[item]
         for variant in variants:
             if variant in self:
-                return self._expand_attr(item)
+                return self.__expand_attr(item)
         else:
             raise AttributeError(f'missing \'{item}\'')
 
-    def _expand_attr(self, item: str) -> str:
+    def __expand_attr(self, item: str) -> str:
         """Interpolate values if `_env` or `_eval` present."""
 
         getters = {f'{item}': (lambda: self[item]),
-                   f'{item}_env': functools.partial(self._expand_attr_env, item),
-                   f'{item}_eval': functools.partial(self._expand_attr_eval, item)}
+                   f'{item}_env': functools.partial(self.__expand_attr_env, item),
+                   f'{item}_eval': functools.partial(self.__expand_attr_eval, item)}
 
         items = [key for key in self if key in getters]
         if len(items) == 0:
@@ -109,11 +109,11 @@ class NSCoreMixin(dict):
         else:
             raise ConfigurationError(f'\'{item}\' has more than one variant')
 
-    def _expand_attr_env(self, item: str) -> str:
+    def __expand_attr_env(self, item: str) -> str:
         """Expand `item` as an environment variable."""
         return os.getenv(str(self[f'{item}_env']), None)
 
-    def _expand_attr_eval(self, item: str) -> str:
+    def __expand_attr_eval(self, item: str) -> str:
         """Expand `item` as a shell expression."""
         return subprocess.check_output(str(self[f'{item}_eval']), shell=True).decode().strip()
 
@@ -427,18 +427,21 @@ class Configuration(NSCoreMixin):
         1
     """
 
-    namespaces: Namespace = None
+    local: Namespace  # NOTE: used to track changes to the 'self'
+    namespaces: Namespace
 
     def __init__(self, **namespaces: Namespace) -> None:
         """Retain source `namespaces` and create master namespace."""
         super().__init__()
+        self.local = Namespace()
         self.namespaces = Namespace()
-        # self._master = Namespace()
         self.extend(**namespaces)
 
     def __repr__(self) -> str:
         """String representation of Configuration."""
         kwargs = ', '.join([f'{k}=' + repr(v) for k, v in self.namespaces.items()])
+        if self.local:
+            kwargs += f', _={repr(self.local)}'
         return f'{self.__class__.__name__}({kwargs})'
 
     def extend(self, **others: Union[Namespace, Environ]) -> None:
@@ -455,8 +458,11 @@ class Configuration(NSCoreMixin):
                           three=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}})
         """
         for name, mapping in others.items():
-            self.namespaces[name] = Namespace(mapping)
-            self.update(self.namespaces[name])
+            if name != '_':
+                self.namespaces[name] = Namespace(mapping)
+                super().update(self.namespaces[name])
+            else:
+                self.local.update(mapping)
 
     @classmethod
     def from_local(cls, *, env: bool = False, prefix: str = None,
@@ -499,13 +505,56 @@ class Configuration(NSCoreMixin):
             >>> conf.which('u', 'i')
             'three'
         """
-        for label in reversed(list(self.namespaces.keys())):
+        namespaces = Namespace({**self.namespaces, '_': self.local})
+        for label in reversed(list(namespaces.keys())):
             try:
-                sub = self.namespaces[label]
+                sub = namespaces[label]
                 for p in path:
                     sub = sub[p]
                 return label
             except KeyError:
                 pass
         else:
-            raise KeyError(f'not found: {path}')
+            raise KeyError(f'Not found: {path}')
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Intercept parameter assignment."""
+        if name in self:
+            self.update({name: value})
+        else:
+            super().__setattr__(name, value)
+
+    def update(self, *args, **kwargs) -> None:
+        """
+        Update current namespace directly.
+
+        Note:
+            The :class:`Configuration` class is itself a :class:`Namespace`-like object.
+            Doing any in-place changes to its underlying `self` does not change its member namespaces.
+            This may otherwise cause confusion about the provenance of those parameters.
+            Instead, overrides have been implemented to capture these changes in a `local` namespace.
+            If you ask :func:`which` namespace a parameter has come from and it was an in-place change,
+            it will be considered a member of the "_" namespace.
+
+        Example:
+            >>> conf = Configuration(a=Namespace(x=1))
+            >>> conf
+            Configuration(a=Namespace({'x': 1}))
+
+            >>> conf.update(y=2)
+            >>> conf
+            Configuration(a=Namespace({'x': 1}), _=Namespace({'y': 2}))
+
+            >>> conf.x = 2
+            >>> conf
+            Configuration(a=Namespace({'x': 1}), _=Namespace({'x': 2, 'y': 2}))
+
+            >>> conf.update(y=3)
+            >>> conf
+            Configuration(a=Namespace({'x': 1}), _=Namespace({'x': 2, 'y': 3}))
+
+            >>> dict(conf)
+            {'x': 2, 'y': 3}
+        """
+        self.local.update(*args, **kwargs)
+        super().update(*args, **kwargs)
