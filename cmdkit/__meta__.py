@@ -5,7 +5,7 @@
 
 
 __pkgname__   = 'cmdkit'
-__version__   = '2.4.0'
+__version__   = '2.5.0'
 __authors__   = 'Geoffrey Lentner'
 __contact__   = 'glentner@purdue.edu'
 __license__   = 'Apache License'

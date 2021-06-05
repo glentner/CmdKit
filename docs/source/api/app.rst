@@ -30,7 +30,7 @@ all the entry-points in your project.
             class MyApp(Application):
                 ...
 
-                interface = Interface('myapp', 'usage text', 'help text')
+                interface = Interface('myapp', USAGE_TEXT, HELP_TEXT)
 
                 output: str = '-'
                 interface.add_argument('-o', '--output', default=output)
@@ -165,6 +165,61 @@ all the entry-points in your project.
     |
 
     .. automethod:: __exit__
+
+    |
+
+    .. autoattribute:: shared
+
+        A shared :class:`~cmdkit.config.Namespace` with parameters from parent group(s).
+        See :class:`ApplicationGroup`.
+
+|
+
+-------------------
+
+|
+
+.. autoclass:: ApplicationGroup
+
+    .. code-block:: python
+
+        class MainApp(ApplicationGroup):
+            """Top-level entry-point for a hierarchical interface."""
+
+            interface = Interface('myapp', USAGE_TEXT, HELP_TEXT)
+
+            command: str
+            interface.add_argument('command')
+
+            commands = {
+                'config': ConfigApp,
+                'list': ListApp,
+                'run': RunApp,
+            }
+
+    |
+
+    .. autoattribute:: shared
+
+    .. autoattribute:: ALLOW_PARSE
+
+        By default, the ``cmdline`` list passed to :meth:`~Application.main` has
+        its first argument popped and used to lookup which member :class:`Application` to run.
+
+        If ``ALLOW_PARSE`` is ``True``, then `known` options of the group ``interface``
+        are parsed from ``cmdline`` and retained in a member :class:`~cmdkit.config.Namespace`,
+        :data:`Application.shared`, with the remainder passed on to the down-line
+        :class:`Application`.
+
+        .. code-block::
+
+            class MainApp(ApplicationGroup):
+                ...
+
+                ALLOW_PARSED = True
+
+                verbose: bool = False
+                interface.add_argument('--verbose', action='store_true')
 
 |
 

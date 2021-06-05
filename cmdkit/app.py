@@ -113,8 +113,8 @@ class Application(abc.ABC):
 
             return exit_status.success
 
-        except cli.HelpOption as help_text:
-            cls.handle_help(help_text)
+        except cli.HelpOption as help_opt:
+            cls.handle_help(*help_opt.args)
             return exit_status.success
 
         except cli.VersionOption as version:
@@ -155,9 +155,7 @@ class CompletedCommand(Exception):
 
 
 class ApplicationGroup(Application):
-    """
-    A group entry-point delegates to member `Application`.
-    """
+    """A group entry-point delegates to a member `Application`."""
 
     interface: cli.Interface = None
     commands: Dict[str, Type[Application]] = None
