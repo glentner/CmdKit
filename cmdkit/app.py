@@ -155,9 +155,7 @@ class CompletedCommand(Exception):
 
 
 class ApplicationGroup(Application):
-    """
-    A group entry-point delegates to member `Application`.
-    """
+    """A group entry-point delegates to a member `Application`."""
 
     interface: cli.Interface = None
     commands: Dict[str, Type[Application]] = None
