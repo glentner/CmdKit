@@ -91,7 +91,6 @@ also supports the convention of having
 parameters with ``_env`` and ``_eval`` automatically expanded.
 
 .. code-block:: toml
-    :caption: ~/.myapp/config.toml
 
     [database]
     password_eval = "gpg ..."
