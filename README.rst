@@ -31,12 +31,10 @@ The idea is to reduce the boilerplate needed to get a full featured CLI off the 
 Applications developed using *cmdkit* are easy to implement, easy to maintain, and easy to
 understand.
 
--------------------
+|
 
 Features
 --------
-
-|
 
 An `Application <https://cmdkit.readthedocs.io/en/latest/api/app.html#cmdkit.app.Application>`_
 class provides the boilerplate for a good entry-point.
@@ -64,7 +62,6 @@ instead of exiting.
         def run(self) -> None:
             """Business logic of the application."""
             print(self.lhs + self.rhs)
-
 
 |
 
@@ -100,8 +97,6 @@ Accessing the parameter with dot-notation, i.e., ``config.database.password`` wo
 
 |
 
--------------------
-
 Installation
 ------------
 
@@ -114,8 +109,6 @@ from the `Python Package Index` using `Pip`.
 
 |
 
--------------------
-
 Getting Started
 ---------------
 
@@ -125,8 +118,6 @@ You can also checkout how `CmdKit` is being used by other projects, e.g.,
 `REFITT <https://github.com/refitt/refitt>`_ and `HyperShell <https://github.com/glentner/hyper-shell>`_.
 
 |
-
--------------------
 
 Documentation
 -------------
