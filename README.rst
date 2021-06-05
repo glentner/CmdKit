@@ -85,7 +85,9 @@ class extends the behavior of a standard Python `dict` to have a depth-first mer
 
     config = Configuration.from_local(env=True, prefix='MYAPP', default=default, **paths)
 
-The underlying :class:`~cmdkit.config.Namespace` also supports the convention of having
+The underlying
+`Namespace <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Namespace>`_
+also supports the convention of having
 parameters with ``_env`` and ``_eval`` automatically expanded.
 
 .. code-block:: toml
