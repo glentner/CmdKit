@@ -38,12 +38,15 @@ Features
 
 |
 
-An :class:`~cmdkit.app.Application` class provides the boilerplate for a good entry-point.
-Building your command-line application in layers with :class:`~cmdkit.app.ApplicationGroup`
+An `Application <https://cmdkit.readthedocs.io/en/latest/api/app.html#cmdkit.app.Application>`_
+class provides the boilerplate for a good entry-point.
+Building your command-line application in layers with
+`ApplicationGroup <https://cmdkit.readthedocs.io/en/latest/api/app.html#cmdkit.app.ApplicationGroup>`_
 let's you develop simple structures and modules that mirror your CLI.
 
-An :class:`~cmdkit.cli.Interface` class modifies the behavior of the standard
-:class:`argparse.ArgumentParser` class to raise simple exceptions instead of exiting.
+An `Interface <https://cmdkit.readthedocs.io/en/latest/api/cli.html#cmdkit.cli.Interface>`_ class
+modifies the behavior of the standard ``argparse.ArgumentParser`` class to raise simple exceptions
+instead of exiting.
 
 .. code-block:: python
 
@@ -65,13 +68,16 @@ An :class:`~cmdkit.cli.Interface` class modifies the behavior of the standard
 
 |
 
-A :class:`~cmdkit.config.Configuration` class makes it basically a one-liner to pull in
+A
+`Configuration <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Configuration>`_
+class makes it basically a one-liner to pull in
 a configuration with a dictionary-like interface from a cascade of files as well as
 expanding environment variables into a hierarchy and merged.
 
 The standard behavior for any `good` application is for a configuration to allow for
 system-level, user-level, and local configuration to overlap. Merging these should not
-clobber the same section in a lower-priority source. The :class:`~cmdkit.config.Namespace`
+clobber the same section in a lower-priority source. The
+`Namespace <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Namespace>`_
 class extends the behavior of a standard Python `dict` to have a depth-first merge for its
 `update` implementation.
 
@@ -112,7 +118,7 @@ from the `Python Package Index` using `Pip`.
 Getting Started
 ---------------
 
-Checkout the :ref:`Tutorial <tutorial>` for examples.
+Checkout the `Tutorial <https://cmdkit.readthedocs.io/en/latest/tutorial/>`_ for examples.
 
 You can also checkout how `CmdKit` is being used by other projects.
 
