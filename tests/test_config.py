@@ -115,6 +115,7 @@ class TestNamespace:
         ns = Namespace(DATA)
         for key, value in zip(KEYS, VALUES):
             assert ns[key] == ns.get(key) == value
+            assert ns.get(f'{key}_', False) is False
 
     def test_set(self) -> None:
         """Test Namespace[] setter."""
