@@ -33,70 +33,6 @@ understand.
 
 |
 
-Features
---------
-
-An `Application <https://cmdkit.readthedocs.io/en/latest/api/app.html#cmdkit.app.Application>`_
-class provides the boilerplate for a good entry-point.
-Building your command-line application in layers with
-`ApplicationGroup <https://cmdkit.readthedocs.io/en/latest/api/app.html#cmdkit.app.ApplicationGroup>`_
-let's you develop simple structures and modules that mirror your CLI.
-
-An `Interface <https://cmdkit.readthedocs.io/en/latest/api/cli.html#cmdkit.cli.Interface>`_ class
-modifies the behavior of the standard ``argparse.ArgumentParser`` class to raise simple exceptions
-instead of exiting.
-
-.. code-block:: python
-
-    class Add(Application):
-        """Application class for adding routine."""
-
-        interface = Interface('add', USAGE_TEXT, HELP_TEXT)
-        interface.add_argument('-v', '--version', action='version', '0.0.1')
-
-        lhs: int
-        rhs: int
-        interface.add_argument('lhs', type=float)
-        interface.add_argument('rhs', type=float)
-
-        def run(self) -> None:
-            """Business logic of the application."""
-            print(self.lhs + self.rhs)
-
-|
-
-A
-`Configuration <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Configuration>`_
-class makes it basically a one-liner to pull in
-a configuration with a dictionary-like interface from a cascade of files as well as
-expanding environment variables into a hierarchy and merged.
-
-The standard behavior for any `good` application is for a configuration to allow for
-system-level, user-level, and local configuration to overlap. Merging these should not
-clobber the same section in a lower-priority source. The
-`Namespace <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Namespace>`_
-class extends the behavior of a standard Python `dict` to have a depth-first merge for its
-`update` implementation.
-
-.. code-block:: python
-
-    config = Configuration.from_local(env=True, prefix='MYAPP', default=default, **paths)
-
-The underlying
-`Namespace <https://cmdkit.readthedocs.io/en/latest/api/config.html#cmdkit.config.Namespace>`_
-also supports the convention of having
-parameters with ``_env`` and ``_eval`` automatically expanded.
-
-.. code-block:: toml
-
-    [database]
-    password_eval = "gpg ..."
-
-Accessing the parameter with dot-notation, i.e., ``config.database.password`` would execute
-``"gpg ..."`` as a shell command and return the output.
-
-|
-
 Installation
 ------------
 
@@ -106,16 +42,6 @@ from the `Python Package Index` using `Pip`.
 ::
 
     $ pip install cmdkit
-
-|
-
-Getting Started
----------------
-
-Checkout the `Tutorial <https://cmdkit.readthedocs.io/en/latest/tutorial/>`_ for examples.
-
-You can also checkout how `CmdKit` is being used by other projects, e.g.,
-`REFITT <https://github.com/refitt/refitt>`_ and `HyperShell <https://github.com/glentner/hyper-shell>`_.
 
 |
 
