@@ -257,6 +257,13 @@ class TestNamespace:
         assert ns.get('test_eval') == 'echo foo-bar'
         assert ns.test == 'foo-bar'
 
+    def test_whereis(self) -> None:
+        """Namespace can find paths to leaves in the tree."""
+        ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+        assert ns.whereis('x') == [('a',), ('b',)]
+        assert ns.whereis('x', 1) == [('a',)]
+        assert ns.whereis('x', lambda v: v % 3 == 0) == [('b',)]
+
 
 TEST_ENV_TYPES = """\
 CMDKIT_INT=1
@@ -266,6 +273,7 @@ CMDKIT_FALSE=false
 CMDKIT_NULL=null
 CMDKIT_STR=other
 """
+
 
 class TestEnviron:
     """Unit tests for Environ."""
@@ -506,3 +514,14 @@ class TestConfiguration:
         assert dict(cfg) == {'x': 2, 'y': 3}
         assert repr(cfg) == 'Configuration(a=Namespace({\'x\': 1}), _=Namespace({\'x\': 2, \'y\': 3}))'
         assert cfg.which('y') == '_'
+
+    def test_whereis(self) -> None:
+        """Configuration can find paths to leaves in the tree."""
+
+        one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+        two = Namespace({'b': {'x': 4}, 'c': {'j': True, 'k': 3.14}})
+        cfg = Configuration(one=one, two=two)
+
+        assert cfg.whereis('x') == {'one': [('a',), ('b',)], 'two': [('b',)]}
+        assert cfg.whereis('x', 1) == {'one': [('a',)], 'two': []}
+        assert cfg.whereis('x', lambda v: v % 3 == 0) == {'one': [('b',)], 'two': []}
