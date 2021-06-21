@@ -16,6 +16,7 @@ from typing import IO, Tuple, List, Dict, NamedTuple, TypeVar, Callable, Union, 
 import os
 import functools
 import subprocess
+from collections import Counter
 from collections.abc import Mapping
 from functools import reduce
 
@@ -259,6 +260,22 @@ class Namespace(NSCoreMixin):
     def to_env(self) -> Environ:
         """Translate namespace to an :class:`Environ` namespace."""
         return Environ(defaults=self)
+
+
+    def duplicates(self) -> Dict[List[Tuple[str, ...]]]:
+        """
+        Find all the repeated `leaves`.
+
+        Example:
+            >>> ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+            >>> ns
+            Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+
+            >>> ns.duplicates()
+            {'x': [('a',), ('b',)]}
+        """
+        return {tip: self.whereis(tip) for tip, count in Counter([t for _, (*_, t) in _find_the_leaves(self)]).items() if count > 1}  
+
 
     def whereis(self, leaf: str, value: Union[Callable[[T], bool], T] = lambda _: True) -> List[Tuple[str, ...]]:
         """
