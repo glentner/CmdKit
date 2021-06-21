@@ -554,6 +554,10 @@ class Configuration(NSCoreMixin):
         else:
             raise KeyError(f'Not found: {path}')
 
+    def whereis(self, leaf: str, value: Union[Callable[[T], bool], T] = lambda _: True) -> Dict[str, List[Tuple[str, ...]]]:
+        """For each Namespace find where leaf, and value, exist in the Namespace."""
+        return {name: space.whereis(leaf, value) for name, space in self.namespaces.items()}
+
     def __setattr__(self, name: str, value: Any) -> None:
         """Intercept parameter assignment."""
         if name in self:
