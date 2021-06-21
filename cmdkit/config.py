@@ -10,7 +10,7 @@ local files and your environment.
 
 # type annotations
 from __future__ import annotations
-from typing import IO, Dict, TypeVar, Callable, Union, Iterable, Optional, Any
+from typing import IO, Tuple, List, Dict, NamedTuple, TypeVar, Callable, Union, Iterable, Optional, Any
 
 # standard libs
 import os
@@ -260,6 +260,14 @@ class Namespace(NSCoreMixin):
         """Translate namespace to an :class:`Environ` namespace."""
         return Environ(defaults=self)
 
+    def whereis(self, leaf: str, value: Union[Callable[[T], bool], T] = lambda _: True) -> List[Tuple[str, ...]]:
+        """Find where leaf, and value, exist in the Namespace."""
+        if not callable(value):
+            check = lambda x: x == value
+        else:
+            check = value
+        return [tuple(branch.stem[:-1]) for branch in _find_the_leaves(self) 
+                if branch.stem[-1] == leaf and check(branch.leaf)]
 
 # basic types automatically converted from environment variable
 _VT = TypeVar('_VT', str, int, float, bool, type(None))
@@ -309,6 +317,35 @@ def _flatten(ns: dict, prefix: str = None) -> dict:
     else:
         return {f'{prefix}_{key}': value for key, value in new.items()}
 
+class _Leaf(NamedTuple):
+    """Definiton of a tree leaf."""
+    leaf: Any
+    stem: list[str]
+
+def _find_the_leaves(tree: Optional[Mapping[str, Any]]) -> List[_Leaf]:
+    """Return the leaves (and their stems) of the tree (e.g., Namespace)."""
+    leaves = []
+    if tree is not None:
+        leaves = [_Leaf(_read_a_leaf(stem, tree), stem) for stem in _walk_the_tree(tree)]
+    return leaves
+
+def _read_a_leaf(stem: List[str], tree: Mapping[str, Any]) -> Optional[Any]:
+    """Read the leaf at the end of the stem on the tree (e.g., Namespace)."""
+    try:
+        return reduce(lambda branch, leaf: branch[leaf], stem, tree)
+    except KeyError:
+        return None
+
+def _walk_the_tree(tree: Mapping[str, Any], stem: List[str] = []) -> List[List[str]]:
+    """Return the leaves of the branches."""
+    leaves = []
+    for branch, branches in tree.items():
+        leaf = stem + [branch, ]
+        if isinstance(branches, dict):
+            leaves.extend(_walk_the_tree(branches, leaf))
+        else:
+            leaves.append(leaf)
+    return leaves
 
 class Environ(NSCoreMixin):
     """
