@@ -261,13 +261,27 @@ class Namespace(NSCoreMixin):
         return Environ(defaults=self)
 
     def whereis(self, leaf: str, value: Union[Callable[[T], bool], T] = lambda _: True) -> List[Tuple[str, ...]]:
-        """Find where leaf, and value, exist in the Namespace."""
-        if not callable(value):
-            check = lambda x: x == value
-        else:
-            check = value
+        """
+        Find paths to `leaf`, optionally filtered on `value`.
+
+        Example:
+            >>> ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+            >>> ns
+            Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+
+            >>> ns.whereis('x')
+            [('a',), ('b',)]
+
+            >>> ns.whereis('x', 1)
+            [('a',)]
+
+            >>> ns.whereis('x', lambda v: v % 3 == 0)
+            [('b',)]
+        """
+        check = value if callable(value) else lambda x: x == value
         return [tuple(branch.stem[:-1]) for branch in _find_the_leaves(self) 
                 if branch.stem[-1] == leaf and check(branch.leaf)]
+
 
 # basic types automatically converted from environment variable
 _VT = TypeVar('_VT', str, int, float, bool, type(None))
@@ -317,10 +331,12 @@ def _flatten(ns: dict, prefix: str = None) -> dict:
     else:
         return {f'{prefix}_{key}': value for key, value in new.items()}
 
+
 class _Leaf(NamedTuple):
-    """Definiton of a tree leaf."""
+    """Definition of a tree leaf."""
     leaf: Any
     stem: list[str]
+
 
 def _find_the_leaves(tree: Optional[Mapping[str, Any]]) -> List[_Leaf]:
     """Return the leaves (and their stems) of the tree (e.g., Namespace)."""
@@ -329,6 +345,7 @@ def _find_the_leaves(tree: Optional[Mapping[str, Any]]) -> List[_Leaf]:
         leaves = [_Leaf(_read_a_leaf(stem, tree), stem) for stem in _walk_the_tree(tree)]
     return leaves
 
+
 def _read_a_leaf(stem: List[str], tree: Mapping[str, Any]) -> Optional[Any]:
     """Read the leaf at the end of the stem on the tree (e.g., Namespace)."""
     try:
@@ -336,8 +353,10 @@ def _read_a_leaf(stem: List[str], tree: Mapping[str, Any]) -> Optional[Any]:
     except KeyError:
         return None
 
-def _walk_the_tree(tree: Mapping[str, Any], stem: List[str] = []) -> List[List[str]]:
+
+def _walk_the_tree(tree: Mapping[str, Any], stem: List[str] = None) -> List[List[str]]:
     """Return the leaves of the branches."""
+    stem = stem or []
     leaves = []
     for branch, branches in tree.items():
         leaf = stem + [branch, ]
@@ -346,6 +365,7 @@ def _walk_the_tree(tree: Mapping[str, Any], stem: List[str] = []) -> List[List[s
         else:
             leaves.append(leaf)
     return leaves
+
 
 class Environ(NSCoreMixin):
     """
@@ -554,8 +574,25 @@ class Configuration(NSCoreMixin):
         else:
             raise KeyError(f'Not found: {path}')
 
-    def whereis(self, leaf: str, value: Union[Callable[[T], bool], T] = lambda _: True) -> Dict[str, List[Tuple[str, ...]]]:
-        """For each Namespace find where leaf, and value, exist in the Namespace."""
+    def whereis(self, leaf: str,
+                value: Union[Callable[[T], bool], T] = lambda _: True) -> Dict[str, List[Tuple[str, ...]]]:
+        """
+        Find paths to `leaf`, optionally filtered on `value`, for each member namespace.
+
+        Example:
+            >>> one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+            >>> two = Namespace({'b': {'x': 4}, 'c': {'j': True, 'k': 3.14}})
+            >>> cfg = Configuration(one=one, two=two)
+
+            >>> cfg.whereis('x')
+            {'one': [('a',), ('b',)], 'two': [('b',)]}
+
+            >>> cfg.whereis('x', 1)
+            {'one': [('a',)], 'two': []}
+
+            >>> cfg.whereis('x', lambda v: v % 3 == 0)
+            {'one': [('b',)], 'two': []}
+        """
         return {name: space.whereis(leaf, value) for name, space in self.namespaces.items()}
 
     def __setattr__(self, name: str, value: Any) -> None:
