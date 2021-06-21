@@ -53,8 +53,8 @@ An :class:`~cmdkit.cli.Interface` class modifies the behavior of the standard
         interface = Interface('add', USAGE_TEXT, HELP_TEXT)
         interface.add_argument('-v', '--version', action='version', '0.0.1')
 
-        lhs: int
-        rhs: int
+        lhs: float
+        rhs: float
         interface.add_argument('lhs', type=float)
         interface.add_argument('rhs', type=float)
 

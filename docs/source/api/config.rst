@@ -45,6 +45,10 @@ local files and environment variables with appropriate precedent.
     .. automethod:: from_env
     .. automethod:: to_env
 
+    |
+
+    .. automethod:: whereis
+
 |
 
 -------------------
@@ -87,6 +91,10 @@ local files and environment variables with appropriate precedent.
     |
 
     .. automethod:: which
+
+    |
+
+    .. automethod:: whereis
 
     |
 
