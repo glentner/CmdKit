@@ -262,7 +262,7 @@ class Namespace(NSCoreMixin):
         return Environ(defaults=self)
 
 
-    def duplicates(self) -> Dict[List[Tuple[str, ...]]]:
+    def duplicates(self) -> Dict[str, List[Tuple[str, ...]]]:
         """
         Find all the repeated `leaves`.
 
@@ -590,6 +590,20 @@ class Configuration(NSCoreMixin):
                 pass
         else:
             raise KeyError(f'Not found: {path}')
+
+    def duplicates(self) -> Dict[str, Dict[str, List[Tuple[str, ...]]]]:
+        """
+        Find all the repeated `leaves`.
+
+        Example:
+            >>> one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+            >>> two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
+            >>> cfg = Configuration(one=one, two=two)
+
+            >>> cfg.duplicates()
+            {'x': {'one': [('a',), ('b',)], 'two': [('b',)]}, 'z': {'one': [('b',)], 'two': [('b',)]}}
+        """
+        return {tip: self.whereis(tip) for tip, count in Counter([t for _, (*_, t) in _find_the_leaves(self.namespaces)]).items() if count > 1}  
 
     def whereis(self, leaf: str,
                 value: Union[Callable[[T], bool], T] = lambda _: True) -> Dict[str, List[Tuple[str, ...]]]:
