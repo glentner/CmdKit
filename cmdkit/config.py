@@ -592,6 +592,19 @@ class Configuration(NSCoreMixin):
         """
         Derive which member namespace takes precedent for the given variable.
 
+        Note:  Care needs to be taken when used for mutable variables in the 
+               stack as the returned precedent does not reflect that the variable
+               at that level my be a depth-first-merge of several sources.
+
+               >>> conf = Configuration(one=Namespace({'a': {'x': 1, 'y': 2}}),
+               ...                      two=Namespace({'a': {'y': 3}})
+
+               >>> conf.which('a')
+               'two'
+
+               >>> conf.a
+               Namespace({'x': 1, 'y': 3})
+
         Example:
             >>> conf = Configuration(one=Namespace({'x': 1, 'y': 2}),
             ...                      two=Namespace({'x': 3, 'z': 4})
@@ -729,3 +742,19 @@ class Configuration(NSCoreMixin):
         """
         self.local.update(*args, **kwargs)
         super().update(*args, **kwargs)
+
+    @classmethod
+    def pop(cls, *args, **kwargs):
+        """
+        It is not straight forward to implement the equivalent of super().update() for
+        the general case; currently disallow pop() on `Configuration`.
+        """
+        raise NotImplementedError(f'{cls.__class__.__name__} does not currently support pop()')
+    
+    @classmethod
+    def popitem(cls):
+        """
+        It is not straight forward to implement the equivalent of super().update() for
+        the general case; currently disallow popitem() on `Configuration`.
+        """
+        raise NotImplementedError(f'{cls.__class__.__name__} does not currently support popitem()')
