@@ -262,7 +262,6 @@ class Namespace(NSCoreMixin):
         """Translate namespace to an :class:`Environ` namespace."""
         return Environ(defaults=self)
 
-
     def duplicates(self) -> Dict[str, List[Tuple[str, ...]]]:
         """
         Find all the repeated `leaves`.
@@ -275,9 +274,8 @@ class Namespace(NSCoreMixin):
             >>> ns.duplicates()
             {'x': [('a',), ('b',)]}
         """
-        leaves = [tip for _, (*_, tip) in _find_the_leaves(self)]
-        return {tip: self.whereis(tip) for tip, count in Counter(leaves).items() if count > 1}
-
+        tips = [tip for _, (*_, tip) in _find_the_leaves(self)]
+        return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}
 
     def trim(self, *, key: Callable[[Any], Any] = None, reverse: bool = False) -> Namespace:
         """
@@ -302,7 +300,6 @@ class Namespace(NSCoreMixin):
             for path in duplicates:
                 reduce(lambda branch, leaf: branch[leaf], path, space).pop(name)
         return space
-
 
     def whereis(self, leaf: str, value: Union[Callable[[T], bool], T] = lambda _: True) -> List[Tuple[str, ...]]:
         """
@@ -643,7 +640,8 @@ class Configuration(NSCoreMixin):
             >>> cfg.duplicates()
             {'x': {'one': [('a',), ('b',)], 'two': [('b',)]}, 'z': {'one': [('b',)], 'two': [('b',)]}}
         """
-        return {tip: self.whereis(tip) for tip, count in Counter([t for _, (*_, t) in _find_the_leaves(self.namespaces)]).items() if count > 1}  
+        tips = [tip for _, (*_, tip) in _find_the_leaves(self.namespaces)]
+        return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}  
 
     def trim(self, *, key: Callable[[Any], Any] = None, reverse: bool = False) -> Configuration:
         """
