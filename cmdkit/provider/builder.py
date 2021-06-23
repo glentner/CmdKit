@@ -37,8 +37,8 @@ class BuilderNamespace(Namespace):
 
         Example:
         """
-        ignore = function if function not None else lambda _: True
-        tips = [tip for _, (*_, tip) in _find_the_leaves(self) if not ignore]
+        ignore = function if function is not None else lambda _: False
+        tips = [tip for _, (*_, tip) in _find_the_leaves(self) if not ignore(tip)]
         return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}
 
     def trim(self, function: Optional[Callable[[str], bool]] = None, *,
@@ -82,8 +82,8 @@ class BuilderConfiguration(Configuration):
             >>> cfg.duplicates()
             {'x': {'one': [('a',), ('b',)], 'two': [('b',)]}, 'z': {'one': [('b',)], 'two': [('b',)]}}
         """
-        ignore = function if function not None else lambda _: True
-        tips = [tip for _, (*_, tip) in _find_the_leaves(self.namespaces) if not ignore]
+        ignore = function if function is not None else lambda _: False
+        tips = [tip for _, (*_, tip) in _find_the_leaves(self.namespaces) if not ignore(tip)]
         return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}  
     
     def trim(self, function: Optional[Callable[[str], bool]] = None, *,
