@@ -13,7 +13,6 @@ from __future__ import annotations
 from typing import IO, Tuple, List, Dict, NamedTuple, TypeVar, Callable, Union, Iterable, Optional, Any
 
 # standard libs
-import copy
 import os
 import functools
 import subprocess
@@ -276,30 +275,6 @@ class Namespace(NSCoreMixin):
         """
         tips = [tip for _, (*_, tip) in _find_the_leaves(self)]
         return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}
-
-    def trim(self, *, key: Callable[[Any], Any] = None, reverse: bool = False) -> Namespace:
-        """
-        Return a copy with duplicate `leaves` removed, optionally using a `key` function or `reverse`.
-
-        Example:
-            >>> ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
-            Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
-
-            >>> ns.trim()
-            Namespace({'a': {'x': 1, 'y': 2}, 'b': {'z': 4}})
-
-            >>> ns.trim(reverse=True)
-            Namespace({'a': {'y': 2}, 'b': {'x': 3, 'z': 4}})
-
-            >>> ns.trim(key=lambda t: chr(ord('z') - ord(t[0]) + ord('a')))
-            Namespace({'a': {'y': 2}, 'b': {'x': 3, 'z': 4}})
-        """
-        space = copy.deepcopy(self)
-        for name, paths in space.duplicates().items():
-            unique, *duplicates = sorted(paths, key=key, reverse=reverse)
-            for path in duplicates:
-                reduce(lambda branch, leaf: branch[leaf], path, space).pop(name)
-        return space
 
     def whereis(self, leaf: str, value: Union[Callable[[T], bool], T] = lambda _: True) -> List[Tuple[str, ...]]:
         """
@@ -642,41 +617,6 @@ class Configuration(NSCoreMixin):
         """
         tips = [tip for _, (*_, tip) in _find_the_leaves(self.namespaces)]
         return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}  
-
-    def trim(self, *, key: Callable[[Any], Any] = None, reverse: bool = False) -> Configuration:
-        """
-        Return a copy with duplicate `leaves` removed, optionally using a `key` function or `reverse`.
-
-        Example:
-            >>> one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
-            >>> two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
-            >>> alt = Namespace({'x': 5})
-            >>> cfg = Configuration(one=one, two=two, alt=alt)
-
-            >>> cfg.trim()
-            Configuration(one=Namespace({'a': {'y': 2}, 'b': {'z': 4}}), two=Namespace({'b': {}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5}))
-
-            >>> cfg.trim(reverse=True)
-            Configuration(one=Namespace({'a': {'y': 2}, 'b': {}}), two=Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({}))
-
-            >>> cfg.trim(key=lambda a: a[0][2], reverse=True)
-            Configuration(one=Namespace({'a': {'y': 2}, 'b': {}}), two=Namespace({'b': {'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5})) 
-        """
-        lookup = lambda path, source: reduce(lambda branch, leaf: branch[leaf], path, source) 
-        config = copy.deepcopy(self)
-        for name, spaces in config.duplicates().items():
-            paths = [(space, *path) for space, paths in spaces.items() for path in paths]
-            (unique_space, *unique_path), *duplicates = sorted(paths, key=key, reverse=reverse)
-            for space, *path in duplicates:
-                if path:
-                    lookup(path, config.namespaces[space]).pop(name)
-                    lookup(path[1:], config[path[0]]).pop(name, None)
-                else:
-                    config.namespaces[space].pop(name)
-                    config.pop(name, None)
-                if unique_path:
-                    config[unique_path[0]].update(**config.namespaces[unique_space][unique_path[0]])
-        return config
 
     def whereis(self, leaf: str,
                 value: Union[Callable[[T], bool], T] = lambda _: True) -> Dict[str, List[Tuple[str, ...]]]:
