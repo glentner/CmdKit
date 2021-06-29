@@ -87,7 +87,7 @@ class BuilderConfiguration(Configuration):
         return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}  
     
     def trim(self, function: Optional[Callable[[str], bool]] = None, *,
-             key: Callable[[Tuple[str, ...]], Any] = None, reverse: bool = False) -> Configuration:
+             key: Callable[[Tuple[str, ...]], Any] = None, reverse: bool = False) -> BuilderConfiguration:
         """
         Return a copy with duplicate `leaves` removed, optionally using a `key` function or `reverse`
         and a filter `function`.
