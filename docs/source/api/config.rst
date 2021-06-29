@@ -47,6 +47,10 @@ local files and environment variables with appropriate precedent.
 
     |
 
+    .. automethod:: duplicates
+
+    |
+
     .. automethod:: whereis
 
 |
@@ -91,6 +95,10 @@ local files and environment variables with appropriate precedent.
     |
 
     .. automethod:: which
+
+    |
+
+    .. automethod:: duplicates
 
     |
 
