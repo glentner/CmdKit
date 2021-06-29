@@ -36,6 +36,15 @@ class BuilderNamespace(Namespace):
         Find all the repeated `leaves` which does not meet the filter `function`.
 
         Example:
+            >>> ns = BuilderNamespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+            >>> ns
+            BuilderNamespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+
+            >>> ns.duplicates()
+            {'x': [('a',), ('b',)]}
+
+            >>> ns.duplicates(lambda t: t in {'x', })
+            {}
         """
         ignore = function if function is not None else lambda _: False
         tips = [tip for _, (*_, tip) in _find_the_leaves(self) if not ignore(tip)]
@@ -49,16 +58,19 @@ class BuilderNamespace(Namespace):
 
         Example:
             >>> ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
-            Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+            BuilderNamespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
 
             >>> ns.trim()
-            Namespace({'a': {'x': 1, 'y': 2}, 'b': {'z': 4}})
+            BuilderNamespace({'a': {'x': 1, 'y': 2}, 'b': {'z': 4}})
+
+            >>> ns.trim(lambda t: t in {'x', })
+            BuilderNamespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
 
             >>> ns.trim(reverse=True)
-            Namespace({'a': {'y': 2}, 'b': {'x': 3, 'z': 4}})
+            BuilderNamespace({'a': {'y': 2}, 'b': {'x': 3, 'z': 4}})
 
             >>> ns.trim(key=lambda t: chr(ord('z') - ord(t[0]) + ord('a')))
-            Namespace({'a': {'y': 2}, 'b': {'x': 3, 'z': 4}})
+            BuilderNamespace({'a': {'y': 2}, 'b': {'x': 3, 'z': 4}})
         """
         space = copy.deepcopy(self)
         for name, paths in space.duplicates(function).items():
@@ -77,7 +89,7 @@ class BuilderConfiguration(Configuration):
         Example:
             >>> one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
             >>> two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
-            >>> cfg = Configuration(one=one, two=two)
+            >>> cfg = BuilderConfiguration(one=one, two=two)
 
             >>> cfg.duplicates()
             {'x': {'one': [('a',), ('b',)], 'two': [('b',)]}, 'z': {'one': [('b',)], 'two': [('b',)]}}
@@ -96,16 +108,19 @@ class BuilderConfiguration(Configuration):
             >>> one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
             >>> two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
             >>> alt = Namespace({'x': 5})
-            >>> cfg = Configuration(one=one, two=two, alt=alt)
+            >>> cfg = BuilderConfiguration(one=one, two=two, alt=alt)
 
             >>> cfg.trim()
-            Configuration(one=Namespace({'a': {'y': 2}, 'b': {'z': 4}}), two=Namespace({'b': {}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5}))
+            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {'z': 4}}), two=Namespace({'b': {}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5}))
+
+            >>> cfg.trim(lambda t: t in {'x', })
+            BuilderConfiguration(one=Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}}), two=Namespace({'b': {'x': 4}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5}))
 
             >>> cfg.trim(reverse=True)
-            Configuration(one=Namespace({'a': {'y': 2}, 'b': {}}), two=Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({}))
+            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}), two=Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({}))
 
             >>> cfg.trim(key=lambda a: a[0][2], reverse=True)
-            Configuration(one=Namespace({'a': {'y': 2}, 'b': {}}), two=Namespace({'b': {'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5})) 
+            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}), two=Namespace({'b': {'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5})) 
         """
         lookup = lambda path, source: reduce(lambda branch, leaf: branch[leaf], path, source) 
         config = copy.deepcopy(self)
