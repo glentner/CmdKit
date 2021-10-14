@@ -527,7 +527,8 @@ class TestConfiguration:
         two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
         cfg = Configuration(one=one, two=two)
 
-        assert cfg.duplicates() == {'x': {'one': [('a',), ('b',)], 'two': [('b',)]}, 'z': {'one': [('b',)], 'two': [('b',)]}}
+        assert cfg.duplicates() == {'x': {'one': [('a',), ('b',)], 'two': [('b',)]},
+                                    'z': {'one': [('b',)], 'two': [('b',)]}}
     
     def test_whereis(self) -> None:
         """Configuration can find paths to leaves in the tree."""

@@ -564,22 +564,9 @@ class Configuration(NSCoreMixin):
         """
         Derive which member namespace takes precedent for the given variable.
 
-        Note:  Care needs to be taken when used for mutable variables in the 
-               stack as the returned precedent does not reflect that the variable
-               at that level my be a depth-first-merge of several sources.
-
-               >>> conf = Configuration(one=Namespace({'a': {'x': 1, 'y': 2}}),
-               ...                      two=Namespace({'a': {'y': 3}})
-
-               >>> conf.which('a')
-               'two'
-
-               >>> conf.a
-               Namespace({'x': 1, 'y': 3})
-
         Example:
             >>> conf = Configuration(one=Namespace({'x': 1, 'y': 2}),
-            ...                      two=Namespace({'x': 3, 'z': 4})
+            ...                      two=Namespace({'x': 3, 'z': 4}))
             >>> conf.extend(three=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}}))
 
             >>> conf.which('x')
@@ -590,6 +577,20 @@ class Configuration(NSCoreMixin):
 
             >>> conf.which('u', 'i')
             'three'
+
+        Note:
+            Care needs to be taken when used for mutable variables in the
+            stack as the returned precedent does not reflect that the variable
+            at that level my be a depth-first-merge of several sources.
+
+            >>> conf = Configuration(one=Namespace({'a': {'x': 1, 'y': 2}}),
+            ...                      two=Namespace({'a': {'y': 3}}))
+
+            >>> conf.which('a')
+            'two'
+
+            >>> conf.a
+            Namespace({'x': 1, 'y': 3})
         """
         namespaces = Namespace({**self.namespaces, '_': self.local})
         for label in reversed(list(namespaces.keys())):
