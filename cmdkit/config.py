@@ -682,18 +682,16 @@ class Configuration(NSCoreMixin):
         self.local.update(*args, **kwargs)
         super().update(*args, **kwargs)
 
-    @classmethod
-    def pop(cls, *args, **kwargs):
+    def pop(self, *args, **kwargs) -> Any:
         """
         It is not straight forward to implement the equivalent of super().update() for
         the general case; currently disallow pop() on `Configuration`.
         """
-        raise NotImplementedError(f'{cls.__class__.__name__} does not currently support pop()')
-    
-    @classmethod
-    def popitem(cls):
+        raise NotImplementedError(f'{self.__class__.__name__} does not currently support pop()')
+
+    def popitem(self) -> Tuple[str, Any]:
         """
         It is not straight forward to implement the equivalent of super().update() for
         the general case; currently disallow popitem() on `Configuration`.
         """
-        raise NotImplementedError(f'{cls.__class__.__name__} does not currently support popitem()')
+        raise NotImplementedError(f'{self.__class__.__name__} does not currently support popitem()')
