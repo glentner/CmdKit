@@ -7,8 +7,9 @@ for Namespace and Configuration. The Builder provider extends functionality by a
 the construction of new-like objects with filtered or otherwise modified contents.
 
 TODO:
-    Add capability to return an new-like object with a pop or popitem modification.
-
+    - Add capability to return an new-like object with a pop or popitem modification.
+    - Refactor `_find_the_leaves` to be part of the class.
+    - Add unit tests.
 """
 
 
@@ -79,10 +80,12 @@ class BuilderNamespace(Namespace):
                 reduce(lambda branch, leaf: branch[leaf], path, space).pop(name)
         return space
 
+
 class BuilderConfiguration(Configuration):
     """A Configuration provider, with added methods for creating new-like Configurations."""
 
-    def duplicates(self, function: Optional[Callable[[str], bool]] = None) -> Dict[str, Dict[str, List[Tuple[str, ...]]]]:
+    def duplicates(self,
+                   function: Optional[Callable[[str], bool]] = None) -> Dict[str, Dict[str, List[Tuple[str, ...]]]]:
         """
         Find all the repeated `leaves` which does not meet the filter `function`.
 
@@ -111,16 +114,20 @@ class BuilderConfiguration(Configuration):
             >>> cfg = BuilderConfiguration(one=one, two=two, alt=alt)
 
             >>> cfg.trim()
-            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {'z': 4}}), two=Namespace({'b': {}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5}))
+            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {'z': 4}}),
+                                 two=Namespace({'b': {}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5}))
 
             >>> cfg.trim(lambda t: t in {'x', })
-            BuilderConfiguration(one=Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}}), two=Namespace({'b': {'x': 4}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5}))
+            BuilderConfiguration(one=Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}}),
+                                 two=Namespace({'b': {'x': 4}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5}))
 
             >>> cfg.trim(reverse=True)
-            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}), two=Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({}))
+            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}),
+                                 two=Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({}))
 
             >>> cfg.trim(key=lambda a: a[0][2], reverse=True)
-            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}), two=Namespace({'b': {'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5})) 
+            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}),
+                                 two=Namespace({'b': {'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({'x': 5}))
         """
         lookup = lambda path, source: reduce(lambda branch, leaf: branch[leaf], path, source) 
         config = copy.deepcopy(self)

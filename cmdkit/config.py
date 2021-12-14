@@ -228,7 +228,7 @@ class Namespace(NSCoreMixin):
         else:
             json.dump(self.to_dict(), path_or_file, indent=indent, **kwargs)
 
-    # short-hand
+    # aliases
     from_yml = from_yaml
     from_tml = from_toml
     to_yml = to_yaml
@@ -333,8 +333,8 @@ def _de_coerced(var: _VT) -> str:
         return str(var)
 
 
-# helper function recursively normalizes a dictionary to depth-1.
 def _flatten(ns: dict, prefix: str = None) -> dict:
+    """Helper function recursively normalizes a dictionary to depth-1."""
     new = {}
     for key, value in dict(ns).items():
         if not isinstance(value, dict):
@@ -418,7 +418,7 @@ class Environ(NSCoreMixin):
         The `converter` should be a function that accepts an input value
         and returns a new value appropriately coerced. The default converter
         attempts first to coerce a value to an integer if possible, then
-        a float, with the exception of the following special values.
+        a float, except the following special values.
         Otherwise, the string remains.
 
         ======================== ========================
@@ -581,7 +581,7 @@ class Configuration(NSCoreMixin):
         Note:
             Care needs to be taken when used for mutable variables in the
             stack as the returned precedent does not reflect that the variable
-            at that level my be a depth-first-merge of several sources.
+            at that level may be a depth-first-merge of several sources.
 
             >>> conf = Configuration(one=Namespace({'a': {'x': 1, 'y': 2}}),
             ...                      two=Namespace({'a': {'y': 3}}))
@@ -656,7 +656,7 @@ class Configuration(NSCoreMixin):
             Doing any in-place changes to its underlying `self` does not change its member namespaces.
             This may otherwise cause confusion about the provenance of those parameters.
             Instead, overrides have been implemented to capture these changes in a `local` namespace.
-            If you ask :func:`which` namespace a parameter has come from and it was an in-place change,
+            If you ask :func:`which` namespace a parameter has come from, and it was an in-place change,
             it will be considered a member of the "_" namespace.
 
         Example:
