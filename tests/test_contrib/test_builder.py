@@ -57,15 +57,15 @@ class TestBuilderConfiguration:
         one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
         two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
         cfg = BuilderConfiguration(one=one, two=two)
-        assert cfg.duplicates() == {'x': {'one': [('a',), ('b',)], 'two': [('b',)]},
-                                    'z': {'one': [('b',)], 'two': [('b',)]}}
+        assert cfg.duplicates() == {'x': {'one': [('a',), ('b',)], 'two': [('b',)], '_': []},
+                                    'z': {'one': [('b',)], 'two': [('b',)]}, '_': []}
 
     def test_duplicates_with_filter(self) -> None:
         """Find duplicate values."""
         one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
         two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
         cfg = BuilderConfiguration(one=one, two=two)
-        assert cfg.duplicates(lambda t: t in {'x', }) == {'z': {'one': [('b',)], 'two': [('b',)]}}
+        assert cfg.duplicates(lambda t: t in {'x', }) == {'z': {'one': [('b',)], 'two': [('b',)], '_': []}}
 
     def test_trim(self) -> None:
         """Remove duplicates."""
@@ -110,7 +110,7 @@ class TestBuilderConfiguration:
         alt = Namespace({'x': 5})
         cfg = BuilderConfiguration(one=one, two=two, alt=alt)
         cfg.update(x=6)
-        assert cfg.trim(reverse=True) == (
+        assert cfg.trim(ordered=True) == (
             BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}), 
                                  two=Namespace({'b': {'z': 2}, 'c': {'j': True, 'k': 3.14}}),
                                  alt=Namespace({}), 
