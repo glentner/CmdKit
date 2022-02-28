@@ -616,7 +616,8 @@ class Configuration(NSCoreMixin):
             >>> cfg.duplicates()
             {'x': {'one': [('a',), ('b',)], 'two': [('b',)]}, 'z': {'one': [('b',)], 'two': [('b',)]}}
         """
-        tips = [tip for _, (*_, tip) in _find_the_leaves(self.namespaces)]
+        namespaces = Namespace({**self.namespaces, '_': self.local})
+        tips = [tip for _, (*_, tip) in _find_the_leaves(namespaces)]
         return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}  
 
     def whereis(self, leaf: str,
@@ -638,7 +639,8 @@ class Configuration(NSCoreMixin):
             >>> cfg.whereis('x', lambda v: v % 3 == 0)
             {'one': [('b',)], 'two': []}
         """
-        return {name: space.whereis(leaf, value) for name, space in self.namespaces.items()}
+        namespaces = Namespace({**self.namespaces, '_': self.local})
+        return {name: space.whereis(leaf, value) for name, space in namespaces.items()}
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Intercept parameter assignment."""

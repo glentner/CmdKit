@@ -102,3 +102,17 @@ class TestBuilderConfiguration:
                                  two=Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}}),
                                  alt=Namespace({}))
         )
+
+    def test_trim_ordered(self) -> None:
+        """Remove duplicates with preserved order of priority."""
+        one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
+        two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
+        alt = Namespace({'x': 5})
+        cfg = BuilderConfiguration(one=one, two=two, alt=alt)
+        cfg.update(x=6)
+        assert cfg.trim(reverse=True) == (
+            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}), 
+                                 two=Namespace({'b': {'z': 2}, 'c': {'j': True, 'k': 3.14}}),
+                                 alt=Namespace({}), 
+                                 _=Namespace({'x': 6}))
+        )
