@@ -24,8 +24,7 @@ with open('cmdkit/__meta__.py', mode='r') as source:
 
 
 # core dependencies
-DEPENDENCIES = []
-
+DEPENDENCIES = ['psutil', ]
 
 # add dependencies for readthedocs.io
 if os.environ.get('READTHEDOCS') == 'True':
@@ -58,5 +57,6 @@ setup(
     extras_require   = {
         'toml': ['toml>=0.10.1', ],
         'yaml': ['pyyaml>=5.3.1', ],
+        'mpi' : ['mpi4pi', ],
     },
 )
