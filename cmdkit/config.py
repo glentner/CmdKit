@@ -135,6 +135,9 @@ class Namespace(NSCoreMixin):
         >>> Namespace.from_local('config.toml', ignore_if_missing=True)
         Namespace({})
 
+        >>> Namespace.from_local('config', ftype='toml', ignore_if_missing=True)
+        Namespace({})
+
         >>> ns.to_local('config.toml')
         >>> Namespace.from_local('config.toml', ignore_if_missing=True)
         Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
@@ -146,9 +149,15 @@ class Namespace(NSCoreMixin):
         return cls(other)
 
     @classmethod
-    def from_local(cls, filepath: str, ignore_if_missing: bool = False, **options) -> Namespace:
-        """Generic factory method delegates based on filename extension."""
-        ext = os.path.splitext(filepath)[1].lstrip('.')
+    def from_local(cls, filepath: str, ignore_if_missing: bool = False, ftype: Optional[str] = None,  **options) -> Namespace:
+        """if ftype not set,
+           Generic factory method delegates based on filename extension.
+        """
+
+        if ftype in ('toml', 'tml', 'yaml', 'yml', 'json'):
+            ext = ftype
+        else:
+            ext = os.path.splitext(filepath)[1].lstrip('.')
         if not os.path.exists(filepath) and ignore_if_missing is True:
             return cls()
         try:
@@ -191,9 +200,13 @@ class Namespace(NSCoreMixin):
         """Explicitly coerce a Namespace to dictionary."""
         return _as_dict(self)
 
-    def to_local(self, filepath: str, **options) -> None:
-        """Output to local file. Format based on file extension."""
-        ext = os.path.splitext(filepath)[1].lstrip('.')
+    def to_local(self, filepath: str, ftype: Optional[str] = None,  **options) -> None:
+        """Output to local file.
+           if ftype not set, Format based on file extension."""
+        if ftype in ('toml', 'tml', 'yaml', 'yml', 'json'):
+            ext = ftype
+        else:
+            ext = os.path.splitext(filepath)[1].lstrip('.')
         try:
             factory = getattr(self, f'to_{ext}')
             return factory(filepath, **options)
@@ -279,7 +292,7 @@ class Namespace(NSCoreMixin):
             [('b',)]
         """
         check = value if callable(value) else lambda x: x == value
-        return [tuple(branch.stem[:-1]) for branch in _find_the_leaves(self) 
+        return [tuple(branch.stem[:-1]) for branch in _find_the_leaves(self)
                 if branch.stem[-1] == leaf and check(branch.leaf)]
 
 
