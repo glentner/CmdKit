@@ -195,18 +195,30 @@ class TestNamespace:
             filepath = f'{TMPDIR}/{ftype}.{ftype}'
             if os.path.exists(filepath):
                 os.remove(filepath)
+            filepath = f'{TMPDIR}/{ftype}.conf'
+            if os.path.exists(filepath):
+                os.remove(filepath)
 
         with pytest.raises(FileNotFoundError):
             Namespace.from_local(f'{TMPDIR}/toml.toml')
         with pytest.raises(FileNotFoundError):
+            Namespace.from_local(f'{TMPDIR}/toml.conf', ftype='toml')
+        with pytest.raises(FileNotFoundError):
             Namespace.from_local(f'{TMPDIR}/yaml.yaml')
         with pytest.raises(FileNotFoundError):
+            Namespace.from_local(f'{TMPDIR}/yaml.conf', ftype='yaml')
+        with pytest.raises(FileNotFoundError):
             Namespace.from_local(f'{TMPDIR}/json.json')
+        with pytest.raises(FileNotFoundError):
+            Namespace.from_local(f'{TMPDIR}/json.conf', ftype='json')
 
         assert (Namespace() ==
                 Namespace.from_local(f'{TMPDIR}/toml.toml', ignore_if_missing=True) ==
+                Namespace.from_local(f'{TMPDIR}/toml.conf', ftype='toml', ignore_if_missing=True) ==
                 Namespace.from_local(f'{TMPDIR}/yaml.yaml', ignore_if_missing=True) ==
-                Namespace.from_local(f'{TMPDIR}/json.json', ignore_if_missing=True))
+                Namespace.from_local(f'{TMPDIR}/yaml.conf', ftype='yaml', ignore_if_missing=True) ==
+                Namespace.from_local(f'{TMPDIR}/json.json', ignore_if_missing=True) ==
+                Namespace.from_local(f'{TMPDIR}/json.conf', ftype='json', ignore_if_missing=True))
 
         with pytest.raises(NotImplementedError):
             Namespace.from_local(f'{TMPDIR}/config.special')
@@ -215,11 +227,18 @@ class TestNamespace:
         for ftype, data in FACTORIES.items():
             with open(f'{TMPDIR}/{ftype}.{ftype}', mode='w') as output:
                 output.write(data)
+            with open(f'{TMPDIR}/{ftype}.conf', mode='w') as output:
+                output.write(data)
 
         assert (Namespace(TEST_DICT) ==
-                Namespace.from_local(f'{TMPDIR}/toml.toml') == Namespace.from_local(f'{TMPDIR}/tml.tml') ==
-                Namespace.from_local(f'{TMPDIR}/yaml.yaml') == Namespace.from_local(f'{TMPDIR}/yml.yml') ==
-                Namespace.from_local(f'{TMPDIR}/json.json'))
+                Namespace.from_local(f'{TMPDIR}/toml.toml') ==
+                Namespace.from_local(f'{TMPDIR}/tml.tml') ==
+                Namespace.from_local(f'{TMPDIR}/toml.conf', ftype='toml') ==
+                Namespace.from_local(f'{TMPDIR}/yaml.yaml') ==
+                Namespace.from_local(f'{TMPDIR}/yml.yml') ==
+                Namespace.from_local(f'{TMPDIR}/yaml.conf', ftype='yaml') ==
+                Namespace.from_local(f'{TMPDIR}/json.json') ==
+                Namespace.from_local(f'{TMPDIR}/json.conf', ftype='json'))
 
     def test_to_local(self) -> None:
         """Test Namespace.to_local dispatch method."""
@@ -228,7 +247,10 @@ class TestNamespace:
         for ftype in FACTORIES:
             ns = Namespace(TEST_DICT)
             ns.to_local(f'{TMPDIR}/{ftype}.{ftype}')
-            assert ns == Namespace.from_local(f'{TMPDIR}/{ftype}.{ftype}')
+            ns.to_local(f'{TMPDIR}/{ftype}.conf', ftype=ftype)
+            assert ( ns ==
+                Namespace.from_local(f'{TMPDIR}/{ftype}.{ftype}') ==
+                Namespace.from_local(f'{TMPDIR}/{ftype}.conf', ftype=ftype))
 
         # test not implemented
         with pytest.raises(NotImplementedError):
