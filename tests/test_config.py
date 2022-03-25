@@ -549,8 +549,8 @@ class TestConfiguration:
         two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
         cfg = Configuration(one=one, two=two)
 
-        assert cfg.duplicates() == {'x': {'one': [('a',), ('b',)], 'two': [('b',)]},
-                                    'z': {'one': [('b',)], 'two': [('b',)]}}
+        assert cfg.duplicates() == {'x': {'one': [('a',), ('b',)], 'two': [('b',)], '_': []},
+                                    'z': {'one': [('b',)], 'two': [('b',)], '_': []}}
     
     def test_whereis(self) -> None:
         """Configuration can find paths to leaves in the tree."""
@@ -559,9 +559,9 @@ class TestConfiguration:
         two = Namespace({'b': {'x': 4}, 'c': {'j': True, 'k': 3.14}})
         cfg = Configuration(one=one, two=two)
 
-        assert cfg.whereis('x') == {'one': [('a',), ('b',)], 'two': [('b',)]}
-        assert cfg.whereis('x', 1) == {'one': [('a',)], 'two': []}
-        assert cfg.whereis('x', lambda v: v % 3 == 0) == {'one': [('b',)], 'two': []}
+        assert cfg.whereis('x') == {'one': [('a',), ('b',)], 'two': [('b',)], '_': []}
+        assert cfg.whereis('x', 1) == {'one': [('a',)], 'two': [], '_': []}
+        assert cfg.whereis('x', lambda v: v % 3 == 0) == {'one': [('b',)], 'two': [], '_': []}
 
     def test_pop(self) -> None:
         """Configuration cannot use inherited pop method."""
