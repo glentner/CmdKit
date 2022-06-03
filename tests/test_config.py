@@ -248,9 +248,9 @@ class TestNamespace:
             ns = Namespace(TEST_DICT)
             ns.to_local(f'{TMPDIR}/{ftype}.{ftype}')
             ns.to_local(f'{TMPDIR}/{ftype}.conf', ftype=ftype)
-            assert ( ns ==
-                Namespace.from_local(f'{TMPDIR}/{ftype}.{ftype}') ==
-                Namespace.from_local(f'{TMPDIR}/{ftype}.conf', ftype=ftype))
+            assert (ns ==
+                    Namespace.from_local(f'{TMPDIR}/{ftype}.{ftype}') ==
+                    Namespace.from_local(f'{TMPDIR}/{ftype}.conf', ftype=ftype))
 
         # test not implemented
         with pytest.raises(NotImplementedError):

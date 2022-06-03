@@ -133,12 +133,6 @@ class Namespace(NSCoreMixin):
         >>> ns
         Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
 
-        >>> Namespace.from_local('config.toml', ignore_if_missing=True)
-        Namespace({})
-
-        >>> Namespace.from_local('config', ftype='toml', ignore_if_missing=True)
-        Namespace({})
-
         >>> ns.to_local('config.toml')
         >>> Namespace.from_local('config.toml', ignore_if_missing=True)
         Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
@@ -150,11 +144,30 @@ class Namespace(NSCoreMixin):
         return cls(other)
 
     @classmethod
-    def from_local(cls, filepath: str, ignore_if_missing: bool = False, ftype: Optional[str] = None,  **options) -> Namespace:
-        """if ftype not set,
-           Generic factory method delegates based on filename extension.
+    def from_local(cls, filepath: str, ignore_if_missing: bool = False,
+                   ftype: Optional[str] = None,  **options) -> Namespace:
         """
+        Load from a local file.
 
+        If `filepath` does not exist an exception is raised as expected,
+        unless `ignore_if_missing` is `True` and an empty Namespace is returned instead.
+
+        Supported formats are `yaml`, `toml`, and `json`. You must have the necessary
+        library installed (i.e., `pyyaml` or `toml` respectively).
+
+        Example:
+            >>> Namespace.from_local('config.toml', ignore_if_missing=True)
+            Namespace({})
+
+            >>> Namespace({'a': {'x': 1, 'y': 2}, 'b': 3}).to_local('config.toml')
+            >>> Namespace.from_local('config.toml')
+            Namespace({'a': {'x': 1, 'y': 2}, 'b': 3})
+
+            For a non-standard filename extension use `ftype`.
+
+            >>> Namespace.from_local('config', ftype='toml', ignore_if_missing=True)
+            Namespace({})
+        """
         if ftype in ('toml', 'tml', 'yaml', 'yml', 'json'):
             ext = ftype
         else:
@@ -202,8 +215,7 @@ class Namespace(NSCoreMixin):
         return _as_dict(self)
 
     def to_local(self, filepath: str, ftype: Optional[str] = None,  **options) -> None:
-        """Output to local file.
-           if ftype not set, Format based on file extension."""
+        """Output to local file. If `ftype` not set, format based on file extension."""
         if ftype in ('toml', 'tml', 'yaml', 'yml', 'json'):
             ext = ftype
         else:
