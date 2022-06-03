@@ -16,7 +16,7 @@ with open('README.rst', mode='r') as readme:
 
 
 # get package metadata by parsing __meta__ module
-with open('cmdkit/__meta__.py', mode='r') as source:
+with open('src/cmdkit/__meta__.py', mode='r') as source:
     content = source.read().strip()
     metadata = {key: re.search(key + r'\s*=\s*[\'"]([^\'"]*)[\'"]', content).group(1)
                 for key in ['__pkgname__', '__version__', '__authors__', '__contact__',
@@ -41,7 +41,8 @@ setup(
     license          = metadata['__license__'],
     keywords         = 'command-line utility toolkit',
     url              = 'https://cmdkit.readthedocs.io',
-    packages         = find_packages(),
+    packages         = find_packages('src'),
+    package_dir      = {'': 'src', },
     include_package_data = True,
     long_description = long_description,
     long_description_content_type = 'text/x-rst',
