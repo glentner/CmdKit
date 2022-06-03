@@ -15,8 +15,8 @@ with open('README.rst', mode='r') as readme:
     long_description = readme.read()
 
 
-# get package metadata by parsing __meta__ module
-with open('src/cmdkit/__meta__.py', mode='r') as source:
+# get package metadata by parsing __init__ module
+with open('src/cmdkit/__init__.py', mode='r') as source:
     content = source.read().strip()
     metadata = {key: re.search(key + r'\s*=\s*[\'"]([^\'"]*)[\'"]', content).group(1)
                 for key in ['__pkgname__', '__version__', '__authors__', '__contact__',

@@ -4,10 +4,17 @@
 """Package initialization for CmdKit."""
 
 
-# package attributes
-from .__meta__ import (__pkgname__, __version__, __authors__, __contact__,
-                       __license__, __copyright__, __description__)
-
-# null-handler for library
+# standard libs
 import logging
+
+# null-handler for library interface
 logging.getLogger(__name__).addHandler(logging.NullHandler())
+
+# package metadata
+__pkgname__   = 'cmdkit'
+__version__   = '2.6.1'
+__authors__   = 'Geoffrey Lentner'
+__contact__   = 'glentner@purdue.edu'
+__license__   = 'Apache License'
+__copyright__ = 'Geoffrey Lentner 2019-2021'
+__description__ = 'A command-line utility toolkit for Python.'
