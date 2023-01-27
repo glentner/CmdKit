@@ -163,8 +163,6 @@ class Namespace(NSCoreMixin):
             >>> Namespace.from_local('config.toml')
             Namespace({'a': {'x': 1, 'y': 2}, 'b': 3})
 
-            For a non-standard filename extension use `ftype`.
-
             >>> Namespace.from_local('config', ftype='toml', ignore_if_missing=True)
             Namespace({})
         """
