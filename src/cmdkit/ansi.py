@@ -87,7 +87,6 @@ def colorize_usage(text: str) -> str:
                                  _format_double_quoted_string,
                                  _format_backtick_string,
                                  _format_digit,
-                                 _format_external_commands,
                                  )
 
 
@@ -139,9 +138,3 @@ def _format_backtick_string(text: str) -> str:
 def _format_digit(text: str) -> str:
     """Add rich ANSI formatting to numerical digits."""
     return re.sub(r'\b(?P<num>\d+)\b', green(r'\g<num>'), text)
-
-
-def _format_external_commands(text: str) -> str:
-    """Add rich ANSI formatting to external command mentions."""
-    names = ['mpirun', 'mpiexec', 'srun', 'brun', 'jsrun', 'ssh']
-    return re.sub(r'\b(?P<name>' + '|'.join(names) + r')\b', italic(r'\g<name>'), text)
