@@ -5,10 +5,26 @@
 
 
 # standard libs
-import logging
+from logging import NullHandler
 
-# null-handler for library interface
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+# internal libs
+from .cli import Interface, ArgumentError
+from .config import Namespace, Configuration, ConfigurationError
+from .app import Application, ApplicationGroup, exit_status
+from .platform import AppContext
+from .logging import Logger, logging_styles, DEFAULT_LOGGING_STYLE
+
+# public interface
+__all__ = [
+    'Interface', 'ArgumentError',
+    'Namespace', 'Configuration', 'ConfigurationError',
+    'Application', 'ApplicationGroup', 'exit_status',
+    'AppContext',
+    'Logger', 'logging_styles', 'DEFAULT_LOGGING_STYLE'
+]
 
 # package metadata
 __version__   = '2.6.1'
+
+# null-handler for library interface
+Logger.with_name(__name__).addHandler(NullHandler())
