@@ -30,7 +30,7 @@ __all__ = ['BuilderNamespace', 'BuilderConfiguration', ]
 
 class BuilderNamespace(Namespace):
     """A Namespace provider, with added methods for creating new-like Namespaces."""
-    
+
     def duplicates(self, function: Optional[Callable[[str], bool]] = None) -> Dict[str, List[Tuple[str, ...]]]:
         """
         Find all the repeated `leaves` which does not meet the filter `function`.
@@ -99,8 +99,8 @@ class BuilderConfiguration(Configuration):
         ignore = function if function is not None else lambda _: False
         namespaces = Namespace({**self.namespaces, '_': self.local})
         tips = [tip for _, (*_, tip) in _find_the_leaves(namespaces) if not ignore(tip)]
-        return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}  
-    
+        return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}
+
     def trim(self, function: Optional[Callable[[str], bool]] = None, *,
              key: Callable[[Tuple[str, ...]], Any] = None, reverse: bool = False,
              ordered: bool = False) -> BuilderConfiguration:
@@ -132,12 +132,12 @@ class BuilderConfiguration(Configuration):
 
             >>> cfg.update(x=6)
             >>> cfg.trim(ordered=True)
-            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}), 
-                                 two=Namespace({'b': {'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({}), 
+            BuilderConfiguration(one=Namespace({'a': {'y': 2}, 'b': {}}),
+                                 two=Namespace({'b': {'z': 2}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({}),
                                  _=Namespace({'x': 6}))
 
             >>> cfg.trim(ordered=True, reverse=True)
-            BuilderConfiguration(one=Namespace({'a': {'x': 1, 'y': 2}, 'b': {'z': 4}}), 
+            BuilderConfiguration(one=Namespace({'a': {'x': 1, 'y': 2}, 'b': {'z': 4}}),
                                  two=Namespace({'b': {}, 'c': {'j': True, 'k': 3.14}}), alt=Namespace({}))
         """
         lookup = lambda path, source: reduce(lambda branch, leaf: branch[leaf], path, source)
@@ -158,7 +158,7 @@ class BuilderConfiguration(Configuration):
                         config.local.pop(name)
                     else:
                         config.namespaces[space].pop(name)
-                    if unique_path and name in config: 
+                    if unique_path and name in config:
                         del config[name]
             if unique_path:
                 config[unique_path[0]].update(**config.namespaces[unique_space][unique_path[0]])
