@@ -12,8 +12,17 @@ instead of trying to exit the program immediately.
 """
 
 
+# type annotations
+from __future__ import annotations
+from typing import Callable
+
 # standard libs
+import re
+import sys
 import argparse as _argparse
+
+# internal libs
+from .ansi import colorize_usage
 
 # public interface
 __all__ = ['Interface', 'ArgumentError', ]
@@ -51,7 +60,13 @@ class Interface(_argparse.ArgumentParser):
         >>> interface.add_argument('--verbose', action='store_true')
     """
 
-    def __init__(self, program: str, usage_text: str, help_text: str, **kwargs) -> None:
+    def __init__(self,
+                 program: str,
+                 usage_text: str,
+                 help_text: str,
+                 disable_colors: bool = False,
+                 formatter: Callable[[str], str] = colorize_usage,
+                 **kwargs) -> None:
         """
         Explicitly provide `usage_text` and `help_text`.
 
@@ -66,14 +81,24 @@ class Interface(_argparse.ArgumentParser):
         help_text: str
             Full text of program "help" statement.
 
+        disable_colors: bool
+            Disable automatic rich colorization.
+
+        formatter: Callable[[str], str]
+            Function that returns formatted text given `usage_text` or
+            `help_text` as input.
+
         See Also
         --------
         `argparse.ArgumentParser`
         """
-
         self.program = program
-        self.usage_text = usage_text
-        self.help_text = help_text
+        if disable_colors:
+            self.usage_text = usage_text
+            self.help_text = help_text
+        else:
+            self.usage_text = formatter(usage_text)
+            self.help_text = formatter(help_text)
         super().__init__(prog=program, usage=usage_text, **kwargs)
 
     # prevents base class from trying to build up usage text
