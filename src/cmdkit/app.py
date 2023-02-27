@@ -17,7 +17,7 @@ from . import cli
 from .config import Namespace
 
 # public interface
-__all__ = ['exit_status', 'Application', 'ApplicationGroup', 'CompletedCommand', ]
+__all__ = ['exit_status', 'Application', 'ApplicationGroup', 'CompletedCommand']
 
 
 TApp = TypeVar('TApp', bound='Application')
@@ -27,6 +27,7 @@ TAppGrp = TypeVar('TAppGrp', bound='ApplicationGroup')
 log = logging.getLogger(__name__)
 
 
+# NOTE: In next major release this will be made into an Enum
 class ExitStatus(NamedTuple):
     """Collection of exit status values."""
     success:            int = 0

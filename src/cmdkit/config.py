@@ -641,7 +641,7 @@ class Configuration(NSCoreMixin):
         """
         namespaces = Namespace({**self.namespaces, '_': self.local})
         tips = [tip for _, (*_, tip) in _find_the_leaves(namespaces)]
-        return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}  
+        return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}
 
     def whereis(self, leaf: str,
                 value: Union[Callable[[T], bool], T] = lambda _: True) -> Dict[str, List[Tuple[str, ...]]]:
