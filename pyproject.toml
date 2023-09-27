@@ -15,16 +15,16 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: Apache Software License",
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.7"
+python = ">=3.8,<4.0"
 toml = {version = ">=0.10.1", optional = true}
 pyyaml = {version = ">=5.3.1", optional = true}
 
