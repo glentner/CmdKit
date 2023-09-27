@@ -23,7 +23,7 @@ import argparse as _argparse
 from cmdkit.ansi import colorize_usage
 
 # public interface
-__all__ = ['Interface', 'ArgumentError', ]
+__all__ = ['Interface', 'ArgumentError', 'HelpOption', 'VersionOption']
 
 # elevate to this module
 Namespace = _argparse.Namespace
