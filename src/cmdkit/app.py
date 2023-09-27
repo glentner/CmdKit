@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021 CmdKit Developers
+# SPDX-FileCopyrightText: 2022 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
 """Application class implementation."""
@@ -13,11 +13,11 @@ import abc
 import logging
 
 # internal libs
-from . import cli
-from .config import Namespace
+from cmdkit.cli import Interface, HelpOption, VersionOption, ArgumentError
+from cmdkit.namespace import Namespace
 
 # public interface
-__all__ = ['exit_status', 'Application', 'ApplicationGroup', 'CompletedCommand', ]
+__all__ = ['exit_status', 'Application', 'ApplicationGroup', 'CompletedCommand']
 
 
 TApp = TypeVar('TApp', bound='Application')
@@ -27,6 +27,7 @@ TAppGrp = TypeVar('TAppGrp', bound='ApplicationGroup')
 log = logging.getLogger(__name__)
 
 
+# NOTE: In next major release this will be made into an Enum
 class ExitStatus(NamedTuple):
     """Collection of exit status values."""
     success:            int = 0
@@ -53,7 +54,7 @@ class Application(abc.ABC):
     existing class-level attributes with annotations.
     """
 
-    interface: cli.Interface = None
+    interface: Interface = None
     ALLOW_NOARGS: bool = False
 
     shared: Namespace = None
@@ -85,7 +86,7 @@ class Application(abc.ABC):
         return cls.from_namespace(cls.interface.parse_args(cmdline))
 
     @classmethod
-    def from_namespace(cls: Type[TApp], namespace: cli.Namespace) -> TApp:
+    def from_namespace(cls: Type[TApp], namespace: Namespace) -> TApp:
         """Initialize via existing namespace/namedtuple."""
         return cls(**vars(namespace))
 
@@ -113,15 +114,15 @@ class Application(abc.ABC):
 
             return exit_status.success
 
-        except cli.HelpOption as help_opt:
+        except HelpOption as help_opt:
             cls.handle_help(*help_opt.args)
             return exit_status.success
 
-        except cli.VersionOption as version:
+        except VersionOption as version:
             cls.handle_version(*version.args)
             return exit_status.success
 
-        except cli.ArgumentError as error:
+        except ArgumentError as error:
             cls.log_critical(error)
             return exit_status.bad_argument
 
@@ -157,7 +158,7 @@ class CompletedCommand(Exception):
 class ApplicationGroup(Application):
     """A group entry-point delegates to a member `Application`."""
 
-    interface: cli.Interface = None
+    interface: Interface = None
     commands: Dict[str, Type[Application]] = None
     command: str = None
 
@@ -193,4 +194,4 @@ class ApplicationGroup(Application):
             status = app.main(self.cmdline, shared=self.shared)
             raise CompletedCommand(status)
         else:
-            raise cli.ArgumentError(f'unrecognized command: {self.command}')
+            raise ArgumentError(f'unrecognized command: {self.command}')

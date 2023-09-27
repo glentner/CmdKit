@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021 CmdKit Developers
+# SPDX-FileCopyrightText: 2022 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -12,11 +12,18 @@ instead of trying to exit the program immediately.
 """
 
 
+# type annotations
+from __future__ import annotations
+from typing import Callable
+
 # standard libs
 import argparse as _argparse
 
+# internal libs
+from cmdkit.ansi import colorize_usage
+
 # public interface
-__all__ = ['Interface', 'ArgumentError', ]
+__all__ = ['Interface', 'ArgumentError', 'HelpOption', 'VersionOption']
 
 # elevate to this module
 Namespace = _argparse.Namespace
@@ -42,38 +49,31 @@ _argparse._VersionAction.__call__ = _version_action   # noqa: (protected)
 
 class Interface(_argparse.ArgumentParser):
     """
-    Variant of `argparse.ArgumentParser` that raises an ArgumentError instead of
-    calling `sys.exit`. The `usage_text` and `help_text` will be taken verbatim.
+    Variant of :class:`argparse.ArgumentParser` that raises an :class:`ArgumentError`
+    instead of calling :meth:`sys.exit`. See the standard library documentation for
+    details on :meth:`~Interface.add_argument` and other common methods.
 
-    Example:
-        >>> from cmdkit.cli import Interface
-        >>> interface = Interface('myapp', 'usage: myapp ...', 'help: ...')
-        >>> interface.add_argument('--verbose', action='store_true')
+    The `usage_text` and `help_text` are taken verbatim; however, these text values
+    can be colorized automatically using a generalized syntax highlighter
+    (:meth:`cmdkit.ansi.colorize_usage` by default).
+    To disable this behavior, use the `disable_colors` parameter.
     """
 
-    def __init__(self, program: str, usage_text: str, help_text: str, **kwargs) -> None:
-        """
-        Explicitly provide `usage_text` and `help_text`.
-
-        Arguments
-        ---------
-        program: str
-            Name of program (e.g., `os.path.basename(sys.argv[0])`).
-
-        usage_text: str
-            Full text of program "usage" statement.
-
-        help_text: str
-            Full text of program "help" statement.
-
-        See Also
-        --------
-        `argparse.ArgumentParser`
-        """
-
+    def __init__(self,
+                 program: str,
+                 usage_text: str,
+                 help_text: str,
+                 disable_colors: bool = False,
+                 formatter: Callable[[str], str] = colorize_usage,
+                 **kwargs) -> None:
+        """Initialize with text and formatting arguments."""
         self.program = program
-        self.usage_text = usage_text
-        self.help_text = help_text
+        if disable_colors:
+            self.usage_text = usage_text
+            self.help_text = help_text
+        else:
+            self.usage_text = formatter(usage_text)
+            self.help_text = formatter(help_text)
         super().__init__(prog=program, usage=usage_text, **kwargs)
 
     # prevents base class from trying to build up usage text

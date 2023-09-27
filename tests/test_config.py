@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021 CmdKit Developers
+# SPDX-FileCopyrightText: 2022 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
 """Unit tests for `cmdkit.config` behavior and interfaces."""
@@ -13,8 +13,8 @@ from string import ascii_letters
 import pytest
 
 # internal libs
-from cmdkit.config import Namespace, Environ, Configuration
-
+from cmdkit.config import Configuration
+from cmdkit.namespace import Namespace, Environ
 
 # ensure temporary directory exists
 TMPDIR = '/tmp/cmdkit/config'
@@ -195,18 +195,30 @@ class TestNamespace:
             filepath = f'{TMPDIR}/{ftype}.{ftype}'
             if os.path.exists(filepath):
                 os.remove(filepath)
+            filepath = f'{TMPDIR}/{ftype}.conf'
+            if os.path.exists(filepath):
+                os.remove(filepath)
 
         with pytest.raises(FileNotFoundError):
             Namespace.from_local(f'{TMPDIR}/toml.toml')
         with pytest.raises(FileNotFoundError):
+            Namespace.from_local(f'{TMPDIR}/toml.conf', ftype='toml')
+        with pytest.raises(FileNotFoundError):
             Namespace.from_local(f'{TMPDIR}/yaml.yaml')
         with pytest.raises(FileNotFoundError):
+            Namespace.from_local(f'{TMPDIR}/yaml.conf', ftype='yaml')
+        with pytest.raises(FileNotFoundError):
             Namespace.from_local(f'{TMPDIR}/json.json')
+        with pytest.raises(FileNotFoundError):
+            Namespace.from_local(f'{TMPDIR}/json.conf', ftype='json')
 
         assert (Namespace() ==
                 Namespace.from_local(f'{TMPDIR}/toml.toml', ignore_if_missing=True) ==
+                Namespace.from_local(f'{TMPDIR}/toml.conf', ftype='toml', ignore_if_missing=True) ==
                 Namespace.from_local(f'{TMPDIR}/yaml.yaml', ignore_if_missing=True) ==
-                Namespace.from_local(f'{TMPDIR}/json.json', ignore_if_missing=True))
+                Namespace.from_local(f'{TMPDIR}/yaml.conf', ftype='yaml', ignore_if_missing=True) ==
+                Namespace.from_local(f'{TMPDIR}/json.json', ignore_if_missing=True) ==
+                Namespace.from_local(f'{TMPDIR}/json.conf', ftype='json', ignore_if_missing=True))
 
         with pytest.raises(NotImplementedError):
             Namespace.from_local(f'{TMPDIR}/config.special')
@@ -215,11 +227,18 @@ class TestNamespace:
         for ftype, data in FACTORIES.items():
             with open(f'{TMPDIR}/{ftype}.{ftype}', mode='w') as output:
                 output.write(data)
+            with open(f'{TMPDIR}/{ftype}.conf', mode='w') as output:
+                output.write(data)
 
         assert (Namespace(TEST_DICT) ==
-                Namespace.from_local(f'{TMPDIR}/toml.toml') == Namespace.from_local(f'{TMPDIR}/tml.tml') ==
-                Namespace.from_local(f'{TMPDIR}/yaml.yaml') == Namespace.from_local(f'{TMPDIR}/yml.yml') ==
-                Namespace.from_local(f'{TMPDIR}/json.json'))
+                Namespace.from_local(f'{TMPDIR}/toml.toml') ==
+                Namespace.from_local(f'{TMPDIR}/tml.tml') ==
+                Namespace.from_local(f'{TMPDIR}/toml.conf', ftype='toml') ==
+                Namespace.from_local(f'{TMPDIR}/yaml.yaml') ==
+                Namespace.from_local(f'{TMPDIR}/yml.yml') ==
+                Namespace.from_local(f'{TMPDIR}/yaml.conf', ftype='yaml') ==
+                Namespace.from_local(f'{TMPDIR}/json.json') ==
+                Namespace.from_local(f'{TMPDIR}/json.conf', ftype='json'))
 
     def test_to_local(self) -> None:
         """Test Namespace.to_local dispatch method."""
@@ -228,7 +247,10 @@ class TestNamespace:
         for ftype in FACTORIES:
             ns = Namespace(TEST_DICT)
             ns.to_local(f'{TMPDIR}/{ftype}.{ftype}')
-            assert ns == Namespace.from_local(f'{TMPDIR}/{ftype}.{ftype}')
+            ns.to_local(f'{TMPDIR}/{ftype}.conf', ftype=ftype)
+            assert (ns ==
+                    Namespace.from_local(f'{TMPDIR}/{ftype}.{ftype}') ==
+                    Namespace.from_local(f'{TMPDIR}/{ftype}.conf', ftype=ftype))
 
         # test not implemented
         with pytest.raises(NotImplementedError):
@@ -241,21 +263,6 @@ class TestNamespace:
         assert 1 == ns['a'] == ns.a
         assert 'foo' == ns['b'] == ns.b
         assert 3.14 == ns['c']['x'] == ns.c.x
-
-    def test_attribute_expand_env(self) -> None:
-        """Test transparent environment variable expansion."""
-        os.environ['CMDKIT_TEST_A'] = 'foo-bar'
-        ns = Namespace({'test_env': 'CMDKIT_TEST_A'})
-        assert ns.get('test') is None
-        assert ns.get('test_env') == 'CMDKIT_TEST_A'
-        assert ns.test == 'foo-bar'
-
-    def test_attribute_expand_eval(self) -> None:
-        """Test transparent shell expression expansion."""
-        ns = Namespace({'test_eval': 'echo foo-bar'})
-        assert ns.get('test') is None
-        assert ns.get('test_eval') == 'echo foo-bar'
-        assert ns.test == 'foo-bar'
 
     def test_duplicates(self) -> None:
         """Namespace can find duplicate leaves in the tree."""
@@ -456,6 +463,21 @@ class TestConfiguration:
         assert cfg['a']['z'] == 4
         assert cfg['b']['z'] == 3
 
+    def test_attribute_expand_env(self) -> None:
+        """Test transparent environment variable expansion."""
+        os.environ['CMDKIT_TEST_A'] = 'foo-bar'
+        ns = Configuration(a=Namespace({'test_env': 'CMDKIT_TEST_A'}))
+        assert ns.get('test') is None
+        assert ns.get('test_env') == 'CMDKIT_TEST_A'
+        assert ns.test == 'foo-bar'
+
+    def test_attribute_expand_eval(self) -> None:
+        """Test transparent shell expression expansion."""
+        ns = Configuration(a=Namespace({'test_eval': 'echo foo-bar'}))
+        assert ns.get('test') is None
+        assert ns.get('test_eval') == 'echo foo-bar'
+        assert ns.test == 'foo-bar'
+
     def test_from_local(self) -> None:
         """Test Configuration.from_local factory method."""
 
@@ -527,8 +549,8 @@ class TestConfiguration:
         two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
         cfg = Configuration(one=one, two=two)
 
-        assert cfg.duplicates() == {'x': {'one': [('a',), ('b',)], 'two': [('b',)]},
-                                    'z': {'one': [('b',)], 'two': [('b',)]}}
+        assert cfg.duplicates() == {'x': {'one': [('a',), ('b',)], 'two': [('b',)], '_': []},
+                                    'z': {'one': [('b',)], 'two': [('b',)], '_': []}}
     
     def test_whereis(self) -> None:
         """Configuration can find paths to leaves in the tree."""
@@ -537,9 +559,9 @@ class TestConfiguration:
         two = Namespace({'b': {'x': 4}, 'c': {'j': True, 'k': 3.14}})
         cfg = Configuration(one=one, two=two)
 
-        assert cfg.whereis('x') == {'one': [('a',), ('b',)], 'two': [('b',)]}
-        assert cfg.whereis('x', 1) == {'one': [('a',)], 'two': []}
-        assert cfg.whereis('x', lambda v: v % 3 == 0) == {'one': [('b',)], 'two': []}
+        assert cfg.whereis('x') == {'one': [('a',), ('b',)], 'two': [('b',)], '_': []}
+        assert cfg.whereis('x', 1) == {'one': [('a',)], 'two': [], '_': []}
+        assert cfg.whereis('x', lambda v: v % 3 == 0) == {'one': [('b',)], 'two': [], '_': []}
 
     def test_pop(self) -> None:
         """Configuration cannot use inherited pop method."""

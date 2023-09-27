@@ -1,36 +1,30 @@
-# SPDX-FileCopyrightText: 2021 CmdKit Developers
+# SPDX-FileCopyrightText: 2022 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Configuration management. Classes and interfaces for managing application level
-parameters. Get a runtime configuration with a namespace-like interface from both
-local files and your environment.
+Namespace implementation.
 """
-
 
 # type annotations
 from __future__ import annotations
-from typing import IO, Tuple, List, Dict, NamedTuple, TypeVar, Callable, Union, Iterable, Optional, Any
+from typing import Union, Mapping, Iterable, Any, Dict, Optional, IO, List, Tuple, Callable, TypeVar, NamedTuple
 
 # standard libs
 import os
-import functools
-import subprocess
 from collections import Counter
-from collections.abc import Mapping
 from functools import reduce
 
 # public interface
-__all__ = ['Namespace', 'Environ', 'Configuration', 'ConfigurationError', ]
+__all__ = [
+    'NSCoreMixin', 'Namespace', 'Environ',
+    '_find_the_leaves',  # NOTE: not actually public (just needed by Configuration)
+]
+
 
 # type aliases
-DictKeys: type = type({}.keys())
-DictValues: type = type({}.values())
-DictItems: type = type({}.items())
-DictKeyIterator: type = type(iter({}))
-
-
 T = TypeVar('T')
+
+
 def _as_namespace(ns: T) -> Union[T, Namespace]:
     """If `ns` is a mappable, coerce to Namespace, recursively, otherwise pass."""
     return ns if not isinstance(ns, Mapping) else Namespace({k: _as_namespace(v) for k, v in dict(ns).items()})
@@ -82,41 +76,11 @@ class NSCoreMixin(dict):
         self.__depth_first_update(self, dict(*args, **kwargs))
 
     def __getattr__(self, item: str) -> Any:
-        """
-        Alias for index notation.
-        Transparently expand `_env` and `_eval` variants.
-        """
-        variants = [f'{item}_env', f'{item}_eval']
+        """Alias for index notation."""
         if item in self:
             return self[item]
-        for variant in variants:
-            if variant in self:
-                return self.__expand_attr(item)
         else:
             raise AttributeError(f'missing \'{item}\'')
-
-    def __expand_attr(self, item: str) -> str:
-        """Interpolate values if `_env` or `_eval` present."""
-
-        getters = {f'{item}': (lambda: self[item]),
-                   f'{item}_env': functools.partial(self.__expand_attr_env, item),
-                   f'{item}_eval': functools.partial(self.__expand_attr_eval, item)}
-
-        items = [key for key in self if key in getters]
-        if len(items) == 0:
-            raise ConfigurationError(f'\'{item}\' not found')
-        elif len(items) == 1:
-            return getters[items[0]]()
-        else:
-            raise ConfigurationError(f'\'{item}\' has more than one variant')
-
-    def __expand_attr_env(self, item: str) -> str:
-        """Expand `item` as an environment variable."""
-        return os.getenv(str(self[f'{item}_env']), None)
-
-    def __expand_attr_eval(self, item: str) -> str:
-        """Expand `item` as a shell expression."""
-        return subprocess.check_output(str(self[f'{item}_eval']), shell=True).decode().strip()
 
     def __repr__(self) -> str:
         """Convert to string representation."""
@@ -133,9 +97,6 @@ class Namespace(NSCoreMixin):
         >>> ns
         Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
 
-        >>> Namespace.from_local('config.toml', ignore_if_missing=True)
-        Namespace({})
-
         >>> ns.to_local('config.toml')
         >>> Namespace.from_local('config.toml', ignore_if_missing=True)
         Namespace({'a': {'x': 4, 'y': 2, 'z': 5}, 'b': 3})
@@ -147,9 +108,32 @@ class Namespace(NSCoreMixin):
         return cls(other)
 
     @classmethod
-    def from_local(cls, filepath: str, ignore_if_missing: bool = False, **options) -> Namespace:
-        """Generic factory method delegates based on filename extension."""
-        ext = os.path.splitext(filepath)[1].lstrip('.')
+    def from_local(cls, filepath: str, ignore_if_missing: bool = False,
+                   ftype: Optional[str] = None,  **options) -> Namespace:
+        """
+        Load from a local file.
+
+        If `filepath` does not exist an exception is raised as expected,
+        unless `ignore_if_missing` is `True` and an empty Namespace is returned instead.
+
+        Supported formats are `yaml`, `toml`, and `json`. You must have the necessary
+        library installed (i.e., `pyyaml` or `toml` respectively).
+
+        Example:
+            >>> Namespace.from_local('config.toml', ignore_if_missing=True)
+            Namespace({})
+
+            >>> Namespace({'a': {'x': 1, 'y': 2}, 'b': 3}).to_local('config.toml')
+            >>> Namespace.from_local('config.toml')
+            Namespace({'a': {'x': 1, 'y': 2}, 'b': 3})
+
+            >>> Namespace.from_local('config', ftype='toml', ignore_if_missing=True)
+            Namespace({})
+        """
+        if ftype in ('toml', 'tml', 'yaml', 'yml', 'json'):
+            ext = ftype
+        else:
+            ext = os.path.splitext(filepath)[1].lstrip('.')
         if not os.path.exists(filepath) and ignore_if_missing is True:
             return cls()
         try:
@@ -192,9 +176,12 @@ class Namespace(NSCoreMixin):
         """Explicitly coerce a Namespace to dictionary."""
         return _as_dict(self)
 
-    def to_local(self, filepath: str, **options) -> None:
-        """Output to local file. Format based on file extension."""
-        ext = os.path.splitext(filepath)[1].lstrip('.')
+    def to_local(self, filepath: str, ftype: Optional[str] = None,  **options) -> None:
+        """Output to local file. If `ftype` not set, format based on file extension."""
+        if ftype in ('toml', 'tml', 'yaml', 'yml', 'json'):
+            ext = ftype
+        else:
+            ext = os.path.splitext(filepath)[1].lstrip('.')
         try:
             factory = getattr(self, f'to_{ext}')
             return factory(filepath, **options)
@@ -228,7 +215,7 @@ class Namespace(NSCoreMixin):
         else:
             json.dump(self.to_dict(), path_or_file, indent=indent, **kwargs)
 
-    # short-hand
+    # aliases
     from_yml = from_yaml
     from_tml = from_toml
     to_yml = to_yaml
@@ -295,11 +282,10 @@ class Namespace(NSCoreMixin):
             [('b',)]
         """
         check = value if callable(value) else lambda x: x == value
-        return [tuple(branch.stem[:-1]) for branch in _find_the_leaves(self) 
+        return [tuple(branch.stem[:-1]) for branch in _find_the_leaves(self)
                 if branch.stem[-1] == leaf and check(branch.leaf)]
 
 
-# basic types automatically converted from environment variable
 _VT = TypeVar('_VT', str, int, float, bool, type(None))
 
 
@@ -333,8 +319,8 @@ def _de_coerced(var: _VT) -> str:
         return str(var)
 
 
-# helper function recursively normalizes a dictionary to depth-1.
 def _flatten(ns: dict, prefix: str = None) -> dict:
+    """Helper function recursively normalizes a dictionary to depth-1."""
     new = {}
     for key, value in dict(ns).items():
         if not isinstance(value, dict):
@@ -418,7 +404,7 @@ class Environ(NSCoreMixin):
         The `converter` should be a function that accepts an input value
         and returns a new value appropriately coerced. The default converter
         attempts first to coerce a value to an integer if possible, then
-        a float, with the exception of the following special values.
+        a float, except the following special values.
         Otherwise, the string remains.
 
         ======================== ========================
@@ -471,229 +457,3 @@ class Environ(NSCoreMixin):
         env = self.flatten(prefix=prefix)
         for key, value in env.items():
             os.environ[key] = value
-
-
-class ConfigurationError(Exception):
-    """Exception specific to configuration errors."""
-
-
-class Configuration(NSCoreMixin):
-    """
-    An ordered collection of `Namespace` dictionaries.
-    The update behavior of :class:`~Namespace` is used to
-    provide a layering effect for configuration parameters.
-
-    Example:
-        >>> conf = Configuration(one=Namespace({'x': 1, 'y': 2}),
-        ...                      two=Namespace({'x': 3, 'z': 4})
-
-        >>> conf
-        Configuration(one=Namespace({'x': 1, 'y': 2}), two=Namespace({'x': 3, 'z': 4}))
-
-        >>> conf.x, conf.y, conf.z
-        (3, 2, 4)
-
-        >>> conf.namespaces.keys()
-        dict_keys(['one', 'two'])
-
-        >>> conf.namespaces.one.x
-        1
-    """
-
-    local: Namespace  # NOTE: used to track changes to the 'self'
-    namespaces: Namespace
-
-    def __init__(self, **namespaces: Namespace) -> None:
-        """Retain source `namespaces` and create master namespace."""
-        super().__init__()
-        self.local = Namespace()
-        self.namespaces = Namespace()
-        self.extend(**namespaces)
-
-    def __repr__(self) -> str:
-        """String representation of Configuration."""
-        kwargs = ', '.join([f'{k}=' + repr(v) for k, v in self.namespaces.items()])
-        if self.local:
-            kwargs += f', _={repr(self.local)}'
-        return f'{self.__class__.__name__}({kwargs})'
-
-    def extend(self, **others: Union[Namespace, Environ]) -> None:
-        """
-        Extend the configuration by adding namespaces.
-
-        Example:
-            >>> conf = Configuration(one=Namespace({'x': 1, 'y': 2}),
-            ...                      two=Namespace({'x': 3, 'z': 4})
-            >>> conf.extend(three=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}}))
-            >>> conf
-            Configuration(one=Namespace({'x': 1, 'y': 2}),
-                          two=Namespace({'x': 3, 'z': 4}),
-                          three=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}})
-        """
-        for name, mapping in others.items():
-            if name != '_':
-                self.namespaces[name] = Namespace(mapping)
-                super().update(self.namespaces[name])
-            else:
-                self.local.update(mapping)
-
-    @classmethod
-    def from_local(cls, *, env: bool = False, prefix: str = None,
-                   default: dict = None, **files: str) -> Configuration:
-        """
-        Create configuration from a cascade of `files`. Optionally include `env`.
-
-        Example:
-            >>> import os
-            >>> HOME, CWD = os.getenv('HOME'), os.getcwd()
-            >>> conf = Configuration.from_local(default=Namespace(),
-            ...                                 env=True, prefix='MYAPP',
-            ...                                 system='/etc/myapp.yml',
-            ...                                 user=f'{HOME}/.myapp.yml',
-            ...                                 local=f'{CWD}/.myapp.yml')
-        """
-        default_ = Namespace() if not default else Namespace(default)
-        cfg = cls(default=default_)
-        for label, filepath in files.items():
-            cfg.extend(**{label: Namespace.from_local(filepath, ignore_if_missing=True)})
-        if env:
-            cfg.extend(env=Environ(prefix).reduce())
-        return cfg
-
-    def which(self, *path: str) -> str:
-        """
-        Derive which member namespace takes precedent for the given variable.
-
-        Example:
-            >>> conf = Configuration(one=Namespace({'x': 1, 'y': 2}),
-            ...                      two=Namespace({'x': 3, 'z': 4}))
-            >>> conf.extend(three=Namespace({'y': 5, 'u': {'i': 6, 'j': 7}}))
-
-            >>> conf.which('x')
-            'two'
-
-            >>> conf.which('y')
-            'three'
-
-            >>> conf.which('u', 'i')
-            'three'
-
-        Note:
-            Care needs to be taken when used for mutable variables in the
-            stack as the returned precedent does not reflect that the variable
-            at that level my be a depth-first-merge of several sources.
-
-            >>> conf = Configuration(one=Namespace({'a': {'x': 1, 'y': 2}}),
-            ...                      two=Namespace({'a': {'y': 3}}))
-
-            >>> conf.which('a')
-            'two'
-
-            >>> conf.a
-            Namespace({'x': 1, 'y': 3})
-        """
-        namespaces = Namespace({**self.namespaces, '_': self.local})
-        for label in reversed(list(namespaces.keys())):
-            try:
-                sub = namespaces[label]
-                for p in path:
-                    sub = sub[p]
-                return label
-            except KeyError:
-                pass
-        else:
-            raise KeyError(f'Not found: {path}')
-
-    def duplicates(self) -> Dict[str, Dict[str, List[Tuple[str, ...]]]]:
-        """
-        Find all the repeated `leaves`.
-
-        Example:
-            >>> one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
-            >>> two = Namespace({'b': {'x': 4, 'z': 2}, 'c': {'j': True, 'k': 3.14}})
-            >>> cfg = Configuration(one=one, two=two)
-
-            >>> cfg.duplicates()
-            {'x': {'one': [('a',), ('b',)], 'two': [('b',)]}, 'z': {'one': [('b',)], 'two': [('b',)]}}
-        """
-        tips = [tip for _, (*_, tip) in _find_the_leaves(self.namespaces)]
-        return {tip: self.whereis(tip) for tip, count in Counter(tips).items() if count > 1}  
-
-    def whereis(self, leaf: str,
-                value: Union[Callable[[T], bool], T] = lambda _: True) -> Dict[str, List[Tuple[str, ...]]]:
-        """
-        Find paths to `leaf`, optionally filtered on `value`, for each member namespace.
-
-        Example:
-            >>> one = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
-            >>> two = Namespace({'b': {'x': 4}, 'c': {'j': True, 'k': 3.14}})
-            >>> cfg = Configuration(one=one, two=two)
-
-            >>> cfg.whereis('x')
-            {'one': [('a',), ('b',)], 'two': [('b',)]}
-
-            >>> cfg.whereis('x', 1)
-            {'one': [('a',)], 'two': []}
-
-            >>> cfg.whereis('x', lambda v: v % 3 == 0)
-            {'one': [('b',)], 'two': []}
-        """
-        return {name: space.whereis(leaf, value) for name, space in self.namespaces.items()}
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Intercept parameter assignment."""
-        if name in self:
-            self.update({name: value})
-        else:
-            super().__setattr__(name, value)
-
-    def update(self, *args, **kwargs) -> None:
-        """
-        Update current namespace directly.
-
-        Note:
-            The :class:`Configuration` class is itself a :class:`Namespace`-like object.
-            Doing any in-place changes to its underlying `self` does not change its member namespaces.
-            This may otherwise cause confusion about the provenance of those parameters.
-            Instead, overrides have been implemented to capture these changes in a `local` namespace.
-            If you ask :func:`which` namespace a parameter has come from and it was an in-place change,
-            it will be considered a member of the "_" namespace.
-
-        Example:
-            >>> conf = Configuration(a=Namespace(x=1))
-            >>> conf
-            Configuration(a=Namespace({'x': 1}))
-
-            >>> conf.update(y=2)
-            >>> conf
-            Configuration(a=Namespace({'x': 1}), _=Namespace({'y': 2}))
-
-            >>> conf.x = 2
-            >>> conf
-            Configuration(a=Namespace({'x': 1}), _=Namespace({'x': 2, 'y': 2}))
-
-            >>> conf.update(y=3)
-            >>> conf
-            Configuration(a=Namespace({'x': 1}), _=Namespace({'x': 2, 'y': 3}))
-
-            >>> dict(conf)
-            {'x': 2, 'y': 3}
-        """
-        self.local.update(*args, **kwargs)
-        super().update(*args, **kwargs)
-
-    @classmethod
-    def pop(cls, *args, **kwargs):
-        """
-        It is not straight forward to implement the equivalent of super().update() for
-        the general case; currently disallow pop() on `Configuration`.
-        """
-        raise NotImplementedError(f'{cls.__class__.__name__} does not currently support pop()')
-    
-    @classmethod
-    def popitem(cls):
-        """
-        It is not straight forward to implement the equivalent of super().update() for
-        the general case; currently disallow popitem() on `Configuration`.
-        """
-        raise NotImplementedError(f'{cls.__class__.__name__} does not currently support popitem()')

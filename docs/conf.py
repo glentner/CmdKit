@@ -38,6 +38,13 @@ version = cmdkit.__version__
 extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autodoc',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.extlinks',
+    'sphinxext.opengraph',
+    'sphinx_sitemap',
+    'sphinx_copybutton',
+    'sphinxcontrib.details.directive',
+    'enum_tools.autoenum',
 ]
 
 # do not include fully qualified names of objects with autodoc
@@ -65,6 +72,7 @@ pygments_style = 'sphinx'
 #
 html_theme = 'pydata_sphinx_theme'
 html_logo = '_static/logo.png'
+html_baseurl = 'https://cmdkit.readthedocs.io'
 html_theme_options = {
     'external_links': [],
     'github_url': 'https://github.com/glentner/cmdkit',

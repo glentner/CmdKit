@@ -1,3 +1,63 @@
+[tool.poetry]
+name = "cmdkit"
+version = "2.7.0"
+description = "A command-line utility toolkit for Python."
+readme = "README.rst"
+license = "Apache-2.0"
+homepage = "https://cmdkit.readthedocs.io"
+documentation = "https://cmdkit.readthedocs.io"
+repository = "https://github.com/glentner/cmdkit"
+authors = [
+    "Geoffrey Lentner <glentner@purdue.edu>"
+]
+keywords = ["command-line", "utility", "toolkit"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+toml = {version = ">=0.10.1", optional = true}
+pyyaml = {version = ">=5.3.1", optional = true}
+
+[tool.poetry.group.docs.dependencies]
+sphinx = ">=3.2.1"
+pydata-sphinx-theme = ">=0.4.1"
+sphinx-sitemap = "^2.5.0"
+sphinx-autobuild = "^2021.3.14"
+sphinxext-opengraph = "^0.8.2"
+sphinx-copybutton = "^0.5.2"
+sphinxcontrib-details-directive = "^0.1.0"
+sphinx-toolbox = "^3.4.0"
+enum-tools = {extras = ["sphinx"], version = "^0.10.0"}
+
+[tool.poetry.group.dev.dependencies]
+toml = ">=0.10.1"
+pyyaml = ">=5.3.1"
+pytest = ">=6.1.1"
+pytest-cov = ">=2.10.1"
+hypothesis = ">=5.18.0"
+pylint = ">=2.6.0"
+mypy = ">=0.790"
+ipython = ">=7.18.1"
+sphinx-autobuild = ">=2020.9.1"
+
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta:__legacy__"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = ["--strict-markers", ]
+markers = [
+    "unit: Unit tests are short, interface driven tests on discrete components.",
+    "integration: Integration tests are often longer and deal with the interaction between systems.",
+    "parameterize: Place holder for parameterized tests (not a real type).",
+]

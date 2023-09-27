@@ -1,18 +1,15 @@
-:mod:`cmdkit.config`
-====================
+:mod:`cmdkit.namespace`
+=======================
 
-.. module:: cmdkit.config
+.. module:: cmdkit.namespace
     :platform: Unix, Windows
 
 |
 
-Classes and interfaces for managing application level configuration parameters.
-Get a runtime configuration with a namespace-like interface from both
-local files and environment variables with appropriate precedent.
-
-|
-
 -------------------
+
+Reference
+---------
 
 |
 
@@ -55,10 +52,6 @@ local files and environment variables with appropriate precedent.
 
 |
 
--------------------
-
-|
-
 .. autoclass:: Environ
     :show-inheritance:
 
@@ -71,42 +64,6 @@ local files and environment variables with appropriate precedent.
 
     .. automethod:: export
 
-    |
-
--------------------
-
-|
-
-.. autoclass:: Configuration
-    :show-inheritance:
-
-    |
-
-    .. autoattribute:: namespaces
-
-    |
-
-    .. automethod:: extend
-
-    |
-
-    .. automethod:: from_local
-
-    |
-
-    .. automethod:: which
-
-    |
-
-    .. automethod:: duplicates
-
-    |
-
-    .. automethod:: whereis
-
-    |
-
-    .. automethod:: update
 
 |
 

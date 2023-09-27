@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021 CmdKit Developers
+# SPDX-FileCopyrightText: 2022 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
 """Unit tests for `cmdkit.app` behavior and interfaces."""
@@ -14,8 +14,7 @@ from hypothesis import given, strategies
 # internal libs
 from cmdkit.app import Application, ApplicationGroup, exit_status
 from cmdkit.cli import Interface, ArgumentError
-from cmdkit.config import Namespace
-
+from cmdkit.namespace import Namespace
 
 DEMO_NAME = 'demo_app'
 DEMO_DESCRIPTION = """\

@@ -13,6 +13,9 @@ all the entry-points in your project.
 
 -------------------
 
+Reference
+---------
+
 |
 
 .. autoclass:: Application
@@ -173,9 +176,24 @@ all the entry-points in your project.
         A shared :class:`~cmdkit.config.Namespace` with parameters from parent group(s).
         See :class:`ApplicationGroup`.
 
-|
+    |
 
--------------------
+    .. automethod:: handle_usage
+
+        Handler method invoked by :meth:`~Application.main` when no arguments are given.
+        Default implementation simply prints the :data:`.interface.usage_text`.
+
+    .. automethod:: handle_help
+
+        Handler method invoked by :meth:`~Application.main` after catching
+        the :class:`~cmdkit.cli.HelpOption` exception. Default implementation simply prints
+        the :data:`.interface.help_text`.
+
+    .. automethod:: handle_version
+
+        Handler method invoked by :meth:`~Application.main` after catching
+        the :class:`~cmdkit.cli.VersionOption` exception. Default implementation simply
+        prints the arguments given.
 
 |
 
@@ -201,6 +219,8 @@ all the entry-points in your project.
 
     .. autoattribute:: shared
 
+        Shared arguments from parent :class:`ApplicationGroup`.
+
     .. autoattribute:: ALLOW_PARSE
 
         By default, the ``cmdline`` list passed to :meth:`~Application.main` has
@@ -220,10 +240,6 @@ all the entry-points in your project.
 
                 verbose: bool = False
                 interface.add_argument('--verbose', action='store_true')
-
-|
-
--------------------
 
 |
 

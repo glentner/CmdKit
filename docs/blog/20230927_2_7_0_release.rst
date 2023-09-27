@@ -1,0 +1,116 @@
+.. _20230927_2_7_0_release:
+
+Release Notes (v2.7.0)
+======================
+
+`September 27, 2023`
+
+The v2.7.0 release includes major new features along with numerous fixes and improvements.
+
+- Automatic rich colorization of usage text with ``NO_COLOR`` support (see `no-color.org <https://no-color.org>`_).
+- Automatic platform support honoring conventions for `Windows` and `macOS`.
+- Extensions to the standard ``logging`` module.
+- Expose major features in top-level API.
+- Various fixes and improvements.
+
+-----
+
+Features
+--------
+
+Rich colorization of usage text
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We've added a new :mod:`cmdkit.ansi` module to provide a facility for applying ANSI
+color support to CmdKit projects. With this comes a new syntax-highlighting feature
+for usage and help text, :meth:`cmdkit.ansi.colorize_usage`.
+
+This feature has been added by default to the :class:`cmdkit.cli.Interface` class
+as a default syntax-highlighter. These changes are backwards compatible in terms of
+the API. You can provide your own alternate highlighter implementation, or disable
+the behavior altogether.
+
+We are also abiding by the community ``NO_COLOR`` convention (see `no-color.org <https://no-color.org>`_).
+This also works for `stderr`; in this context though we are speaking of `stdout`.
+If the output stream is not connect to a `TTY`, colorization is disabled automatically.
+Colorization is disabled in the presents of the ``NO_COLOR`` environment variable.
+This can be forcibly overriden by defining a ``FORCE_COLOR`` environment variable.
+Developers should use the :data:`cmdkit.ansi.STDOUT_COLOR` and
+:data:`cmdkit.ansi.STDERR_COLOR` boolean globals to decide whether to apply colorization.
+The :meth:`cmdkit.ansi.colorize_usage` feature automatically abides by this.
+
+|
+
+Platform specific conventions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We've added a new :mod:`cmdkit.platform` module that provides an :class:`~cmdkit.platform.AppContext`
+class which defines useful default behavior with no boilerplate necessary.
+
+Building off the idea behind the :meth:`~cmdkit.config.Configuration.from_local` builder method
+of the :class:`~cmdkit.config.Configuration` class, we want to automatically deduce the appropriate
+file system paths on not just `Posix`/`Linux`, but `macOS` and `Windows` as well.
+
+For example, instead of using ``~/.myapp.toml`` for the user-level configuration file path, on
+`Windows` it would be more conventional to have this path as ``%APPDATA%\MyApp\Config.toml``.
+We abide by both the ``%APPDATA`` as well as the acceptable use of capitalization.
+
+We've extended the :class:`~cmdkit.config.Configuration` class with a new
+:meth:`~cmdkit.config.Configuration.from_context` builder method to create an extremely concise
+syntax for this sort of conventional application behavior.
+
+See the ``full-hello.py`` example
+in the :ref:`Tutorial <tutorial>` section.
+
+
+|
+
+Build-in Logging extensions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Python's builtin :mod:`logging` module is the `de facto` standard logging interface and allows for
+control of logging even for third-party packages not controlled by the developer.
+
+It has a few notable missing features and attributes that might be useful to an application
+developer. For example, additional granularity of logging `levels`, additional attributes such as
+the `hostname` of the machine you are running on, rich color support, etc.
+
+All of these can be modified easily enough. The new :mod:`cmdkit.logging` module applies these
+additional features and behaviors by extending the :class:`~logging.Logger` and :class:`~logging.LogRecord`
+class.
+
+Worth mentioning is the new :data:`~cmdkit.logging.logging_styles` dictionary contained named
+formats (such as `default`, `short`, `detailed`, `detailed-compact`, and `system`). These
+named formats allow for easily switching between what can be failure complicated definition
+strings.
+
+Available styles include:
+
+- ``default`` (colorized level, module name)
+- ``short`` (colorized level name only)
+- ``detailed`` (colorized time stamp, hostname, level name, module name)
+- ``detailed-compact`` (colorized relative time stamp, short hostname, level name, relative module name)
+- ``system`` (similar to ``detailed`` but without colorization and includes application UUID).
+
+|
+
+Top-level API
+^^^^^^^^^^^^^
+
+Instead of needing to make multiple imports to submodules for every feature within `cmdkit`,
+all major features/classes are not exposed at the top-level.
+
+Instead of
+
+.. code-block:: python
+
+    from cmdkit.app import Application, exit_status
+    from cmdkit.cli import Interface
+
+The following is now supported
+
+.. code-block:: python
+
+    from cmdkit import Application, Interface, exit_status
+
+|
