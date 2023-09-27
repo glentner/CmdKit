@@ -137,5 +137,6 @@ Project                                                   Description
 
     api/index
     tutorial/index
+    blog/index
     contributing
     license
