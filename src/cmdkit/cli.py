@@ -17,12 +17,10 @@ from __future__ import annotations
 from typing import Callable
 
 # standard libs
-import re
-import sys
 import argparse as _argparse
 
 # internal libs
-from .ansi import colorize_usage
+from cmdkit.ansi import colorize_usage
 
 # public interface
 __all__ = ['Interface', 'ArgumentError', ]
@@ -51,13 +49,14 @@ _argparse._VersionAction.__call__ = _version_action   # noqa: (protected)
 
 class Interface(_argparse.ArgumentParser):
     """
-    Variant of `argparse.ArgumentParser` that raises an ArgumentError instead of
-    calling `sys.exit`. The `usage_text` and `help_text` will be taken verbatim.
+    Variant of :class:`argparse.ArgumentParser` that raises an :class:`ArgumentError`
+    instead of calling :meth:`sys.exit`. See the standard library documentation for
+    details on :meth:`~Interface.add_argument` and other common methods.
 
-    Example:
-        >>> from cmdkit.cli import Interface
-        >>> interface = Interface('myapp', 'usage: myapp ...', 'help: ...')
-        >>> interface.add_argument('--verbose', action='store_true')
+    The `usage_text` and `help_text` are taken verbatim; however, these text values
+    can be colorized automatically using a generalized syntax highlighter
+    (:meth:`cmdkit.ansi.colorize_usage` by default).
+    To disable this behavior, use the `disable_colors` parameter.
     """
 
     def __init__(self,
@@ -67,31 +66,7 @@ class Interface(_argparse.ArgumentParser):
                  disable_colors: bool = False,
                  formatter: Callable[[str], str] = colorize_usage,
                  **kwargs) -> None:
-        """
-        Explicitly provide `usage_text` and `help_text`.
-
-        Arguments
-        ---------
-        program: str
-            Name of program (e.g., `os.path.basename(sys.argv[0])`).
-
-        usage_text: str
-            Full text of program "usage" statement.
-
-        help_text: str
-            Full text of program "help" statement.
-
-        disable_colors: bool
-            Disable automatic rich colorization.
-
-        formatter: Callable[[str], str]
-            Function that returns formatted text given `usage_text` or
-            `help_text` as input.
-
-        See Also
-        --------
-        `argparse.ArgumentParser`
-        """
+        """Initialize with text and formatting arguments."""
         self.program = program
         if disable_colors:
             self.usage_text = usage_text

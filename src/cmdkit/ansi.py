@@ -16,41 +16,53 @@ import functools
 from enum import Enum
 
 # public interface
-__all__ = ['NO_TTY', 'Ansi', 'format_ansi',
+__all__ = ['NO_COLOR', 'FORCE_COLOR', 'COLOR_STDOUT', 'COLOR_STDERR', 'Ansi', 'format_ansi',
            'bold', 'faint', 'italic', 'underline',
            'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
-           'colorize_usage']
+           'colorize_usage', ]
 
 
-# Automatically disable colors for non-interactive use
-NO_TTY = False
-if 'NO_COLOR' in os.environ or not sys.stderr.isatty():
-    NO_TTY = True
-elif 'COLOR' in os.environ and os.environ['COLOR'].lower() in {'1', 'true'}:
-    NO_TTY = False
+# Enable/disable colors if necessary
+NO_COLOR = False if not os.getenv('NO_COLOR') else True
+FORCE_COLOR = False if not os.getenv('FORCE_COLOR') else True
+
+COLOR_STDOUT = True
+COLOR_STDERR = True
+if not sys.stdout.isatty() or NO_COLOR:
+    COLOR_STDOUT = False
+if not sys.stderr.isatty() or NO_COLOR:
+    COLOR_STDERR = False
+if FORCE_COLOR:
+    COLOR_STDOUT = True
+    COLOR_STDERR = True
 
 
 class Ansi(Enum):
-    """ANSI escape sequences for terminal colors."""
+    """Classic `ANSI` escape sequences for colors."""
+
     NULL = ''
-    RESET = '\033[0m' if not NO_TTY else ''
-    BOLD = '\033[1m' if not NO_TTY else ''
-    FAINT = '\033[2m' if not NO_TTY else ''
-    ITALIC = '\033[3m' if not NO_TTY else ''
-    UNDERLINE = '\033[4m' if not NO_TTY else ''
-    BLACK = '\033[30m' if not NO_TTY else ''
-    RED = '\033[31m' if not NO_TTY else ''
-    GREEN = '\033[32m' if not NO_TTY else ''
-    YELLOW = '\033[33m' if not NO_TTY else ''
-    BLUE = '\033[34m' if not NO_TTY else ''
-    MAGENTA = '\033[35m' if not NO_TTY else ''
-    CYAN = '\033[36m' if not NO_TTY else ''
-    WHITE = '\033[37m' if not NO_TTY else ''
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+    FAINT = '\033[2m'
+    ITALIC = '\033[3m'
+    UNDERLINE = '\033[4m'
+    BLACK = '\033[30m'
+    RED = '\033[31m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    BLUE = '\033[34m'
+    MAGENTA = '\033[35m'
+    CYAN = '\033[36m'
+    WHITE = '\033[37m'
 
 
 def format_ansi(seq: Ansi, text: str) -> str:
-    """Apply escape sequence with reset afterward."""
-    if NO_TTY:
+    """
+    Apply escape sequence with reset afterward, if necessary.
+    If `stdout` is not a `TTY` or :data:`NO_COLOR` is set, there is no effect on `text`.
+    If :data:`FORCE_COLOR` is set, formatting will be applied regardless.
+    """
+    if not COLOR_STDOUT:
         return text
     elif text.endswith(Ansi.RESET.value):
         return f'{seq.value}{text}'
@@ -58,7 +70,7 @@ def format_ansi(seq: Ansi, text: str) -> str:
         return f'{seq.value}{text}{Ansi.RESET.value}'
 
 
-# Shorthand named methods
+# shorthand formatting methods
 bold = functools.partial(format_ansi, Ansi.BOLD)
 faint = functools.partial(format_ansi, Ansi.FAINT)
 italic = functools.partial(format_ansi, Ansi.ITALIC)
@@ -74,8 +86,14 @@ white = functools.partial(format_ansi, Ansi.WHITE)
 
 
 def colorize_usage(text: str) -> str:
-    """Apply rich ANSI formatting to usage and help text if TTY-mode."""
-    if not sys.stdout.isatty():  # NOTE: usage is on stdout not stderr
+    """
+    Apply rich :class:`Ansi` formatting to usage and help text.
+
+    This function operates like a syntax highlighter for usage and help text.
+    If `stdout` is not a `TTY` or :data:`NO_COLOR` is set, there is no effect on `text`.
+    If :data:`FORCE_COLOR` is set, formatting will be applied regardless.
+    """
+    if not COLOR_STDOUT:  # NOTE: usage is on stdout not stderr
         return text
     else:
         return _apply_formatters(text,
@@ -91,33 +109,46 @@ def colorize_usage(text: str) -> str:
 
 
 def _apply_formatters(text: str, *formatters: Callable[[str], str]) -> str:
-    """Apply all usage text formatters."""
+    """Apply all text `formatters`."""
     if formatters:
         return formatters[0](_apply_formatters(text, *formatters[1:]))
     else:
         return text
 
 
+# Look-around pattern to negate matches within quotation marks
+# Whole quotations are formatted together
+NOT_QUOTED = (
+    r'(?=([^"]*"[^"]*")*[^"]*$)' +
+    r"(?=([^']*'[^']*')*[^']*$)" +
+    r'(?=([^`]*`[^`]*`)*[^`]*$)'
+)
+
+
 def _format_headers(text: str) -> str:
     """Add rich ANSI formatting to section headers."""
-    return re.sub(r'(?P<header>[a-zA-Z]+:)\n', bold(r'\g<header>') + '\n', text)
+    names = ['Usage', 'Commands', 'Arguments', 'Modes', 'Options', 'Files']
+    return re.sub(r'(?P<name>' + '|'.join(names) + r'):' + NOT_QUOTED, bold(r'\g<name>:'), text)
 
 
 def _format_options(text: str) -> str:
     """Add rich ANSI formatting to option syntax."""
-    return re.sub(r'(?P<leader>[ /\[,])(?P<option>-[a-zA-Z]|--[a-z]+(-[a-z]+)?)\b',
-                  r'\g<leader>' + cyan(r'\g<option>'), text)
+    option_pattern = r'(?P<leader>[ /\[,])(?P<option>-[a-zA-Z]|--[a-z]+(-[a-z]+)?)\b'
+    return re.sub(option_pattern + NOT_QUOTED, r'\g<leader>' + cyan(r'\g<option>'), text)
 
 
 def _format_special_args(text: str) -> str:
     """Add rich ANSI formatting to special argument syntax."""
-    return re.sub(r'\b(?P<arg>[A-Z]{2,})\b', italic(r'\g<arg>'), text)
+    metavars = ['FILE', 'PATH', 'ARGS', 'ID', 'NUM', 'CMD', 'SIZE', 'SEC', 'NAME', 'TEMPLATE', 'CHAR', 'MODE',
+                'ADDR', 'HOST', 'PORT', 'KEY', 'SECTION', 'VAR', 'VALUE', 'FIELD', 'COND', 'FORMAT', 'TAG']
+    metavars_pattern = r'\b(?P<arg>' + '|'.join(metavars) + r')\b'
+    return re.sub(metavars_pattern + NOT_QUOTED, italic(r'\g<arg>'), text)
 
 
 def _format_special_marker(text: str) -> str:
     """Add rich ANSI formatting to special markers (e.g., '<stdout>')."""
-    names = ['<stdout>', '<stderr>', '<stdin>', '<devnull>', '<none>', '<command>', '<args>', ]
-    return re.sub(r'(?P<arg>' + '|'.join(names) + r')', italic(r'\g<arg>'), text)
+    args = ['<stdout>', '<stderr>', '<stdin>', '<devnull>', '<none>', '<command>', '<args>', ]
+    return re.sub(r'(?P<arg>' + '|'.join(args) + r')' + NOT_QUOTED, italic(r'\g<arg>'), text)
 
 
 def _format_single_quoted_string(text: str) -> str:
@@ -137,4 +168,4 @@ def _format_backtick_string(text: str) -> str:
 
 def _format_digit(text: str) -> str:
     """Add rich ANSI formatting to numerical digits."""
-    return re.sub(r'\b(?P<num>\d+)\b', green(r'\g<num>'), text)
+    return re.sub(r'\b(?P<num>\d+|null|NULL)\b' + NOT_QUOTED, green(r'\g<num>'), text)
