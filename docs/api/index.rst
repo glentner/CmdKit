@@ -8,4 +8,8 @@ Complete API reference for `cmdkit`.
 
     app
     cli
+    namespace
     config
+    logging
+    ansi
+    platform

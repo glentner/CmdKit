@@ -6,6 +6,9 @@
 
 -------------------
 
+Reference
+---------
+
 |
 
 .. autoclass:: Interface
@@ -22,14 +25,12 @@
     instead raise exceptions, as well as disable the auto-documentation aspect for
     `usage` and `help` statements.
 
-
--------------------
-
 |
 
-The exceptions allow the :class:`~cmdkit.app.Application` class to catch
-events and handle them instead of the default behavior in :class:`~argparse.ArgumentParser`
-to print and call :func:`~sys.exit`.
+.. note::
+    The following exceptions allow the :class:`~cmdkit.app.Application` class to catch
+    events and handle them instead of the default behavior in :class:`~argparse.ArgumentParser`
+    to print and call :func:`~sys.exit`.
 
 |
 
