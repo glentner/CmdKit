@@ -13,12 +13,13 @@ from typing import IO
 import os
 import sys
 import json
+from getpass import getuser
 
 # external libs
 from cmdkit.app import Application, exit_status
 from cmdkit.cli import Interface
-from cmdkit.config import Namespace, Configuration
-from cmdkit.platform import AppContext
+from cmdkit.config import Configuration
+from cmdkit.namespace import Namespace
 from cmdkit.logging import Logger, logging_styles, level_by_name
 
 # metadata
@@ -37,19 +38,10 @@ default_config = Namespace({
 
 
 try:
-    context = AppContext.default(appname=appname, create_dirs=True)
-    config = Configuration.from_local(
-        env=True,
-        prefix=appname.upper(),
-        default=default_config,
-        system=context.path.system.config,
-        user=context.path.user.config,
-        local=context.path.local.config,
-    )
-
-    log = Logger.default(program, format=logging_styles[config.logging.style.lower()]['format'])
-    log.setLevel(level_by_name[config.logging.level.upper()])
-
+    ctx, cfg = Configuration.from_context(name=appname, default_config=default_config)
+    log = Logger.default(program,
+                         level=level_by_name[cfg.logging.level.upper()],
+                         format=logging_styles[cfg.logging.style.lower()]['format'])
 except Exception as error:
     print(f'error: {program}: {error}', file=sys.stderr)
     sys.exit(exit_status.bad_config)
@@ -57,15 +49,15 @@ except Exception as error:
 
 usage_text = f"""\
 Usage:
-{program} [-v] [NAME | --config | --site] [-o FILE]
-{__doc__}\
+  {program} [-v] [NAME | --config | --site] [-o FILE]
+  {__doc__}\
 """
 
 help_text = f"""\
 {usage_text}
 
 Arguments:
-  NAME                  Name of person to greet.
+  NAME                  Name of person to greet (default: $USER).
 
 Options:
   -c, --config          Show configuration and exit.
@@ -78,24 +70,24 @@ Options:
 
 site_text = f"""\
 [system]
-data:   {context.path.system.lib}
-logs:   {context.path.system.log}
-config: {context.path.system.config}
+data:   {ctx.path.system.lib}
+logs:   {ctx.path.system.log}
+config: {ctx.path.system.config}
 
 [user]
-data:   {context.path.user.lib}
-logs:   {context.path.user.log}
-config: {context.path.user.config}
+data:   {ctx.path.user.lib}
+logs:   {ctx.path.user.log}
+config: {ctx.path.user.config}
 
 [local]
-data:   {context.path.local.lib}
-logs:   {context.path.local.log}
-config: {context.path.local.config}
+data:   {ctx.path.local.lib}
+logs:   {ctx.path.local.log}
+config: {ctx.path.local.config}
 """
 
 site_text = site_text.replace(
-    f'[{context.default_site}]',
-    f'[{context.default_site}] (default)',
+    f'[{ctx.default_site}]',
+    f'[{ctx.default_site}] (default)',
 )
 
 
@@ -105,8 +97,8 @@ class FullHello(Application):
     interface = Interface(program, usage_text, help_text)
     interface.add_argument('-v', '--version', action='version', version=version)
 
-    name: str = None
-    interface.add_argument('name', nargs='?', default=None)
+    name: str = getuser()
+    interface.add_argument('name', nargs='?', default=name)
 
     show_config: bool = False
     show_site: bool = False
@@ -122,12 +114,12 @@ class FullHello(Application):
         """Run program."""
         if self.show_config:
             log.info('Showing configuration')
-            print(json.dumps(dict(config), indent=4), file=self.output_stream)
+            print(json.dumps(dict(cfg), indent=4), file=self.output_stream)
         elif self.show_site:
             log.info('Showing site details')
             print(site_text, file=self.output_stream)
         else:
-            log.info('Greeting user')
+            log.info(f'Greeting user ({self.name})')
             print(f'Hello, {self.name}!', file=self.output_stream)
 
     def __enter__(self: FullHello) -> Application:
@@ -140,7 +132,6 @@ class FullHello(Application):
         """Close resources."""
         if self.output_stream is not sys.stdout:
             self.output_stream.close()
-        return super().__exit__(*exc)
 
 
 if __name__ == '__main__':

@@ -21,8 +21,8 @@ version = '0.1.0'
 prog_name = os.path.basename(sys.argv[0])
 usage_text = f"""\
 Usage:
-{prog_name} [-v] NAME
-{__doc__}\
+  {prog_name} [-v] NAME
+  {__doc__}\
 """
 
 help_text = f"""\
