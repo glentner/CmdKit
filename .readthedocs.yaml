@@ -8,7 +8,7 @@ build:
   tools:
     python: "3.10"
   commands:
-    - pip install pydata-sphinx-theme
+    - pip install pydata-sphinx-theme sphinx-sitemap sphinx-autobuild sphinxext-opengraph sphinx-inline-tabs sphinx-copybutton sphinxcontrib-details-directive
 
 python:
   install:
