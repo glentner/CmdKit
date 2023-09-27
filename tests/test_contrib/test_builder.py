@@ -4,7 +4,7 @@
 """Unit tests for `cmdkit.config.builder` behavior and interfaces."""
 
 # internal libs
-from cmdkit.config import Namespace
+from cmdkit.namespace import Namespace
 from cmdkit.contrib.builder import BuilderNamespace, BuilderConfiguration
 
 

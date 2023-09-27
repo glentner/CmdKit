@@ -22,7 +22,8 @@ from collections import Counter
 from functools import reduce
 
 # internal libs
-from ..config import Namespace, Configuration, _find_the_leaves
+from cmdkit.config import Configuration
+from cmdkit.namespace import Namespace, _find_the_leaves
 
 # public interface
 __all__ = ['BuilderNamespace', 'BuilderConfiguration', ]

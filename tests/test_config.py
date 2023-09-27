@@ -13,8 +13,8 @@ from string import ascii_letters
 import pytest
 
 # internal libs
-from cmdkit.config import Namespace, Environ, Configuration
-
+from cmdkit.config import Configuration
+from cmdkit.namespace import Namespace, Environ
 
 # ensure temporary directory exists
 TMPDIR = '/tmp/cmdkit/config'
@@ -264,21 +264,6 @@ class TestNamespace:
         assert 'foo' == ns['b'] == ns.b
         assert 3.14 == ns['c']['x'] == ns.c.x
 
-    def test_attribute_expand_env(self) -> None:
-        """Test transparent environment variable expansion."""
-        os.environ['CMDKIT_TEST_A'] = 'foo-bar'
-        ns = Namespace({'test_env': 'CMDKIT_TEST_A'})
-        assert ns.get('test') is None
-        assert ns.get('test_env') == 'CMDKIT_TEST_A'
-        assert ns.test == 'foo-bar'
-
-    def test_attribute_expand_eval(self) -> None:
-        """Test transparent shell expression expansion."""
-        ns = Namespace({'test_eval': 'echo foo-bar'})
-        assert ns.get('test') is None
-        assert ns.get('test_eval') == 'echo foo-bar'
-        assert ns.test == 'foo-bar'
-
     def test_duplicates(self) -> None:
         """Namespace can find duplicate leaves in the tree."""
         ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
@@ -477,6 +462,21 @@ class TestConfiguration:
         assert cfg['a']['y'] == 2
         assert cfg['a']['z'] == 4
         assert cfg['b']['z'] == 3
+
+    def test_attribute_expand_env(self) -> None:
+        """Test transparent environment variable expansion."""
+        os.environ['CMDKIT_TEST_A'] = 'foo-bar'
+        ns = Configuration(a=Namespace({'test_env': 'CMDKIT_TEST_A'}))
+        assert ns.get('test') is None
+        assert ns.get('test_env') == 'CMDKIT_TEST_A'
+        assert ns.test == 'foo-bar'
+
+    def test_attribute_expand_eval(self) -> None:
+        """Test transparent shell expression expansion."""
+        ns = Configuration(a=Namespace({'test_eval': 'echo foo-bar'}))
+        assert ns.get('test') is None
+        assert ns.get('test_eval') == 'echo foo-bar'
+        assert ns.test == 'foo-bar'
 
     def test_from_local(self) -> None:
         """Test Configuration.from_local factory method."""

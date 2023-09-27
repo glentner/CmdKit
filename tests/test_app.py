@@ -14,8 +14,7 @@ from hypothesis import given, strategies
 # internal libs
 from cmdkit.app import Application, ApplicationGroup, exit_status
 from cmdkit.cli import Interface, ArgumentError
-from cmdkit.config import Namespace
-
+from cmdkit.namespace import Namespace
 
 DEMO_NAME = 'demo_app'
 DEMO_DESCRIPTION = """\
