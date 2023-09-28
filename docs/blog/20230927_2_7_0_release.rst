@@ -53,7 +53,7 @@ file system paths on not just `Posix`/`Linux`, but `macOS` and `Windows` as well
 
 For example, instead of using ``~/.myapp.toml`` for the user-level configuration file path, on
 `Windows` it would be more conventional to have this path as ``%APPDATA%\MyApp\Config.toml``.
-We abide by both the ``%APPDATA`` as well as the acceptable use of capitalization.
+We abide by both the ``%APPDATA%`` as well as the acceptable use of capitalization.
 
 We've extended the :class:`~cmdkit.config.Configuration` class with a new
 :meth:`~cmdkit.config.Configuration.from_context` builder method to create an extremely concise
