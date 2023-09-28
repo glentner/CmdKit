@@ -65,7 +65,7 @@ in the :ref:`Tutorial <tutorial>` section.
 
 |
 
-Build-in Logging extensions
+Built-in Logging extensions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Python's builtin :mod:`logging` module is the `de facto` standard logging interface and allows for
