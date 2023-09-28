@@ -71,11 +71,16 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 #
 html_theme = 'pydata_sphinx_theme'
-html_logo = '_static/logo.png'
 html_baseurl = 'https://cmdkit.readthedocs.io'
 html_theme_options = {
     'external_links': [],
     'github_url': 'https://github.com/glentner/cmdkit',
+    'logo': {
+        'image_light': '_static/logo_light.png',
+        'image_dark': '_static/logo_dark.png'
+    },
+    'pygment_light_style': 'tango',
+    'pygment_dark_style': 'monokai',
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
