@@ -1,11 +1,11 @@
-.. _20230927_2_7_0_release:
+.. _20230927_2_7_1_release:
 
-Release Notes (v2.7.0)
+Release Notes (v2.7.1)
 ======================
 
-`September 27, 2023`
+`September 28, 2023`
 
-The v2.7.0 release includes major new features along with numerous fixes and improvements.
+The v2.7.1 release includes major new features along with numerous fixes and improvements.
 
 - Automatic rich colorization of usage text with ``NO_COLOR`` support (see `no-color.org <https://no-color.org>`_).
 - Automatic platform support honoring conventions for `Windows` and `macOS`.
@@ -53,7 +53,7 @@ file system paths on not just `Posix`/`Linux`, but `macOS` and `Windows` as well
 
 For example, instead of using ``~/.myapp.toml`` for the user-level configuration file path, on
 `Windows` it would be more conventional to have this path as ``%APPDATA%\MyApp\Config.toml``.
-We abide by both the ``%APPDATA`` as well as the acceptable use of capitalization.
+We abide by both the ``%APPDATA%`` as well as the acceptable use of capitalization.
 
 We've extended the :class:`~cmdkit.config.Configuration` class with a new
 :meth:`~cmdkit.config.Configuration.from_context` builder method to create an extremely concise
