@@ -176,7 +176,12 @@ class LogRecord(logging.LogRecord):
         self.app_id = INSTANCE
         self.hostname = HOSTNAME
         self.hostname_short = HOSTNAME_SHORT
-        self.relative_name = self.name.split('.', 1)[-1]
+
+        # Guard against `logging.makeLogRecord` passing None (see Issue #20)
+        if isinstance(self.name, str):
+            self.relative_name = self.name.split('.', 1)[-1]
+        else:
+            self.relative_name = None
 
         # Formatting attributes
         self.ansi_level = level_color.get(self.levelname, Ansi.NULL).value if COLOR_STDERR else ''
