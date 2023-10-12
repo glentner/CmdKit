@@ -264,6 +264,37 @@ class TestNamespace:
         assert 'foo' == ns['b'] == ns.b
         assert 3.14 == ns['c']['x'] == ns.c.x
 
+    def test_attribute_missing(self) -> None:
+        """Test raises AttributeError if item is missing."""
+        ns = Namespace({'a': 1, 'b': 'foo', 'c': {'x': 3.14}})
+        with pytest.raises(AttributeError) as exc_info:
+            assert ns.d == 42
+        exc_info.match('\'d\' not found')
+
+    def test_attribute_expand_env(self) -> None:
+        """Test transparent environment variable expansion."""
+        os.environ['CMDKIT_TEST_A'] = 'foo-bar'
+        ns = Namespace({'test_env': 'CMDKIT_TEST_A'})
+        assert ns.get('test') is None
+        assert ns.get('test_env') == 'CMDKIT_TEST_A'
+        assert ns.test_env == 'CMDKIT_TEST_A'
+        assert ns.test == 'foo-bar'
+
+    def test_attribute_expand_eval(self) -> None:
+        """Test transparent shell expression expansion."""
+        ns = Namespace({'test_eval': 'echo foo-bar'})
+        assert ns.get('test') is None
+        assert ns.get('test_eval') == 'echo foo-bar'
+        assert ns.test_eval == 'echo foo-bar'
+        assert ns.test == 'foo-bar'
+
+    def test_attribute_expand_multiple_variants(self) -> None:
+        """Test failure to expand because item has multiple variants."""
+        ns = Namespace({'a': 1, 'test': 'foo', 'test_eval': 'echo bar'})
+        with pytest.raises(AttributeError) as exc_info:
+            assert ns.test == 'foo'
+        assert exc_info.match('\'test\' has more than one variant')
+
     def test_duplicates(self) -> None:
         """Namespace can find duplicate leaves in the tree."""
         ns = Namespace({'a': {'x': 1, 'y': 2}, 'b': {'x': 3, 'z': 4}})
@@ -463,20 +494,41 @@ class TestConfiguration:
         assert cfg['a']['z'] == 4
         assert cfg['b']['z'] == 3
 
+    def test_attribute_missing(self) -> None:
+        """Test raises AttributeError if item is missing"""
+        cfg = Configuration(a=Namespace({'a': 1, 'b': 'foo', 'c': {'x': 3.14}}))
+        with pytest.raises(AttributeError) as exc_info:
+            assert cfg.d == 42
+        exc_info.match('\'d\' not found')
+
     def test_attribute_expand_env(self) -> None:
         """Test transparent environment variable expansion."""
         os.environ['CMDKIT_TEST_A'] = 'foo-bar'
-        ns = Configuration(a=Namespace({'test_env': 'CMDKIT_TEST_A'}))
-        assert ns.get('test') is None
-        assert ns.get('test_env') == 'CMDKIT_TEST_A'
-        assert ns.test == 'foo-bar'
+        cfg = Configuration(a=Namespace({'nested': {'test_env': 'CMDKIT_TEST_A'}}))
+        assert cfg.nested.get('test') is None
+        assert cfg.nested.get('test_env') == 'CMDKIT_TEST_A'
+        assert cfg.nested.test_env == 'CMDKIT_TEST_A'
+        assert cfg.nested.test == 'foo-bar'
 
     def test_attribute_expand_eval(self) -> None:
         """Test transparent shell expression expansion."""
-        ns = Configuration(a=Namespace({'test_eval': 'echo foo-bar'}))
-        assert ns.get('test') is None
-        assert ns.get('test_eval') == 'echo foo-bar'
-        assert ns.test == 'foo-bar'
+        cfg = Configuration(a=Namespace({'nested': {'test_eval': 'echo foo-bar'}}))
+        assert cfg.nested.get('test') is None
+        assert cfg.nested.get('test_eval') == 'echo foo-bar'
+        assert cfg.nested.test_eval == 'echo foo-bar'
+        assert cfg.nested.test == 'foo-bar'
+
+    def test_attribute_expand_multiple_variants(self) -> None:
+        """Test failure to expand because multiple variants found."""
+        cfg = Configuration(a=Namespace({'nested': {'test': 'foo', 'a': 1}}),
+                            b=Namespace({'nested': {'test_eval': 'echo bar', 'b': 2}}),
+                            c=Namespace({'other': {'secret_eval': 'echo baz'}}))
+        with pytest.raises(AttributeError) as exc_info:
+            assert cfg.nested.a == 1
+            assert cfg.nested.b == 2
+            assert cfg.other.secret == 'baz'
+            assert cfg.nested.test == 'foo'
+        assert exc_info.match('\'test\' has more than one variant')
 
     def test_from_local(self) -> None:
         """Test Configuration.from_local factory method."""

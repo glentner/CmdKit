@@ -13,9 +13,6 @@ from __future__ import annotations
 from typing import Tuple, List, Dict, TypeVar, Callable, Union, Any
 
 # standard libs
-import os
-import functools
-import subprocess
 from collections import Counter
 
 # internal libs
@@ -238,43 +235,6 @@ class Configuration(NSCoreMixin):
             self.update({name: value})
         else:
             super().__setattr__(name, value)
-
-    def __getattr__(self, item: str) -> Any:
-        """
-        Alias for index notation.
-        Transparently expand `_env` and `_eval` variants.
-        """
-        variants = [f'{item}_env', f'{item}_eval']
-        if item in self:
-            return self[item]
-        for variant in variants:
-            if variant in self:
-                return self.__expand_attr(item)
-        else:
-            raise AttributeError(f'missing \'{item}\'')
-
-    def __expand_attr(self, item: str) -> str:
-        """Interpolate values if `_env` or `_eval` present."""
-
-        getters = {f'{item}': (lambda: self[item]),
-                   f'{item}_env': functools.partial(self.__expand_attr_env, item),
-                   f'{item}_eval': functools.partial(self.__expand_attr_eval, item)}
-
-        items = [key for key in self if key in getters]
-        if len(items) == 0:
-            raise ConfigurationError(f'\'{item}\' not found')
-        elif len(items) == 1:
-            return getters[items[0]]()
-        else:
-            raise ConfigurationError(f'\'{item}\' has more than one variant')
-
-    def __expand_attr_env(self, item: str) -> str:
-        """Expand `item` as an environment variable."""
-        return os.getenv(str(self[f'{item}_env']), None)
-
-    def __expand_attr_eval(self, item: str) -> str:
-        """Expand `item` as a shell expression."""
-        return subprocess.check_output(str(self[f'{item}_eval']), shell=True).decode().strip()
 
     def update(self, *args, **kwargs) -> None:
         """

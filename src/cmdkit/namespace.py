@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: 2022 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Namespace implementation.
-"""
+"""Namespace implementation."""
+
 
 # type annotations
 from __future__ import annotations
@@ -11,6 +10,8 @@ from typing import Union, Mapping, Iterable, Any, Dict, Optional, IO, List, Tupl
 
 # standard libs
 import os
+import functools
+import subprocess
 from collections import Counter
 from functools import reduce
 
@@ -76,11 +77,29 @@ class NSCoreMixin(dict):
         self.__depth_first_update(self, dict(*args, **kwargs))
 
     def __getattr__(self, item: str) -> Any:
-        """Alias for index notation."""
-        if item in self:
-            return self[item]
+        """
+        Alias for index notation.
+        Transparently expand `_env` and `_eval` variants.
+        """
+        getters = {f'{item}': (lambda: self[item]),
+                   f'{item}_env': functools.partial(self.__expand_attr_env, item),
+                   f'{item}_eval': functools.partial(self.__expand_attr_eval, item)}
+
+        items = [key for key in getters if key in self]
+        if len(items) == 0:
+            raise AttributeError(f'\'{item}\' not found')
+        elif len(items) == 1:
+            return getters[items[0]]()
         else:
-            raise AttributeError(f'missing \'{item}\'')
+            raise AttributeError(f'\'{item}\' has more than one variant')
+
+    def __expand_attr_env(self, item: str) -> str:
+        """Expand `item` as an environment variable."""
+        return os.getenv(str(self[f'{item}_env']), None)
+
+    def __expand_attr_eval(self, item: str) -> str:
+        """Expand `item` as a shell expression."""
+        return subprocess.check_output(str(self[f'{item}_eval']), shell=True).decode().strip()
 
     def __repr__(self) -> str:
         """Convert to string representation."""
