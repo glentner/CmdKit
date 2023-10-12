@@ -6,6 +6,7 @@
 
 # standard libs
 from logging import NullHandler
+from importlib.metadata import version as get_version
 
 # internal libs
 from cmdkit.cli import Interface, ArgumentError
@@ -26,7 +27,7 @@ __all__ = [
 ]
 
 # package metadata
-__version__   = '2.7.2'
+__version__ = get_version('cmdkit')
 
 # null-handler for library interface
 Logger.with_name(__name__).addHandler(NullHandler())

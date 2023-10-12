@@ -1,0 +1,35 @@
+.. _20231012_2_7_3_release:
+
+Release Notes (v2.7.3)
+======================
+
+`October 12, 2023`
+
+The v2.7.3 release fixes a bug in how ``_env`` and ``_eval`` get expanded
+(`Issue 21 <https://github.com/glentner/CmdKit/issues/21>`_)
+
+-----
+
+
+The expected behavior is something like the following:
+
+.. code-block:: python
+
+    cfg = Configuration(default={'database': {'user': 'bob', 'password_eval': 'echo secret'}})
+    assert cfg.database.password == 'secret'
+
+The expansion does happen for top-level parameters, but not ones nested within sections (or sub-sections).
+You instead get an ``AttributeError`` as you might expect from a normal dictionary.
+
+With the 2.7.x release of cmdkit the ``Namespace`` (and underlying ``NSCoreMixin`` along with ``Environ``) were
+migrated to their own separate ``namespace`` module to allow for it to be used in the new ``platform`` module
+without created a circular dependency with the original ``config`` module.
+
+The implementation of this expansion functionality was pulled out of ``NSCoreMixin`` and implemented
+instead directly in the ``Configuration`` class. This might make sense conceptional, as it's the
+configuration that needs this behavior. However, implementing it there destroys the recursive
+nature of the structure. As soon as you access a section of the ``Configuration`` instead you get
+a ``Namespace`` view, not another ``Configuration``.
+
+The expansion behavior was reverted back to its original home under ``NSCoreMixin``.
+All ``Namespace`` instances allow this sort of expansion, as in prior releases.

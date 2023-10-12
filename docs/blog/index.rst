@@ -7,6 +7,16 @@ A place for announcements, release notes, thoughts and ideas for the project.
 
 -----
 
+:ref:`Release Notes (v2.7.3) <20231012_2_7_3_release>`
+------------------------------------------------------
+
+`October 12, 2023`
+
+The v2.7.3 release fixes a bug in how ``_env`` and ``_eval`` get expanded
+(`Issue 21 <https://github.com/glentner/CmdKit/issues/21>`_)
+
+-----
+
 :ref:`Release Notes (v2.7.1) <20230927_2_7_1_release>`
 ------------------------------------------------------
 
@@ -26,5 +36,6 @@ The v2.7.1 release includes major new features along with numerous fixes and imp
     :hidden:
     :maxdepth: 1
 
+    20231012_2_7_3_release
     20230927_2_7_1_release
 
