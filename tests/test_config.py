@@ -603,7 +603,7 @@ class TestConfiguration:
 
         assert cfg.duplicates() == {'x': {'one': [('a',), ('b',)], 'two': [('b',)], '_': []},
                                     'z': {'one': [('b',)], 'two': [('b',)], '_': []}}
-    
+
     def test_whereis(self) -> None:
         """Configuration can find paths to leaves in the tree."""
 
