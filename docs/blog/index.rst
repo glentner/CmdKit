@@ -7,6 +7,16 @@ A place for announcements, release notes, thoughts and ideas for the project.
 
 -----
 
+:ref:`Release Notes (v2.7.4) <20240123_2_7_4_release>`
+------------------------------------------------------
+
+`January 23, 2024`
+
+The v2.7.4 release fixes a few issues and makes improvements to
+the ``ansi.py`` module.
+
+-----
+
 :ref:`Release Notes (v2.7.3) <20231012_2_7_3_release>`
 ------------------------------------------------------
 
@@ -36,6 +46,7 @@ The v2.7.1 release includes major new features along with numerous fixes and imp
     :hidden:
     :maxdepth: 1
 
+    20240123_2_7_4_release
     20231012_2_7_3_release
     20230927_2_7_1_release
 
