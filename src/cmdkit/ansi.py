@@ -99,8 +99,9 @@ def colorize_usage(text: str) -> str:
         return _apply_formatters(text,
                                  _format_headers,
                                  _format_options,
-                                 _format_special_args,
-                                 _format_special_marker,
+                                 _format_special_device,
+                                 _format_special_metavars,
+                                 _format_special_reserved_names,
                                  _format_single_quoted_string,
                                  _format_double_quoted_string,
                                  _format_backtick_string,
@@ -127,28 +128,32 @@ NOT_QUOTED = (
 
 def _format_headers(text: str) -> str:
     """Add rich ANSI formatting to section headers."""
-    names = ['Usage', 'Commands', 'Arguments', 'Modes', 'Options', 'Files']
-    return re.sub(r'(?P<name>' + '|'.join(names) + r'):' + NOT_QUOTED, bold(r'\g<name>:'), text)
+    return re.sub(r'^(?P<name>[A-Z][a-z]+):' + NOT_QUOTED, bold(r'\g<name>:'),
+                  text, flags=re.MULTILINE)
 
 
 def _format_options(text: str) -> str:
     """Add rich ANSI formatting to option syntax."""
-    option_pattern = r'(?P<leader>[ /\[,])(?P<option>-[a-zA-Z]|--[a-z]+(-[a-z]+)?)\b'
+    option_pattern = r'(?P<leader>[ /\[,])(?P<option>-[a-zA-Z]+|--[a-z]+(-[a-z]+)?)\b'
     return re.sub(option_pattern + NOT_QUOTED, r'\g<leader>' + cyan(r'\g<option>'), text)
 
 
-def _format_special_args(text: str) -> str:
+def _format_special_metavars(text: str) -> str:
     """Add rich ANSI formatting to special argument syntax."""
-    metavars = ['FILE', 'PATH', 'ARGS', 'ID', 'NUM', 'CMD', 'SIZE', 'SEC', 'NAME', 'TEMPLATE', 'CHAR', 'MODE',
-                'ADDR', 'HOST', 'PORT', 'KEY', 'SECTION', 'VAR', 'VALUE', 'FIELD', 'COND', 'FORMAT', 'TAG']
-    metavars_pattern = r'\b(?P<arg>' + '|'.join(metavars) + r')\b'
+    metavars_pattern = r'\b(?<!-)(?P<arg>[A-Z]{3,})\b'
     return re.sub(metavars_pattern + NOT_QUOTED, italic(r'\g<arg>'), text)
 
 
-def _format_special_marker(text: str) -> str:
-    """Add rich ANSI formatting to special markers (e.g., '<stdout>')."""
-    args = ['<stdout>', '<stderr>', '<stdin>', '<devnull>', '<none>', '<command>', '<args>', ]
-    return re.sub(r'(?P<arg>' + '|'.join(args) + r')' + NOT_QUOTED, italic(r'\g<arg>'), text)
+def _format_special_device(text: str) -> str:
+    """Add rich ANSI formatting to special device/resource names (e.g., '<stdout>')."""
+    return re.sub(r'(?P<arg><[a-z]{3,}>)' + NOT_QUOTED, italic(r'\g<arg>'), text)
+
+
+def _format_special_reserved_names(text: str) -> str:
+    """Special reserved names (e.g., localhost)."""
+    names = ['localhost', 'stdin', 'stdout', 'stderr', ]
+    names_pattern = r'\b(?P<name>' + '|'.join(names) + r')\b'
+    return re.sub(names_pattern + NOT_QUOTED, italic(r'\g<name>'), text)
 
 
 def _format_single_quoted_string(text: str) -> str:
@@ -168,4 +173,6 @@ def _format_backtick_string(text: str) -> str:
 
 def _format_digit(text: str) -> str:
     """Add rich ANSI formatting to numerical digits."""
-    return re.sub(r'\b(?P<num>\d+|null|NULL)\b' + NOT_QUOTED, green(r'\g<num>'), text)
+    return re.sub(r'\b(?P<num>\d+\.?[kmgtKMGT]?[bB]?|null|NULL)\b' + NOT_QUOTED,
+                  green(r'\g<num>'), text)
+
