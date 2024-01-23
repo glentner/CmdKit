@@ -1,0 +1,36 @@
+.. _20240123_2_7_4_release:
+
+Release Notes (v2.7.4)
+======================
+
+`January 23, 2024`
+
+The v2.7.4 release fixes a few issues and makes improvements to
+the ``ansi.py`` module.
+
+-----
+
+Improved usage and help text syntax highlighting
+------------------------------------------------
+
+The ``ansi.py`` module holds a collection of regular expressions
+that apply automatic formatting to usage and help text with
+standard syntax.
+
+This change addresses the following:
+
+* Section headers are generic match on capitalized word at the
+  start of a line ending in a colon, instead of only matching
+  on a list of magic words.
+* Metavars (e.g., FILE, ADDR, PORT) are matched on any all-caps
+  word not contained by quotes, not preceded by dash; instead of
+  being a reserved list of magic words.
+* Match any 4+ character word contained by angle brackets
+  instead of reserved list of magic words.
+  Add small list of special list of reserved resources, including
+  localhost, stdin, stdout, and stderr.
+* Fix option pattern to include stacked single letter options.
+* Fix digit matching to include decimals, this also makes IP
+  addresses match like numbers (naive but works).
+* Add to digit matching suffixes for count (K, M, G, T) along
+  with optional 'b' for bytes, case insensitive.
