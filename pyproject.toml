@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cmdkit"
-version = "2.7.3"
+version = "2.7.4"
 description = "A command-line utility toolkit for Python."
 readme = "README.rst"
 license = "Apache-2.0"
