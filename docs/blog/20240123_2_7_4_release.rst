@@ -6,14 +6,14 @@ Release Notes (v2.7.4)
 `January 23, 2024`
 
 The v2.7.4 release fixes a few issues and makes improvements to
-the ``ansi.py`` module.
+the ``ansi`` module.
 
 -----
 
 Improved usage and help text syntax highlighting
 ------------------------------------------------
 
-The ``ansi.py`` module holds a collection of regular expressions
+The ``ansi`` module holds a collection of regular expressions
 that apply automatic formatting to usage and help text with
 standard syntax.
 
