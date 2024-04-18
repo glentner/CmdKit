@@ -36,7 +36,7 @@ understand.
 Installation
 ------------
 
-*CmdKit* is tested on Python 3.7+ for `Windows`, `macOS`, and `Linux`, and can be installed
+*CmdKit* is tested for `Windows`, `macOS`, and `Linux`, and can be installed
 from the `Python Package Index` using `Pip`.
 
 ::
