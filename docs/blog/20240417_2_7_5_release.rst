@@ -1,0 +1,28 @@
+.. _20240417_2_7_5_release:
+
+Release Notes (v2.7.5)
+======================
+
+`April 17, 2024`
+
+The v2.7.5 updates the ``ansi`` module to address minor issues.
+
+-----
+
+Improved usage and help text syntax highlighting
+------------------------------------------------
+
+The ``ansi`` module holds a collection of regular expressions
+that apply automatic formatting to usage and help text with
+standard syntax.
+
+This change addresses the following:
+
+* Metavars match on 2 letters instead of requiring 3.
+  For example, `ID` is now matched.
+* The pattern matching here is very generalized with the
+  exception of a very short list of special resource names
+  (i.e., `localhost`, `stdin`, `stdout`, and `stderr`).
+  But if an option is named ``--stdout`` for example,
+  the highlighting is not handled properly. This change
+  adds a negative look-behind to catch this edge case.
