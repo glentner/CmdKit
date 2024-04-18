@@ -3,7 +3,7 @@ CmdKit
 
 Release v\ |release|. (:ref:`Tutorial <tutorial>`)
 
-.. image:: https://img.shields.io/badge/license-Apache-blue.svg?style=flat
+.. image:: https://img.shields.io/badge/license-Apache-yellow.svg?style=flat
     :target: https://www.apache.org/licenses/LICENSE-2.0
     :alt: License
 
@@ -18,6 +18,10 @@ Release v\ |release|. (:ref:`Tutorial <tutorial>`)
 .. image:: https://readthedocs.org/projects/cmdkit/badge/?version=latest&style=flat
     :target: https://cmdkit.readthedocs.io
     :alt: Documentation
+
+.. image:: https://github.com/glentner/cmdkit/actions/workflows/tests.yml/badge.svg
+    :target: https://github.com/glentner/cmdkit/actions/workflows/tests.yml
+    :alt: Tests
 
 .. image:: https://pepy.tech/badge/cmdkit
     :target: https://pepy.tech/badge/cmdkit
