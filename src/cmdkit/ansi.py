@@ -140,7 +140,7 @@ def _format_options(text: str) -> str:
 
 def _format_special_metavars(text: str) -> str:
     """Add rich ANSI formatting to special argument syntax."""
-    metavars_pattern = r'\b(?<!-)(?P<arg>[A-Z]{3,})\b'
+    metavars_pattern = r'(?<!-)\b(?P<arg>[A-Z]{2,})\b'
     return re.sub(metavars_pattern + NOT_QUOTED, italic(r'\g<arg>'), text)
 
 
@@ -152,7 +152,7 @@ def _format_special_device(text: str) -> str:
 def _format_special_reserved_names(text: str) -> str:
     """Special reserved names (e.g., localhost)."""
     names = ['localhost', 'stdin', 'stdout', 'stderr', ]
-    names_pattern = r'\b(?P<name>' + '|'.join(names) + r')\b'
+    names_pattern = r'(?<!-)\b(?P<name>' + '|'.join(names) + r')\b'
     return re.sub(names_pattern + NOT_QUOTED, italic(r'\g<name>'), text)
 
 
@@ -175,4 +175,3 @@ def _format_digit(text: str) -> str:
     """Add rich ANSI formatting to numerical digits."""
     return re.sub(r'\b(?P<num>\d+\.?[kmgtKMGT]?[bB]?|null|NULL)\b' + NOT_QUOTED,
                   green(r'\g<num>'), text)
-
