@@ -1,4 +1,4 @@
-#tom SPDX-FileCopyrightText: 2022 CmdKit Developers
+# SPDX-FileCopyrightText: 2022 CmdKit Developers
 # SPDX-License-Identifier: Apache-2.0
 
 """Namespace implementation."""
@@ -10,6 +10,7 @@ from typing import Union, Mapping, Iterable, Any, Dict, Optional, IO, List, Tupl
 
 # standard libs
 import os
+import sys
 import functools
 import subprocess
 from collections import Counter
@@ -18,8 +19,7 @@ from functools import reduce
 # public interface
 __all__ = [
     'NSCoreMixin', 'Namespace', 'Environ',
-    # NOTE: not actually public (just needed by Configuration)
-    '_find_the_leaves',
+    '_find_the_leaves',  # NOTE: not actually public (just needed by Configuration)
 ]
 
 
@@ -68,8 +68,7 @@ class NSCoreMixin(dict):
         """
         for key, value in new.items():
             if isinstance(value, dict) and isinstance(original.get(key), dict):
-                original[key] = cls.__depth_first_update(
-                    original.get(key, {}), value)
+                original[key] = cls.__depth_first_update(original.get(key, {}), value)
             else:
                 original[key] = value
         return original
@@ -137,8 +136,9 @@ class Namespace(NSCoreMixin):
         If `filepath` does not exist an exception is raised as expected,
         unless `ignore_if_missing` is `True` and an empty Namespace is returned instead.
 
-        Supported formats are `yaml`, `toml`, and `json`. You must have the necessary
-        library installed (i.e., `pyyaml` or `tomli` respectively).
+        Supported formats currently include `yaml`, `toml`, and `json`.
+        For yaml support include "yaml" extra (adds `pyyaml` dependency).
+        For toml support include "toml" extra when Python < 3.11 (adds `tomli` dependency).
 
         Example:
             >>> Namespace.from_local('config.toml', ignore_if_missing=True)
@@ -161,8 +161,7 @@ class Namespace(NSCoreMixin):
             factory = getattr(cls, f'from_{ext}')
             return factory(filepath, **options)
         except AttributeError:
-            raise NotImplementedError(
-                f'{cls.__class__.__name__} does not currently support \'{ext}\' files')
+            raise NotImplementedError(f'{cls.__class__.__name__} does not currently support \'{ext}\' files')
 
     @classmethod
     def from_yaml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
@@ -177,17 +176,15 @@ class Namespace(NSCoreMixin):
     @classmethod
     def from_toml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
         """Load a namespace from a TOML file."""
-        import sys
         if sys.version_info >= (3, 11):
-            import tomllib
+            import tomllib as toml
         else:
-            import tomli as tomllib
-
+            import tomli as toml
         if isinstance(path_or_file, str):
             with open(path_or_file, mode='rb', **options) as source:
-                return cls(tomllib.load(source))
+                return cls(toml.load(source))
         else:
-            return cls(tomllib.loads(path_or_file.read()))
+            return cls(toml.loads(path_or_file.read()))
 
     @classmethod
     def from_json(cls, path_or_file: Union[str, IO], **options) -> Namespace:
@@ -213,8 +210,7 @@ class Namespace(NSCoreMixin):
             factory = getattr(self, f'to_{ext}')
             return factory(filepath, **options)
         except AttributeError:
-            raise NotImplementedError(
-                f'{self.__class__.__name__} does not currently support "{ext}" files."')
+            raise NotImplementedError(f'{self.__class__.__name__} does not currently support "{ext}" files."')
 
     def to_yaml(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', **kwargs) -> None:
         """Output to YAML file."""
@@ -227,13 +223,12 @@ class Namespace(NSCoreMixin):
 
     def to_toml(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', **kwargs) -> None:
         """Output to TOML file."""
-        import tomli_w
-
+        import tomli_w as toml
         if isinstance(path_or_file, str):
             with open(path_or_file, mode='w', encoding=encoding) as output:
-                output.write(tomli_w.dumps(self.to_dict(), **kwargs))
+                output.write(toml.dumps(self.to_dict(), **kwargs))
         else:
-            tomli_w.dump(self.to_dict(), path_or_file, **kwargs)
+            toml.dump(self.to_dict(), path_or_file, **kwargs)
 
     def to_json(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', indent: int = 4, **kwargs) -> None:
         """Output to JSON file."""
@@ -356,8 +351,7 @@ def _flatten(ns: dict, prefix: str = None) -> dict:
             new[key.upper()] = _de_coerced(value)
         else:
             for subkey, subvalue in _flatten(value).items():
-                new['_'.join([key.upper(), subkey.upper()])
-                    ] = _de_coerced(subvalue)
+                new['_'.join([key.upper(), subkey.upper()])] = _de_coerced(subvalue)
     if prefix is None:
         return new
     else:
@@ -374,8 +368,7 @@ def _find_the_leaves(tree: Optional[Mapping[str, Any]]) -> List[_Leaf]:
     """Return the leaves (and their stems) of the tree (e.g., Namespace)."""
     leaves = []
     if tree is not None:
-        leaves = [_Leaf(_read_a_leaf(stem, tree), stem)
-                  for stem in _walk_the_tree(tree)]
+        leaves = [_Leaf(_read_a_leaf(stem, tree), stem) for stem in _walk_the_tree(tree)]
     return leaves
 
 
