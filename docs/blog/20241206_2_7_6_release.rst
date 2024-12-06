@@ -1,0 +1,26 @@
+.. _20241206_2_7_6_release:
+
+Release Notes (v2.7.6)
+======================
+
+`December 6, 2024`
+
+The v2.7.6 switches to ``tomli`` and ``tomli-w`` for TOML language support.
+
+-----
+
+TOML Language Support
+---------------------
+
+Previously we relied on the `toml <https://pypi.org/project/toml/>`_ package for parsing TOML
+configuration files. However, this package is no longer considered the best provider of such support
+and is actually now `deprecated <https://fedoraproject.org/wiki/Changes/DeprecatePythonToml>`_
+by some Linux distros. Further, TOML has made its way into the Python standard library
+(for Python 3.11+, `tomllib <https://docs.python.org/3/library/tomllib.html>`_).
+Therefore it was best to migrate to no dependency at all for Python 3.11+ or use
+`tomli <https://pypi.org/project/tomli/>`_ otherwise.
+For *write* capabilities we've added `tomli-w <https://pypi.org/project/tomli-w/>`_.
+Many application have no need to write TOML, so this is an optional dependency.
+
+Proper support for package `extras` is now provided.
+To explicitly enable TOML, developers can specify ``cmdkit[toml]`` as a dependency.
