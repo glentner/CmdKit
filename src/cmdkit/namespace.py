@@ -10,6 +10,7 @@ from typing import Union, Mapping, Iterable, Any, Dict, Optional, IO, List, Tupl
 
 # standard libs
 import os
+import sys
 import functools
 import subprocess
 from collections import Counter
@@ -135,8 +136,9 @@ class Namespace(NSCoreMixin):
         If `filepath` does not exist an exception is raised as expected,
         unless `ignore_if_missing` is `True` and an empty Namespace is returned instead.
 
-        Supported formats are `yaml`, `toml`, and `json`. You must have the necessary
-        library installed (i.e., `pyyaml` or `toml` respectively).
+        Supported formats currently include `yaml`, `toml`, and `json`.
+        For yaml support include "yaml" extra (adds `pyyaml` dependency).
+        For toml support include "toml" extra when Python < 3.11 (adds `tomli` dependency).
 
         Example:
             >>> Namespace.from_local('config.toml', ignore_if_missing=True)
@@ -174,12 +176,15 @@ class Namespace(NSCoreMixin):
     @classmethod
     def from_toml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
         """Load a namespace from a TOML file."""
-        import toml
+        if sys.version_info >= (3, 11):
+            import tomllib as toml
+        else:
+            import tomli as toml
         if isinstance(path_or_file, str):
-            with open(path_or_file, mode='r', **options) as source:
+            with open(path_or_file, mode='rb', **options) as source:
                 return cls(toml.load(source))
         else:
-            return cls(toml.load(path_or_file))
+            return cls(toml.loads(path_or_file.read()))
 
     @classmethod
     def from_json(cls, path_or_file: Union[str, IO], **options) -> Namespace:
@@ -218,10 +223,10 @@ class Namespace(NSCoreMixin):
 
     def to_toml(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', **kwargs) -> None:
         """Output to TOML file."""
-        import toml
+        import tomli_w as toml
         if isinstance(path_or_file, str):
             with open(path_or_file, mode='w', encoding=encoding) as output:
-                toml.dump(self.to_dict(), output, **kwargs)
+                output.write(toml.dumps(self.to_dict(), **kwargs))
         else:
             toml.dump(self.to_dict(), path_or_file, **kwargs)
 
@@ -322,7 +327,7 @@ def _coerced(var: str) -> _VT:
         pass
     try:
         return float(var)
-    except(ValueError, TypeError):
+    except (ValueError, TypeError):
         return var
 
 
