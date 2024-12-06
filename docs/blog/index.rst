@@ -7,6 +7,15 @@ A place for announcements, release notes, thoughts and ideas for the project.
 
 -----
 
+:ref:`Release Notes (v2.7.6) <20241206_2_7_6_release>`
+------------------------------------------------------
+
+`December 6, 2024`
+
+The v2.7.6 switches to ``tomli`` and ``tomli-w`` for TOML language support.
+
+-----
+
 :ref:`Release Notes (v2.7.5) <20240417_2_7_5_release>`
 ------------------------------------------------------
 
@@ -55,6 +64,7 @@ The v2.7.1 release includes major new features along with numerous fixes and imp
     :hidden:
     :maxdepth: 1
 
+    20241206_2_7_6_release
     20240417_2_7_5_release
     20240123_2_7_4_release
     20231012_2_7_3_release
