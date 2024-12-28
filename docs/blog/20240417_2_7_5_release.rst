@@ -5,7 +5,7 @@ Release Notes (v2.7.5)
 
 `April 17, 2024`
 
-The v2.7.5 updates the ``ansi`` module to address minor issues.
+The v2.7.5 release updates the ``ansi`` module to address minor issues.
 
 -----
 
