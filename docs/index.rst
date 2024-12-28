@@ -124,7 +124,7 @@ You can also checkout how `CmdKit` is being used by other projects.
 Project                                                   Description
 ========================================================  =======================================================
 `REFITT <https://github.com/refitt/refitt>`_              Recommender Engine for Intelligent Transient Tracking
-`hyper-shell <https://github.com/glentner/hyper-shell>`_  Hyper-shell is an elegant, cross-platform, high-performance
+`HyperShell <https://github.com/glentner/hypershell>`_    HyperShell is an elegant, cross-platform, high-throughput
                                                           computing utility for processing shell commands over a
                                                           distributed, asynchronous queue.
 `delete-cli <https://github.com/glentner/delete-cli>`_    A simple, cross-platform, command-line move-to-trash.

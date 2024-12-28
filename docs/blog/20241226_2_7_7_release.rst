@@ -1,0 +1,18 @@
+.. _20241226_2_7_7_release:
+
+Release Notes (v2.7.7)
+======================
+
+`December 26, 2024`
+
+The v2.7.7 release retroactively allows for Python 3.9.
+
+-----
+
+Allow Python 3.9
+----------------
+
+There were no hard requirements that prevented the use of Python 3.9.
+The project listed Python 3.10+ because of development dependencies
+that disallowed 3.9 but we decided to retroactively fix this to
+allow for wider deployment potential.

@@ -7,12 +7,21 @@ A place for announcements, release notes, thoughts and ideas for the project.
 
 -----
 
+:ref:`Release Notes (v2.7.7) <20241226_2_7_7_release>`
+------------------------------------------------------
+
+`December 26, 2024`
+
+The v2.7.7 release retroactively allows for Python 3.9.
+
+-----
+
 :ref:`Release Notes (v2.7.6) <20241206_2_7_6_release>`
 ------------------------------------------------------
 
 `December 6, 2024`
 
-The v2.7.6 switches to ``tomli`` and ``tomli-w`` for TOML language support.
+The v2.7.6 release switches to ``tomli`` and ``tomli-w`` for TOML language support.
 
 -----
 
@@ -21,7 +30,7 @@ The v2.7.6 switches to ``tomli`` and ``tomli-w`` for TOML language support.
 
 `April 17, 2024`
 
-The v2.7.5 updates the ``ansi`` module to address minor issues.
+The v2.7.5 release updates the ``ansi`` module to address minor issues.
 
 -----
 
@@ -64,6 +73,7 @@ The v2.7.1 release includes major new features along with numerous fixes and imp
     :hidden:
     :maxdepth: 1
 
+    20241226_2_7_7_release
     20241206_2_7_6_release
     20240417_2_7_5_release
     20240123_2_7_4_release
