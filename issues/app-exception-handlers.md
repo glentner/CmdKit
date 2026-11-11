@@ -11,13 +11,13 @@ appetite: small
 
 ## Problem
 
-- **The handler table is shared.** `Application.exceptions` (`src/cmdkit/app.py:62`) is one `dict` on
+- **The handler table is shared.** `Application.exceptions` (`src/cmdkit/app.py:98`) is one `dict` on
   the base class. Every subclass that doesn't define its own shares it (probe:
   `Application.exceptions is SubApp.exceptions` is `True`), so `SubApp.exceptions[E] = handler`
   registers `handler` for every application in the process.
 - **A group can lose its command's status.** `ApplicationGroup` returns a command's exit status by
   raising `CompletedCommand` from `run`, which is handled by its own `exceptions` entry
-  (`app.py:168-170`, `:190-197`). A group subclass that defines `exceptions = {...}` without that
+  (`app.py:224-226`, `:246-253`). A group subclass that defines `exceptions = {...}` without that
   entry loses the status: `CompletedCommand` falls through to "uncaught exception occurred!" and
   `main` re-raises it.
 
@@ -52,6 +52,7 @@ critical level. A command whose handler maps its exception to 3: `Group.main([..
 
 - HyperShell defines `exceptions = {…}` on its own application classes, building fresh tables, so it
   isn't relying on the sharing.
-- Waits on `cli-defaults` and `cli-command-suggestions` (`app.py`).
+- Waits on `cli-command-suggestions` (`app.py`). It also waited on `cli-defaults`, which landed in
+  #33.
 - Found by: an evaluation of cmdkit 2.7.7 for a command-line tool, 2026-11, and the adoption sweep,
   2026-11-10.
