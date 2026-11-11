@@ -56,4 +56,15 @@ decides they should match `pop`, because making them raise *would* change a defa
   `original[key] = value`, with `original` the configuration), so the fix must tell a caller's
   assignment from the merge's.
 - `issues/builder-trim-local-layer.md` depends on what the `_` layer holds.
+- **Two in-place sequences where `which` and item access disagree** (left by
+  `spec/config-variant-collision/`, C8). Since that cycle, a variant an in-place change sets
+  displaces the others in `_` too, so `_` can lose the variant that displaced a key, and `which`
+  then names the layer that held it, as it does after item assignment or `del`:
+  - an in-place `a_env` over a layer's `a`, then an in-place `a_env_eval`;
+  - a variant displaced in place, then set again fresh in place, with a key the fresh value lacks.
+
+  **Test that shows it:** `cfg = Configuration(l=Namespace({'a': 1, 's': {'t': 1}}))`;
+  `cfg.update(a_env='X')`; `cfg.update(a_env_eval='echo y')`; `cfg.update(s_env='S')`;
+  `cfg.update(s={'u': 2})`. Then `cfg['a']` and `cfg['s']['t']` raise `KeyError`, and so should
+  `cfg.which('a')` and `cfg.which('s', 't')` (today both return `'l'`).
 - Found by: adoption sweep, 2026-11-10.
