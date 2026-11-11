@@ -1,0 +1,96 @@
+{
+  "sha": "326d5c1e7681e9acbbd1c04b561b5e213443273a",
+  "run": 42951303127,
+  "expect_count": 75,
+  "xfail_platforms": [],
+  "jobs": {
+    "macos-latest / py3.14": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": false
+    },
+    "macos-latest / py3.9": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": false
+    },
+    "ubuntu-latest / py3.10": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": true
+    },
+    "ubuntu-latest / py3.11": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": true
+    },
+    "ubuntu-latest / py3.12": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": true
+    },
+    "ubuntu-latest / py3.13": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": true
+    },
+    "ubuntu-latest / py3.14": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": true
+    },
+    "ubuntu-latest / py3.9": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": true
+    },
+    "windows-latest / py3.14": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": false
+    },
+    "windows-latest / py3.9": {
+      "conclusion": "success",
+      "python": true,
+      "summary": [
+        "75 passed"
+      ],
+      "graded": false
+    }
+  },
+  "counts": {
+    "ubuntu-latest / py3.10": 75,
+    "ubuntu-latest / py3.11": 75,
+    "ubuntu-latest / py3.12": 75,
+    "ubuntu-latest / py3.13": 75,
+    "ubuntu-latest / py3.14": 75,
+    "ubuntu-latest / py3.9": 75
+  }
+}
