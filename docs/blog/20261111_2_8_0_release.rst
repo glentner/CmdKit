@@ -1,0 +1,201 @@
+.. _20261111_2_8_0_release:
+
+Release Notes (v2.8.0)
+======================
+
+`November 11, 2026`
+
+.. note::
+
+    Further 2.8.x patch releases are on the way.
+
+The v2.8.0 release fixes two long-standing failures by default and moves the project's
+build to `uv <https://docs.astral.sh/uv/>`_. Its dependencies and supported Python versions are
+unchanged.
+
+- A value and its ``_env`` and ``_eval`` variants are now one key across the layers of a
+  ``Configuration``: the highest layer that sets any of them decides.
+- With no logging configured, an argument error from ``Application.main`` is now written
+  to `stderr`, instead of being dropped silently.
+- The project builds, locks, tests and publishes with `uv`, and CI covers Python 3.9 to 3.14
+  on Linux, plus macOS and Windows.
+
+-----
+
+A value and its variants are one key across layers
+--------------------------------------------------
+
+A configuration value can be given three ways: ``token = "abc"``, ``token_env = "VAR"`` (read the
+environment variable) or ``token_eval = "cmd"`` (run a shell command and take its output).
+A ``Configuration`` merges its layers depth-first, and until now that merge treated ``token``,
+``token_env`` and ``token_eval`` as three unrelated keys. When two layers set different variants
+of one name, both survived into the merged view. The higher layer, which should win, either raised
+an error or lost, depending on how the value was read.
+
+.. code-block:: python
+
+    cfg = Configuration(user=Namespace({'hf': {'token': 'a'}}),
+                        env=Namespace({'hf': {'token_env': 'HF_TOKEN'}}))
+
+    # 2.7.7
+    dict(cfg)                      # {'hf': Namespace({'token': 'a', 'token_env': 'HF_TOKEN'})}
+    cfg.hf.token                   # AttributeError: 'token' has more than one variant
+    cfg['hf']['token']             # 'a', the lower layer's stale value
+    cfg.which('hf', 'token')       # 'user'
+
+    # 2.8.0
+    dict(cfg)                      # {'hf': Namespace({'token_env': 'HF_TOKEN'})}
+    cfg.hf.token                   # the value of $HF_TOKEN
+    cfg['hf']['token']             # KeyError
+    cfg.which('hf', 'token')       # KeyError
+    cfg.which('hf', 'token_env')   # 'env'
+
+In 2.8.0, ``name``, ``name_env`` and ``name_eval`` are one key across a ``Configuration``'s
+layers, and the highest layer that sets any of them decides. "Higher" is the precedence
+``which`` already reports: the layers in the order they were added, then ``_``, the layer
+that records in-place changes. One known gap, tracked on the roadmap: a layer added with
+``extend`` after an in-place change wins in the merged view, while ``which`` still names ``_``.
+The rule holds at the top level and at any depth, for layers given at construction, added with
+``extend`` or loaded from files by ``from_local``.
+
+- The merged view keeps only the variants the deciding layer sets; ``dict(cfg)`` and iteration
+  show it. Mapping values displace and are displaced like any other value, and where the deciding
+  layer sets the same variant as a lower one, the two still merge depth-first.
+- Attribute access returns the deciding layer's value, expanded as its variant says. Item access
+  agrees: the surviving variant's own key returns its raw value, and the key of a variant that
+  only a lower layer set raises ``KeyError``.
+- ``which`` stays keyed on the literal key. It names the deciding layer for the surviving
+  variant's key. Where item access raises ``KeyError`` because a higher variant displaced a key
+  on the path, ``which`` raises ``KeyError`` too, for that key and for anything beneath it.
+  Everywhere else it answers as before: a bare name whose only variant is ``name_env`` or
+  ``name_eval`` raises ``KeyError``, and a path that runs through a scalar raises ``TypeError``
+  where it did before.
+- Within one layer, two variants of one name are still ambiguous. If the deciding layer sets two
+  or more, the merged view keeps those and drops the rest, and attribute access raises
+  ``AttributeError: 'name' has more than one variant``, as before. A plain ``Namespace``
+  holding two variants behaves exactly as it did.
+
+The rule applies by suffix alone, as attribute access already does: any key ending in ``_env``
+or ``_eval`` is a variant, whatever it was meant to be. With ``conda = "x"`` in one layer and
+``conda_env = "base"`` in a higher one, the higher ``conda_env`` now drops the lower ``conda``,
+so ``cfg['conda']`` raises ``KeyError`` where it returned ``'x'``. That pair already raised on
+attribute access. Keys that are not strings have no variants.
+
+A key such as ``token_env`` is a variant of ``token`` and also a name with variants of its own
+(``token_env_env`` and ``token_env_eval``). Across such a chain, the highest layer that sets any
+key in it decides. With ``token``, ``token_env`` and ``token_env_eval`` in three layers, lowest
+first, only ``token_env_eval`` survives: ``cfg.token_env`` runs its command, and ``cfg.token``
+raises ``AttributeError: 'token' not found``. The other way around, a ``token_env`` above a
+``token_env_eval`` drops it.
+
+In-place changes follow the same rule. When ``Configuration.update``, or assigning a parameter
+as an attribute, sets a variant of a name where the merged view holds a different one, the change
+is recorded in ``_``, the merged view keeps only the new variant, and ``which`` names ``_``.
+A later in-place change that sets a different variant of the same name replaces the earlier one,
+so ``_`` never holds both. Assigning a top-level name, as in ``cfg.token = 'v'``, while the merged
+view holds another variant of it, such as ``token_env``, is now an in-place change too; before, it
+set an ordinary Python attribute that neither ``_`` nor the merged view saw. Assignment below the
+top level (``cfg.section.name = v``) is unchanged. Plain ``Namespace.update`` is unchanged and stays
+``dict``-like: the rule belongs to how a ``Configuration`` layers its namespaces. In a few rare
+sequences of in-place changes, ``which`` can still answer from a lower layer for a key that item
+access no longer finds. They are recorded on the roadmap, with the other gaps in how ``_`` tracks
+in-place changes.
+
+No layer is ever modified: after construction, ``extend``, ``update``, attribute assignment or
+attribute access, each layer still equals the mapping it was built from. Loading, construction,
+merging, item access and ``dict()`` still never read an ``_env`` variable or run an ``_eval``
+command; expansion happens only on attribute access, as before.
+
+A user who sets ``auth`` in one file and ``auth_eval`` in another, as HyperShell's server
+``auth`` key invites, now gets the higher file's value instead of an error or a stale value.
+
+|
+
+Argument errors reach stderr with no logging configured
+-------------------------------------------------------
+
+When ``Application.main`` catches an argument error, it passes the error to ``log_critical``
+and returns ``exit_status.bad_argument`` (2). By default that logs a single ``CRITICAL`` record
+on the ``cmdkit.app`` logger. *cmdkit* attaches a ``NullHandler`` to its own logger at import,
+as a library should, and in an application that never configured logging that handler was enough
+to keep Python's last-resort handler quiet. A user who mistyped an option got exit status 2 and no
+explanation.
+
+In 2.8.0, when the default ``log_critical`` is in place and *cmdkit*'s own ``NullHandler`` is the
+only reason Python's last-resort handler did not print the record, ``main`` also writes the
+message to ``sys.stderr`` once, followed by a newline, and still returns 2. The test follows
+Python's own last-resort rule. Nothing changes for an application that:
+
+- configures logging: the record goes to its handlers as before, and nothing else is written;
+- silences *cmdkit*, with ``logging.disable``, a filter on ``cmdkit.app``, the default
+  ``disable_existing_loggers`` of ``logging.config.dictConfig``, or a ``NullHandler`` of its own
+  on the ``cmdkit`` logger;
+- replaces ``log_critical``: the override alone handles the message.
+
+Where no handler is found at all, Python's last resort prints the record itself and that line
+stands alone, so the message never appears twice. Without a ``sys.stderr`` the message is skipped,
+and a failure to write it is ignored. *cmdkit*'s ``NullHandler`` now carries a mark so that
+``main`` can tell it apart from one the application added.
+
+The documentation of ``ALLOW_NOARGS`` now states the status a bare run actually returns,
+``exit_status.usage``, and notes that with ``ALLOW_NOARGS`` set a missing required argument is an
+argument error.
+
+|
+
+Build, test and publish with uv
+-------------------------------
+
+The project now builds, locks, tests and publishes with `uv`. The package metadata is
+standard PEP 621, built by the ``uv_build`` backend and locked in ``uv.lock``; development and
+documentation dependencies are the ``dev`` and ``docs`` dependency groups. CI runs the suite on
+Linux for Python 3.9 to 3.14, and on macOS and Windows for Python 3.9 and 3.14. Read the Docs
+builds through uv, and dependabot targets ``develop``.
+
+The test suite now writes only under pytest's temporary directories.
+
+None of this changes what a consumer installs: the ``toml`` and ``yaml`` extras keep their bounds,
+and ``Requires-Python`` stays ``>=3.9,<4.0``.
+
+|
+
+Compatibility
+-------------
+
+2.8.0 is additive. Behaviour an application relies on stays the default, and outright failures
+are fixed by default.
+
+The one change to a value an application reads is the variant-collision fix above, which repairs an
+outright failure: before, a collision raised an error or returned a stale value. Code is affected
+only where different variants of one name meet in a ``Configuration``, across layers or through
+in-place changes, keys that merely end in ``_env`` or ``_eval`` included. One existing test
+changed its expectation:
+``TestConfiguration.test_attribute_expand_multiple_variants`` (layer ``a`` sets ``nested.test``,
+layer ``b`` sets ``nested.test_eval = 'echo bar'``) now expects ``cfg.nested.test == 'bar'``
+instead of ``AttributeError``. The ``TestNamespace`` test of the same name keeps its expectation.
+
+The argument-error fix adds a line on `stderr` only where 2.7.7 printed nothing at all;
+the exit status, `stdout` and every configured-logging path are unchanged.
+
+|
+
+Upgrading
+---------
+
+Nothing to change. Applications and libraries that depend on ``cmdkit>=2.7.7`` take 2.8.0 as is.
+
+|
+
+Project
+-------
+
+- The repository adopts a spec-driven workflow: ``AGENTS.md`` records the architecture and
+  invariants, ``ROADMAP.md`` indexes the planned work, and ``issues/`` holds its evidence
+  (`#29 <https://github.com/glentner/CmdKit/pull/29>`__).
+- The move to uv (`#30 <https://github.com/glentner/CmdKit/pull/30>`__) supersedes the
+  dependabot updates `#25 <https://github.com/glentner/CmdKit/pull/25>`__,
+  `#27 <https://github.com/glentner/CmdKit/pull/27>`__ and
+  `#28 <https://github.com/glentner/CmdKit/pull/28>`__.
+- The 2022 drafts `#14 <https://github.com/glentner/CmdKit/pull/14>`__ (rank-aware decorators
+  for MPI) and `#15 <https://github.com/glentner/CmdKit/pull/15>`__ (a user and group guard)
+  are salvaged as ``contrib`` proposals on the roadmap, after 2.8.0.

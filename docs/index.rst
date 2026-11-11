@@ -95,6 +95,12 @@ parameters with ``_env`` and ``_eval`` automatically expanded.
 Accessing the parameter with dot-notation, i.e., ``config.database.password`` would execute
 ``"gpg ..."`` as a shell command and return the output.
 
+Across the layers of a :class:`~cmdkit.config.Configuration`, ``password``, ``password_env``
+and ``password_eval`` are one key: the highest layer that sets any of them decides, and the
+variants it sets replace those of every lower layer. A ``password`` in the system file and a
+``password_eval`` in the user file leave only ``password_eval``. Within one layer, setting
+two of them is still ambiguous, and accessing the parameter raises an error.
+
 |
 
 -------------------
@@ -102,8 +108,8 @@ Accessing the parameter with dot-notation, i.e., ``config.database.password`` wo
 Installation
 ------------
 
-*CmdKit* is tested on Python 3.7+ for `Windows`, `macOS`, and `Linux`, and can be installed
-from the `Python Package Index` using `Pip`.
+*CmdKit* supports Python 3.9 and later, is tested for `Windows`, `macOS`, and `Linux`, and can be
+installed from the `Python Package Index` using `Pip`.
 
 ::
 

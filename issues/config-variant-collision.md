@@ -1,5 +1,5 @@
 ---
-status: unshaped
+status: adopted:config-variant-collision
 kind: fix
 appetite: small
 ---

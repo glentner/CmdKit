@@ -24,6 +24,9 @@ view skip it:
   raise `NotImplementedError` for exactly that reason (`config.py:274-286`).
 - **Mutable values are shared.** A layer's list is the same object in the merged view, so
   `cfg['xs'].append(2)` changes `cfg.namespaces['a']['xs']`.
+- 2026-11-11: the line numbers above predate `spec/config-variant-collision/`. `__setattr__` and
+  `update` are now at `src/cmdkit/config.py:331-374`, and `pop` and `popitem` at
+  `config.py:376-388`.
 
 ## Why it was deferred
 
@@ -56,4 +59,28 @@ decides they should match `pop`, because making them raise *would* change a defa
   `original[key] = value`, with `original` the configuration), so the fix must tell a caller's
   assignment from the merge's.
 - `issues/builder-trim-local-layer.md` depends on what the `_` layer holds.
+- **In-place sequences where `which` and item access disagree** (left by
+  `spec/config-variant-collision/`, C8). Since that cycle, a variant an in-place change sets
+  displaces the others in `_` too, so `_` can lose the in-place change that displaced or held a
+  key. `which` then answers from the layers, as it does after item assignment or `del`: it names
+  the layer that held the key, or raises `TypeError` from a layer's scalar on the path. Four
+  sequences show it:
+  - an in-place `a_env` over a layer's `a`, then an in-place `a_env_eval`;
+  - its mirror: an in-place `a_env` over a layer's `a_env_eval`, then an in-place `a`;
+  - a variant displaced in place, then set again fresh in place, with a key the fresh value lacks;
+  - a layer's scalar replaced in place by a mapping, then a key of that mapping displaced in place
+    by its variant.
+
+  **Test that shows the first and third:**
+  `cfg = Configuration(l=Namespace({'a': 1, 's': {'t': 1}}))`; `cfg.update(a_env='X')`; `cfg.update(a_env_eval='echo y')`; `cfg.update(s_env='S')`;
+  `cfg.update(s={'u': 2})`. Then `cfg['a']` and `cfg['s']['t']` raise `KeyError`, and so should
+  `cfg.which('a')` and `cfg.which('s', 't')` (today both return `'l'`).
+
+  **Test that shows the mirror:** `cfg = Configuration(l=Namespace({'a_env_eval': 1}))`;
+  `cfg.update(a_env='X')`; `cfg.update(a='v')`. Then `cfg['a_env_eval']` raises `KeyError`, and
+  so should `cfg.which('a_env_eval')` (today it returns `'l'`).
+
+  **Test that shows the fourth:** `cfg = Configuration(l=Namespace({'s': 0}))`;
+  `cfg.update(s={'t': 1})`; `cfg.update(s={'t_env': 'X'})`. Then `cfg['s']['t']` raises
+  `KeyError`, and so should `cfg.which('s', 't')` (today it raises `TypeError`).
 - Found by: adoption sweep, 2026-11-10.
