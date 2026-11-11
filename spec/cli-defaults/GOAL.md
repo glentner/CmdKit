@@ -49,7 +49,8 @@ does configure logging, or routes cmdkit's messages through its own `log_critica
 what it sees today: no duplicate line, no new output.
 
 A group author can set `ALLOW_NOARGS = True` and have the group print its help and exit 0 when run
-bare. Without that setting, a bare group behaves byte for byte as it does in 2.7.7.
+bare without the command it requires (C7). Without that setting, a bare group behaves byte for byte
+as it does in 2.7.7.
 
 ## Acceptance criteria (the contract)
 
@@ -72,9 +73,11 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
   today, and cmdkit SHALL write nothing further to stderr, whether or not any handler stands behind
   the replacement (C2).
 - **R4** — WHEN an `ApplicationGroup` subclass with `ALLOW_NOARGS = True` runs with an empty command
-  line (`main([])`, or `main(None)`, which `main` already treats as empty), it SHALL print to stdout
-  exactly what `main(['--help'])` prints for that group and SHALL return `exit_status.success` (0),
-  with nothing on stderr.
+  line (`main([])`, or `main(None)`, which `main` already treats as empty), and that run would
+  otherwise fail on the missing command (C7), it SHALL print to stdout exactly what
+  `main(['--help'])` prints for that group and SHALL return `exit_status.success` (0), with nothing
+  on stderr. A group whose `command` positional is optional SHALL call `run` on a bare run exactly
+  as in 2.7.7 (C7).
 - **R5** — WHEN an `ApplicationGroup` without `ALLOW_NOARGS = True` runs with an empty command line,
   it SHALL print its usage and return `exit_status.usage` (1), as in 2.7.7
   (`test_app_group_usage` keeps passing unchanged). A plain `Application`'s bare-run behaviour, with
@@ -104,7 +107,9 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
    no extra stderr output from cmdkit.
 3. R3 with a replaced `log_critical` that records its calls: one call, and stderr empty.
 4. R4 and R5 side by side: an `ALLOW_NOARGS` group's `main([])` and `main(None)` print its
-   `--help` output and return 0; `test_app_group_usage` passes unchanged.
+   `--help` output and return 0; `test_app_group_usage` passes unchanged. An `ALLOW_NOARGS` group
+   whose `command` positional is optional (`nargs='?'`) calls its `run` on a bare run, with the
+   output and status 2.7.7 gives (C7).
 5. R7: the set of handlers on the `cmdkit`, `cmdkit.app` and root loggers after `import cmdkit` in
    a fresh interpreter is the same as at `b9efaca`, and is still the same after a `main` call that
    hits R1.
@@ -185,6 +190,17 @@ Raised at the PLAN/TECH sign-off, ruled 2026-11-10:
   resort, and this fix restores what Python would have done without it; anything an application
   did to silence cmdkit stays silent, so no default a consumer relies on changes (§ Invariants 1)
   (resolved 2026-11-10; R1, R2, R3).
+
+Raised at review cycle 1 (finding F2), ruled 2026-11-11:
+
+- **C7 (2026-11-11, R4, F2) · Q:** In 2.7.7, a group whose `command` positional is optional
+  (`nargs='?'`) and that sets `ALLOW_NOARGS = True` calls its `run` on a bare run, as the docs
+  describe ("proceed to its `run` method"). R4 as first worded shows the group's help instead. Which
+  holds? — **A:** A bare run (`[]` or `None`) on a group with `ALLOW_NOARGS = True` shows its
+  `--help` output and returns 0 *only when the run would otherwise fail on the missing command*. A
+  group whose `command` positional is optional calls `run` exactly as on 2.7.7. The Non-goals'
+  premise, that the opt-in "today exits 2 in silence", then holds for every group R4 changes
+  (resolved 2026-11-11; R4).
 
 ## Related materials
 
