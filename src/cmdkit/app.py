@@ -209,6 +209,30 @@ class ApplicationGroup(Application):
     }
 
     @classmethod
+    def main(cls, cmdline: List[str] = None, shared: Namespace = None) -> int:
+        """
+        Entry-point for application group.
+
+        By default, an empty ``cmdline`` prints the usage text and returns ``exit_status.usage``,
+        as for any :class:`Application`. If the group sets ``ALLOW_NOARGS = True``, an empty
+        ``cmdline`` is taken as ``['--help']`` instead: the help text is printed and
+        ``exit_status.success`` is returned. Otherwise this is :meth:`Application.main`.
+
+        Example:
+            >>> class MyGroup(ApplicationGroup):
+            ...     interface = Interface('mygroup', 'usage: mygroup <command>', 'help: mygroup <command>')
+            ...     command: str = None
+            ...     interface.add_argument('command')
+            ...     ALLOW_NOARGS = True
+            >>> MyGroup.main([])
+            help: mygroup <command>
+            0
+        """
+        if not cmdline and cls.ALLOW_NOARGS is True:
+            cmdline = ['--help', ]
+        return super(ApplicationGroup, cls).main(cmdline, shared=shared)
+
+    @classmethod
     def from_cmdline(cls: Type[TAppGrp], cmdline: List[str] = None) -> TAppGrp:
         """Initialize via command-line arguments (e.g., `sys.argv`)."""
         if not cmdline:

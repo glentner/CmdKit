@@ -138,6 +138,45 @@ def test_app_usage(capsys) -> None:
     assert status == exit_status.usage
 
 
+class NoargsDemoApp(DemoApp):
+    """DemoApp runs with no arguments, but still requires its positional argument."""
+    ALLOW_NOARGS = True
+
+
+def test_app_noargs_allowed_missing_positional(capsys) -> None:
+    """With ALLOW_NOARGS, a missing positional is an argument error written to <stderr>."""
+    message = argument_error(DemoApp, [])
+    assert 'arg_1' in message
+    with no_logging_configured():
+        status = NoargsDemoApp.main([])
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+    assert captured.err == message + '\n'
+
+
+class NoargsApp(Application):
+    """Application with no required arguments that runs with none."""
+
+    interface = Interface('noargs_app', 'usage: noargs_app [-d]', 'usage: noargs_app [-d]\n\nNo arguments.')
+    ALLOW_NOARGS = True
+
+    debug_mode: bool = False
+    interface.add_argument('-d', '--debug', dest='debug_mode', action='store_true')
+
+    def run(self) -> None:
+        print(f'debug: {self.debug_mode}')
+
+
+def test_app_noargs_allowed_runs(capsys) -> None:
+    """With ALLOW_NOARGS and no required arguments, the application runs."""
+    status = NoargsApp.main([])
+    captured = capsys.readouterr()
+    assert captured.out == 'debug: False\n'
+    assert captured.err == ''
+    assert status == exit_status.success
+
+
 def test_app_help_1(capsys) -> None:
     """Help statement printed to <stdout> with `-h`."""
     status = DemoApp.main(['-h'])
@@ -286,6 +325,34 @@ def test_app_group_usage(capsys) -> None:
     status = Group.main([])
     captured = capsys.readouterr()
     assert captured.out.strip() == APP_USAGE.strip()
+    assert status == exit_status.usage
+
+
+class NoargsGroup(Group):
+    """Group shows its help when run with no arguments."""
+    ALLOW_NOARGS = True
+
+
+@pytest.mark.parametrize('cmdline', [[], None], ids=['empty', 'none'])
+def test_app_group_noargs_allowed(capsys, cmdline) -> None:
+    """With ALLOW_NOARGS, the help statement is printed to <stdout> on no arguments."""
+    help_status = NoargsGroup.main(['--help'])
+    help_text = capsys.readouterr().out
+    status = NoargsGroup.main(cmdline)
+    captured = capsys.readouterr()
+    assert help_status == exit_status.success
+    assert captured.out.strip() == APP_HELP.strip()
+    assert captured.out == help_text
+    assert captured.err == ''
+    assert status == exit_status.success
+
+
+def test_app_group_usage_none(capsys) -> None:
+    """Usage statement printed to <stdout> when the command line is None."""
+    status = Group.main(None)
+    captured = capsys.readouterr()
+    assert captured.out.strip() == APP_USAGE.strip()
+    assert captured.err == ''
     assert status == exit_status.usage
 
 

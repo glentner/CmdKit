@@ -3,10 +3,10 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: in_progress
+status: in_review
 branch: fix/cli-defaults
 base: develop
-current_phase: P2
+current_phase: done
 last_updated: '2026-11-11'
 phases:
 - id: P1
@@ -27,7 +27,7 @@ phases:
   verify: sh spec/cli-defaults/verify/gate.sh P1
 - id: P2
   name: A group with ALLOW_NOARGS shows its help when run bare
-  status: pending
+  status: done
   satisfies:
   - R4
   - R5
@@ -147,19 +147,19 @@ error's bare message to stderr, once, keeping its status; configured handlers an
 what its `--help` prints and returns `exit_status.success`; without the opt-in a bare group, and a
 plain application either way, behave as in 2.7.7.
 
-- [ ] `src/cmdkit/app.py`: add `ApplicationGroup.main` as `PLAN.md` § 2 specifies (an empty
+- [x] `src/cmdkit/app.py`: add `ApplicationGroup.main` as `PLAN.md` § 2 specifies (an empty
       command line becomes `['--help']` when `cls.ALLOW_NOARGS is True`, then the base `main`),
       with a docstring. `from_cmdline` stays as it is.
-- [ ] `docs/api/app.rst`: the `ALLOW_NOARGS` paragraph states `exit_status.usage` for a bare run
+- [x] `docs/api/app.rst`: the `ALLOW_NOARGS` paragraph states `exit_status.usage` for a bare run
       and what the attribute does on a group; the `ApplicationGroup` section gains an
       `ALLOW_NOARGS` entry.
-- [ ] `tests/test_app.py`: the R4 tests (`main([])` and `main(None)` on an `ALLOW_NOARGS` group,
+- [x] `tests/test_app.py`: the R4 tests (`main([])` and `main(None)` on an `ALLOW_NOARGS` group,
       byte-equal to its `--help` output, status 0) directly after `test_app_group_usage`, and
       `Group.main(None)` printing usage with status 1; the plain-application tests for
       `ALLOW_NOARGS` with and without a required positional.
-- [ ] Deferral ledger: walk P1 and this phase for any work set aside; each item has an `issues/`
+- [x] Deferral ledger: walk P1 and this phase for any work set aside; each item has an `issues/`
       seed from the template and a `ROADMAP.md` entry, staged with this phase.
-- [ ] Stage the work, then run the verify.
+- [x] Stage the work, then run the verify.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P2`.
 - **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`.
 

@@ -46,11 +46,15 @@ Reference
     .. autoattribute:: ALLOW_NOARGS
 
         By default, if the ``cmdline`` list of arguments passed to :func:`~Application.main`
-        is empty, the usage text is printed to ``sys.stdout`` and ``exit_status.success``
+        is empty, the usage text is printed to ``sys.stdout`` and ``exit_status.usage``
         is returned.
 
         If instead the application should proceed to its ``run`` method even in the
         absence of any arguments, set ``ALLOW_NOARGS`` as a class-level attribute.
+        The arguments are then parsed as usual, so a required argument that is missing
+        is an argument error (see :data:`~Application.log_critical`).
+        On an :class:`ApplicationGroup`, ``ALLOW_NOARGS`` shows the group's help instead
+        (see :data:`ApplicationGroup.ALLOW_NOARGS`).
 
         .. code-block::
 
@@ -232,6 +236,26 @@ Reference
     .. autoattribute:: shared
 
         Shared arguments from parent :class:`ApplicationGroup`.
+
+    .. autoattribute:: ALLOW_NOARGS
+
+        By default, a group run with an empty ``cmdline`` prints its usage text to
+        ``sys.stdout`` and :meth:`~ApplicationGroup.main` returns ``exit_status.usage``.
+
+        If ``ALLOW_NOARGS`` is ``True``, an empty ``cmdline`` is taken as ``['--help']``:
+        the group's help text is printed to ``sys.stdout``, exactly as with ``--help``,
+        and ``exit_status.success`` is returned.
+
+        .. code-block::
+
+            class MainApp(ApplicationGroup):
+                ...
+
+                ALLOW_NOARGS = True
+
+    .. automethod:: main
+
+    |
 
     .. autoattribute:: ALLOW_PARSE
 
