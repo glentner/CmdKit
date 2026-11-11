@@ -3,7 +3,7 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: in_review
+status: done
 branch: fix/cli-defaults
 base: develop
 current_phase: done
