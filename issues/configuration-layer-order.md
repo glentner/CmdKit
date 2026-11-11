@@ -15,9 +15,9 @@ A `Configuration` keeps two orders for its layers, and they disagree once a laye
 in-place change.
 
 - **The merged view** applies changes in the order they arrive. `extend` merges each new layer into
-  it (`src/cmdkit/config.py:89-94`), and `update` and attribute assignment merge in-place changes
-  into it (`config.py:232-272`). So a layer added after an `update` overrides that change.
-- **`which`** (`config.py:150-192`), `duplicates`, `whereis` and `repr` list the named layers in the
+  it (`src/cmdkit/config.py:186-191`), and `update` and attribute assignment merge in-place changes
+  into it (`config.py:331-374`). So a layer added after an `update` overrides that change.
+- **`which`** (`config.py:247-291`), `duplicates`, `whereis` and `repr` list the named layers in the
   order they were added and then put `_` last, above all of them.
 
 On `develop` (`38ff951`):

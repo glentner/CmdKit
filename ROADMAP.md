@@ -3,10 +3,10 @@
 This document records the work after cmdkit 2.7.7, and the salvaged ideas beyond it. Together it is
 a revamp: a uv build, fixes to the configuration core's outright failures, opt-in configuration and
 command-line behaviour for applications that need more control, and cleanup of long-standing rough
-edges. It breaks no existing use. **2.8.0 ships what has landed on `develop` plus
-`config-variant-collision`; every other open entry ships in the 2.8.x patch series.** As
-`AGENTS.md` § Invariants 1 rules, 2.x is additive: behaviour a consumer can rely on stays the
-default, new behaviour is an explicit opt-in, and outright failures are fixed by default.
+edges. It breaks no existing use. **2.8.0 is released, with everything the *Shipped* lines below
+name; every remaining entry ships in 2.8.x patch releases.** As `AGENTS.md` § Invariants 1 rules,
+2.x is additive: behaviour a consumer can rely on stays the default, new behaviour is an explicit
+opt-in, and outright failures are fixed by default.
 
 This is a **forward-looking index, not an implementation plan.** Each entry states a problem and the
 intention behind solving it; the *how* belongs to the plan step. As-built architecture and the
@@ -37,12 +37,11 @@ command-line Part can run beside the configuration Parts.
 - Part III: opt-in configuration behaviour, ending with the environment mapping;
 - Part IV: the command line, defaults first;
 - Part V: the rest, ranked;
-- Part VI: the 2.8.0 release candidate, which waits only on `config-variant-collision`;
 - Beyond 2.8.0: salvaged contrib modules, which 2.8.0 doesn't wait on.
 
-The build is uv throughout. The uv build, the move to `tmp_path` and `cli-defaults` have landed, so
-no remaining cycle waits on them: `config-variant-collision` waited on the move to `tmp_path`,
-`docs-accuracy` on the uv build, whose files it edits, and most of Part IV on `cli-defaults`.
+The build is uv throughout. Every cycle in 2.8.0 has landed, so no remaining entry waits on one:
+`docs-accuracy` waited on the uv build, whose files it edits, most of Part IV on `cli-defaults`, and
+much of Parts II and III on `config-variant-collision`.
 
 ---
 
@@ -64,21 +63,15 @@ of the defined long options.
 
 # Part II — Configuration: outright failures, fixed by default
 
-## A value and its `_env` and `_eval` variants are one key across layers
-
-`token` in one layer and `token_env` in a higher one both survive the merge. Attribute access then
-raises "more than one variant", and item access returns the stale lower value. The highest layer
-that sets any variant should win.
-
-*Order: 3 · Waits on: nothing (`tests-use-tmp-path` landed, #31) · Refs: —*
-**Seed:** [`issues/config-variant-collision.md`](issues/config-variant-collision.md)
+Shipped: a value and its `_env` and `_eval` variants merge as one key across layers, so the highest
+layer that sets any variant wins (#35).
 
 ## File loading accepts paths and handles, and its errors name the file
 
 TOML and JSON decode errors don't name the file. `pathlib.Path` is rejected and reported as an
 unsupported format. `from_local` masks errors raised inside a loader. A binary TOML handle fails.
 
-*Order: 4 · Waits on: `config-variant-collision` (`namespace.py`) · Refs: —*
+*Order: 4 · Waits on: nothing (`config-variant-collision` landed, #35) · Refs: —*
 **Seed:** [`issues/namespace-file-loading.md`](issues/namespace-file-loading.md)
 
 ## `Environ.expand` works without a prefix
@@ -94,7 +87,7 @@ a prefix all raise `TypeError`.
 Item assignment and `setdefault` bypass the `_` layer, so `which` names the wrong layer or none.
 Mutable values are shared between a layer and the merged view.
 
-*Order: 6 · Waits on: `config-variant-collision` (`config.py`) · Refs: —*
+*Order: 6 · Waits on: nothing (`config-variant-collision` landed, #35) · Refs: —*
 **Seed:** [`issues/config-local-layer-tracking.md`](issues/config-local-layer-tracking.md)
 
 ## The merged view and `which` agree on where `_` sits
@@ -102,8 +95,8 @@ Mutable values are shared between a layer and the merged view.
 A layer added with `extend` after an in-place change wins in the merged view, while `which` still
 names `_`. The value and its label disagree.
 
-*Order: after 6, unranked · Waits on: `config-variant-collision`, `config-local-layer-tracking`
-(`config.py`) · Refs: —*
+*Order: after 6, unranked · Waits on: `config-local-layer-tracking` (`config.py`;
+`config-variant-collision` landed, #35) · Refs: —*
 **Seed:** [`issues/configuration-layer-order.md`](issues/configuration-layer-order.md)
 
 ---
@@ -115,8 +108,8 @@ names `_`. The value and its label disagree.
 Record each leaf's source at load (layer plus file path, variable name or flag) and expose it through
 a new accessor. `which` keeps returning a label.
 
-*Order: 7 · Waits on: `config-variant-collision`, `namespace-file-loading`, `environ-without-prefix`,
-`config-local-layer-tracking` · Refs: —*
+*Order: 7 · Waits on: `namespace-file-loading`, `environ-without-prefix`,
+`config-local-layer-tracking` (`config-variant-collision` landed, #35) · Refs: —*
 **Seed:** [`issues/config-provenance.md`](issues/config-provenance.md)
 
 ## Explicit, governed expansion of `_env` and `_eval`
@@ -256,19 +249,6 @@ that CI covers macOS and Windows; tie it to the CI matrix.
 
 *Order: 20 · Waits on: nothing (`uv-build-and-ci` landed, #30) · Refs: —*
 **Seed:** [`issues/docs-accuracy.md`](issues/docs-accuracy.md)
-
----
-
-# Part VI — Release candidate
-
-## 2.8.0 release candidate
-
-The suite on 3.9–3.14, HyperShell's suite against `develop` in a throwaway environment, and the
-2.8.0 release notes (`docs/blog/20261111_2_8_0_release.rst`). Then the maintainer releases. The
-entries left open in Parts I–V follow in 2.8.x.
-
-*Order: 21 (ships ahead of the open entries) · Waits on: `config-variant-collision` · Refs: —*
-**Seed:** [`issues/release-candidate-2-8-0.md`](issues/release-candidate-2-8-0.md)
 
 ---
 
