@@ -6,7 +6,7 @@ appetite: big
 status: in_progress
 branch: feature/uv-build-and-ci
 base: develop
-current_phase: P4
+current_phase: P5
 last_updated: '2026-11-10'
 phases:
 - id: P1
@@ -52,7 +52,7 @@ phases:
   verify: sh spec/uv-build-and-ci/verify/gate.sh P3
 - id: P4
   name: Tests workflow on uv across the matrix, with AGENTS.md
-  status: in_progress
+  status: done
   satisfies:
   - R5
   - R9
@@ -249,18 +249,18 @@ Run A:
       3.9–3.14, the Linux matrix; § Invariants 4 drops the line recording CI's 3.10–3.13 coverage.
 - [x] Commit (phase stays `in_progress`), then `sh spec/uv-build-and-ci/verify/gate.sh P4pre`
       green on the commit.
-- [ ] Hand back to the operator with the commit SHA for its outward steps: push
+- [x] Hand back to the operator with the commit SHA for its outward steps: push
       `feature/uv-build-and-ci` to `origin`, open a **draft** PR into `develop` (the cycle's PR;
       the `tests` workflow runs on PRs into `develop` only), then hold the wait on the PR's
       `tests` run.
 
 Run B (after the run completes):
-- [ ] `git fetch origin feature/uv-build-and-ci` so the remote-tracking ref is the pushed SHA.
-- [ ] `sh spec/uv-build-and-ci/verify/gate.sh P4`: P4pre again, then `ci_evidence.py --require
+- [x] `git fetch origin feature/uv-build-and-ci` so the remote-tracking ref is the pushed SHA.
+- [x] `sh spec/uv-build-and-ci/verify/gate.sh P4`: P4pre again, then `ci_evidence.py --require
       linux --expect-count <collected>`, which writes `spec/uv-build-and-ci/ci/P4.json` (every
       job's conclusion, Python and pytest summary). macOS and Windows outcomes are recorded here,
       not judged, and graded in P5.
-- [ ] Commit `ci/P4.json` with the state change.
+- [x] Commit `ci/P4.json` with the state change.
 - R5's evidence is a GitHub run; the orchestrator grades it from `ci/P4.json` and `ci/P5.json`
   (under `spec/`, which the blind reviewer does not see).
 - **Touches:** `.github/workflows/tests.yml`, `AGENTS.md`, `spec/uv-build-and-ci/ci/P4.json`.
