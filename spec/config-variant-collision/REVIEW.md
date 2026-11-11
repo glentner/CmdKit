@@ -81,3 +81,50 @@ records.
   path, including one that no layer holds and that runs through a displaced scalar.
 - **F2:** out of Scope. It goes to the `builder-trim-local-layer` seed in the next roadmap upkeep
   PR, because this cycle's frozen gate admits no `issues/` edit after the plan.
+
+## Review cycle 2 (scoped to F1 and the 2.8.0 release materials) — changes-requested (2026-11-11)
+
+**Reviewed commit:** 46e3f8729f2b3db71f80fa325d4a1632ca34e84f.
+
+### Verification run
+- **F1 is remediated** for every stack of layers. Both of the review's examples now give `KeyError`
+  from item access and from `which`, on 3.9 and 3.14.
+- **Fuzz:** 12,000 stacks and 1,475,109 path queries. Every disagreement between `which` and item
+  access is one of:
+  - 2.7.7's own no-displacement `TypeError` (pinned against `cmdkit==2.7.7`);
+  - a pre-existing case with no variant involved (out of Scope);
+  - one of C8's two shapes;
+  - shape C below (5 queries).
+- **Regression check:** 3,000 stacks compared with `6f13c36`. The merged view, `_`, attributes,
+  attribute-access results and item-access results are identical. `which` differs only where item
+  access raises `KeyError`.
+- **Mutation sweep:** 18 mutants on copies, 16 killed. One survivor is equivalent; the other is F5.
+- **Release materials:** every factual claim was executed against HEAD and `cmdkit==2.7.7`, the
+  code example verbatim. Hygiene is clean. The docs build passes `sphinx-build -E -W`.
+- **The profile's `verify`:** 155 passed on 3.9 and 155 on 3.14.
+
+### Findings
+- **[MEDIUM/CONFIRMED] F1 (shape C):** `Configuration(l={'s': 0}); update(s={'t': 1});
+  update(s={'t_env': 'X'})` gives item access `KeyError` but `which` `TypeError`. The cause is the
+  same as C8's: `_` folds the in-place changes and loses the one that held the key. It is not a
+  regression from `6f13c36`. Location: `src/cmdkit/config.py:99-112, 280`.
+- **[LOW/CONFIRMED] F2:** the release note defines "higher" without the extend-after-update caveat
+  (C5).
+- **[LOW/CONFIRMED] F3:** `docs/api/config.rst:45-48` states the `which` agreement with no in-place
+  caveat.
+- **[LOW/CONFIRMED] F4:** the release note's Project bullet promises specific features for 2.8.x.
+- **[LOW/CONFIRMED] F5:** the mutant `depth in held` → `held` survives. The `TypeError` kept when a
+  lower source holds only a shorter prefix is unpinned.
+- **[LOW/PLAUSIBLE] F6:** "Nothing a consumer installs changes" reads as an absolute claim.
+
+### Human-gate triggers
+- F1 is CONFIRMED in `src/cmdkit/config.py`, a high-blast-radius path.
+
+## Maintainer's ruling on review cycle 2 (2026-11-11)
+
+**Extend C8, then ship.**
+- Shape C joins C8 as a third accepted `_`-folding shape, together with the mirrored form of
+  shape (1). All of them go to the `config-local-layer-tracking` seed for 2.8.x.
+- F2, F3, F4 and F6 are fixed in the docs.
+- F5 gets a pinning test.
+- A short scoped verification follows, then the PR.

@@ -3,7 +3,7 @@ slug: config-variant-collision
 title: A value and its _env and _eval variants are one key across layers
 kind: fix
 appetite: small
-status: in_review
+status: blocked
 branch: fix/config-variant-collision
 base: develop
 current_phase: done
@@ -40,10 +40,10 @@ phases:
   hill: uphill
   verify: sh spec/config-variant-collision/verify/gate.sh P2
 review:
-  last_reviewed_commit: 6f13c3622dcdd0adc4ec7e1526c767085820c2ec
+  last_reviewed_commit: 46e3f8729f2b3db71f80fa325d4a1632ca34e84f
   verdict: changes-requested
-  blocked_reason: F1 which vs item access through a displaced scalar (human gate, config.py)
-  cycle: 1
+  blocked_reason: 'review 2: extend C8 (shape C), docs F2-F4/F6, test F5'
+  cycle: 2
 ---
 
 # TECH.md — A value and its `_env` and `_eval` variants are one key across layers
