@@ -3,10 +3,10 @@ slug: config-variant-collision
 title: A value and its _env and _eval variants are one key across layers
 kind: fix
 appetite: small
-status: in_progress
+status: in_review
 branch: fix/config-variant-collision
 base: develop
-current_phase: P2
+current_phase: done
 last_updated: '2026-11-11'
 phases:
 - id: P1
@@ -28,7 +28,7 @@ phases:
   verify: sh spec/config-variant-collision/verify/gate.sh P1
 - id: P2
   name: In-place changes follow the rule
-  status: pending
+  status: done
   satisfies:
   - R5
   - R6
@@ -216,13 +216,13 @@ of the highest layer that sets any of them; attribute access, item access and `w
 **Goal:** `update` and top-level attribute assignment record into `_` with the rule applied there
 and in the merged view; a name whose variant is in the merged view is a parameter for assignment.
 
-- [ ] `Configuration.update`: `_apply_layer(self.local, dict(*args, **kwargs))`, then
+- [x] `Configuration.update`: `_apply_layer(self.local, dict(*args, **kwargs))`, then
       `_apply_layer(self, dict(*args, **kwargs))`, each side building its own argument as the two
       calls do today (`PLAN.md` § 2.2). Add a sentence to its docstring's Note: an in-place change
       follows the layers' rule for `_env` and `_eval` variants, in `_` and in the merged view.
-- [ ] `Configuration.__setattr__`: the in-place branch runs when `name in self` or any sibling of
+- [x] `Configuration.__setattr__`: the in-place branch runs when `name in self` or any sibling of
       `name` is in `self` (`PLAN.md` § 2.3); the other branch is unchanged.
-- [ ] `tests/test_config.py`, in `TestVariantCollision`:
+- [x] `tests/test_config.py`, in `TestVariantCollision`:
       - `test_update`: `update` over a layer's different variant at a nested path; `_` holds only
         the new variant, the merged view only it, attribute and item access agree, `which` names
         `_` for it and raises `KeyError` for the old one; the layer equals its input;
@@ -234,10 +234,10 @@ and in the merged view; a name whose variant is in the merged view is a paramete
         hold only `token_env`;
       - `test_attribute_assignment_unchanged`: a name with no variant in the merged view sets an
         instance attribute and leaves `_` empty; a present name goes to `_`.
-- [ ] Deferral ledger: walk P1's and P2's bodies for deferral phrases and confirm each names an
+- [x] Deferral ledger: walk P1's and P2's bodies for deferral phrases and confirm each names an
       `issues/` seed with its `ROADMAP.md` entry (`change_set.py` checks the same at P2). This plan
       defers nothing new: its non-goals were seeded at shaping.
-- [ ] Stage everything, run the verify, then commit code, tests and the `TECH.md` state change
+- [x] Stage everything, run the verify, then commit code, tests and the `TECH.md` state change
       together.
 - **Verify:** `sh spec/config-variant-collision/verify/gate.sh P2`: `static P2` (with the ledger),
   `suite P2`, `drive P2`, `mutants`.

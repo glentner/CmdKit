@@ -958,3 +958,86 @@ class TestVariantCollision:
             cfg.which('s', 'token')
         with pytest.raises(TypeError, match='not subscriptable'):
             cfg.which('s', 'token_env')
+
+    def test_update(self) -> None:
+        """An in-place update replaces a layer's different variant, in `_` and in the merged view."""
+        layer = {'s': {'token': 'a', 'k': 1}}
+        cfg = Configuration(base=Namespace(layer))
+        cfg.update({'s': {'token_eval': 'echo b'}})
+        assert cfg.local == {'s': {'token_eval': 'echo b'}}
+        assert dict(cfg) == {'s': {'k': 1, 'token_eval': 'echo b'}}
+        assert cfg.s.token == 'b'
+        assert cfg['s']['token_eval'] == 'echo b'
+        with pytest.raises(KeyError):
+            cfg['s']['token']
+        assert cfg.which('s', 'token_eval') == '_'
+        assert cfg.which('s', 'k') == 'base'
+        with pytest.raises(KeyError):
+            cfg.which('s', 'token')
+        assert cfg.namespaces['base'] == layer
+
+    def test_successive_updates(self) -> None:
+        """A later in-place variant replaces an earlier one, so `_` never holds both."""
+        cfg = Configuration(base=Namespace({'x': 1}))
+        cfg.update(token='a')
+        cfg.update(token_env='VAR')
+        assert cfg.local == {'token_env': 'VAR'}
+        assert dict(cfg) == {'x': 1, 'token_env': 'VAR'}
+        assert cfg.which('token_env') == '_'
+        with pytest.raises(KeyError):
+            cfg.which('token')
+
+        cfg.update({'s': {'token_eval': 'echo a'}})
+        cfg.update({'s': {'token': 'b'}})
+        assert cfg.local == {'token_env': 'VAR', 's': {'token': 'b'}}
+        assert cfg.s.token == 'b'
+        assert cfg.which('s', 'token') == '_'
+        assert cfg.namespaces['base'] == {'x': 1}
+
+    def test_attribute_assignment(self) -> None:
+        """Assigning a name whose variant is in the merged view is an in-place change."""
+        # from one layer
+        cfg = Configuration(one=Namespace({'token_env': 'VAR'}))
+        cfg.token = 'v'
+        assert cfg.local == {'token': 'v'}
+        assert dict(cfg) == {'token': 'v'}
+        assert 'token' not in vars(cfg)
+        assert cfg.token == 'v'
+        assert cfg.which('token') == '_'
+        with pytest.raises(KeyError):
+            cfg.which('token_env')
+        assert cfg.namespaces['one'] == {'token_env': 'VAR'}
+
+        # from a collision of two layers
+        cfg = Configuration(one=Namespace({'token': 'a'}), two=Namespace({'token_env': 'VAR'}))
+        cfg.token = 'v'
+        assert cfg.local == {'token': 'v'}
+        assert dict(cfg) == {'token': 'v'}
+        assert 'token' not in vars(cfg)
+        assert cfg.which('token') == '_'
+
+        # a suffixed name over the merged view's plain one
+        cfg.token_env = 'OTHER'
+        assert cfg.local == {'token_env': 'OTHER'}
+        assert dict(cfg) == {'token_env': 'OTHER'}
+        assert 'token_env' not in vars(cfg)
+        assert cfg.which('token_env') == '_'
+        with pytest.raises(KeyError):
+            cfg.which('token')
+        assert cfg.namespaces['one'] == {'token': 'a'}
+        assert cfg.namespaces['two'] == {'token_env': 'VAR'}
+
+    def test_attribute_assignment_unchanged(self) -> None:
+        """A name with no variant in the merged view is an attribute; a present name goes to `_`."""
+        cfg = Configuration(one=Namespace({'x': 1}))
+        cfg.y = 2
+        assert vars(cfg)['y'] == 2
+        assert 'y' not in cfg
+        assert cfg.local == {}
+        assert dict(cfg) == {'x': 1}
+
+        cfg.x = 3
+        assert 'x' not in vars(cfg)
+        assert cfg.local == {'x': 3}
+        assert dict(cfg) == {'x': 3}
+        assert cfg.which('x') == '_'

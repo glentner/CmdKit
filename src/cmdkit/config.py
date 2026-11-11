@@ -321,7 +321,7 @@ class Configuration(NSCoreMixin):
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Intercept parameter assignment."""
-        if name in self:
+        if name in self or any(other in self for other in _variant_siblings(name)):
             self.update({name: value})
         else:
             super().__setattr__(name, value)
@@ -337,6 +337,9 @@ class Configuration(NSCoreMixin):
             Instead, overrides have been implemented to capture these changes in a `local` namespace.
             If you ask :func:`which` namespace a parameter has come from, and it was an in-place change,
             it will be considered a member of the "_" namespace.
+            An in-place change follows the same rule as the layers for `_env` and `_eval`
+            variants: setting one variant of a name replaces any other variant of that name,
+            both in the "_" namespace and in the merged view.
 
         Example:
             >>> conf = Configuration(a=Namespace(x=1))
@@ -358,8 +361,8 @@ class Configuration(NSCoreMixin):
             >>> dict(conf)
             {'x': 2, 'y': 3}
         """
-        self.local.update(*args, **kwargs)
-        super().update(*args, **kwargs)
+        _apply_layer(self.local, dict(*args, **kwargs))
+        _apply_layer(self, dict(*args, **kwargs))
 
     def pop(self, *args, **kwargs) -> Any:
         """
