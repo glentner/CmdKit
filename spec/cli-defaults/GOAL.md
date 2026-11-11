@@ -58,9 +58,9 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
 `cmdkit.app`.
 
 - **R1** — WHILE no logging is configured, WHEN `Application.main` (or `ApplicationGroup.main`)
-  catches an `ArgumentError`, the error's message SHALL be written to stderr, once, in the form C1
-  settles [NEEDS CLARIFICATION: C1]; `main` SHALL return `exit_status.bad_argument` (2), as today;
-  and nothing SHALL be written to stdout. This covers at least an unknown command in a group, an
+  catches an `ArgumentError`, the error's message SHALL be written to stderr, once, as the bare
+  message text followed by a newline (C1); `main` SHALL return `exit_status.bad_argument` (2), as
+  today; and nothing SHALL be written to stdout. This covers at least an unknown command in a group, an
   unknown flag, and a missing required positional, at the top level and inside a group's command.
 - **R2** — WHILE a logging handler other than cmdkit's `NullHandler` would receive a record logged
   to `cmdkit.app` (for example after `logging.basicConfig`), WHEN `main` catches an
@@ -69,7 +69,8 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
   stdout. The exit status SHALL be unchanged.
 - **R3** — IF the application has replaced `log_critical` (on its class or on `Application`), THEN
   WHEN `main` catches an `ArgumentError`, the replacement SHALL be called once with the error, as
-  today, and cmdkit SHALL write nothing further to stderr [NEEDS CLARIFICATION: C2].
+  today, and cmdkit SHALL write nothing further to stderr, whether or not any handler stands behind
+  the replacement (C2).
 - **R4** — WHEN an `ApplicationGroup` subclass with `ALLOW_NOARGS = True` runs with an empty command
   line (`main([])`, or `main(None)`, which `main` already treats as empty), it SHALL print to stdout
   exactly what `main(['--help'])` prints for that group and SHALL return `exit_status.success` (0),
@@ -83,14 +84,15 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
   behaviour (`AGENTS.md` § Invariants 1): R4's test sits beside a test of R5, and R1's test beside
   tests of R2 and R3.
 - **R7** — The fix SHALL keep to `AGENTS.md` § Invariants 4 on import-time effects: importing cmdkit
-  adds no process-wide effect it doesn't have today.
+  adds no process-wide effect it doesn't have today. Whether R1's message is written SHALL be
+  decided when `main` catches the error, and no handler SHALL stay attached afterwards (C1).
 - **R8** — The docstrings of the touched members, and `docs/api/app.rst`, SHALL describe the
   behaviour as shipped: `ALLOW_NOARGS` on a group (R4) and on a plain application, the default
   reporting of argument errors (R1–R3) under `log_critical`. The `ALLOW_NOARGS` paragraph's stated
   status for a bare run, `exit_status.success` today, SHALL be corrected to the status `main`
-  returns (`exit_status.usage`).
+  returns (`exit_status.usage`) (C4).
 - **R9** — `AGENTS.md` § Invariants 3's known-limitation line ("with no logging configured,
-  `ArgumentError` messages are dropped") SHALL be removed in the same commit as the fix.
+  `ArgumentError` messages are dropped") SHALL be removed in the same commit as the fix (C5).
 
 **How it is shown.**
 
@@ -103,8 +105,9 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
 3. R3 with a replaced `log_critical` that records its calls: one call, and stderr empty.
 4. R4 and R5 side by side: an `ALLOW_NOARGS` group's `main([])` and `main(None)` print its
    `--help` output and return 0; `test_app_group_usage` passes unchanged.
-5. R7: the set of handlers on the `cmdkit` and root loggers after `import cmdkit` in a fresh
-   interpreter is the same as at `b9efaca`.
+5. R7: the set of handlers on the `cmdkit`, `cmdkit.app` and root loggers after `import cmdkit` in
+   a fresh interpreter is the same as at `b9efaca`, and is still the same after a `main` call that
+   hits R1.
 
 ## Non-goals (no-gos)
 
@@ -118,6 +121,9 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
 - **Group exception-handler isolation** (`issues/app-exception-handlers.md`) and **argparse's
   generated help as a fallback** (`issues/argparse-help-fallback.md`): later cycles that build on
   this one.
+- **The `KeyboardInterrupt` message** (`keyboard-interrupt: going down now!`, `app.py:129-131`).
+  It goes through the same `log_critical` and is dropped the same way with no logging configured;
+  it stays as it is, exit status 4 included, and no seed is recorded for it (C3).
 - **The `uncaught exception occurred!` path.** `main` logs it through `log_exception` and re-raises,
   so the interpreter already prints the traceback.
 - **`Interface` itself** (`src/cmdkit/cli.py`): it keeps raising and never printing (§ Invariants 3).
@@ -140,21 +146,25 @@ Rulings at shaping (2026-11-10):
   behaviour, per § Invariants 1 (resolved 2026-11-10; R6).
 - **Q:** Does `main(None)` start reading `sys.argv`? — **A:** No (resolved 2026-11-10; Non-goals).
 
-Open:
+Raised during shaping, ruled 2026-11-10:
 
 - **C1 · Q:** In what form does R1's message reach stderr, and from where? (a) The bare message
   text and a newline, as Python's last-resort handler would print it; (b) argparse's form,
-  `{prog}: error: {message}`; (c) a cmdkit logging style. And is it written by a handler cmdkit
-  attaches when it finds none configured, or by a direct write on that path in `main`?
-  [NEEDS CLARIFICATION: C1]
-- **C2 · Q:** When the application replaces `log_critical` but configures no handler behind it
-  (its replacement logs to a logger that also drops the record), does cmdkit still write to
-  stderr? (a) No: the replacement is the application's choice and wins, as R3 states; (b) yes,
-  whenever no handler would receive a record on `cmdkit.app`. [NEEDS CLARIFICATION: C2]
-- **C3 · Q:** `main` reports a `KeyboardInterrupt` through the same `log_critical`
-  (`keyboard-interrupt: going down now!`, `app.py:129-131`), and that message is dropped the same
-  way. (a) Out of scope: it stays as it is; (b) in scope, under R1–R3's rules.
-  [NEEDS CLARIFICATION: C3]
+  `{prog}: error: {message}`; (c) a cmdkit logging style. A handler cmdkit attaches, or a write in
+  `main`? — **A:** (a), the bare message and a newline. Whether to write it is decided at call time
+  in `main`'s `ArgumentError` path, with no persistent handler attached; the exact code is the
+  plan's (resolved 2026-11-10; R1, R7).
+- **C2 · Q:** When the application replaces `log_critical` but configures no handler behind it,
+  does cmdkit still write to stderr? — **A:** No. The replacement wins, and cmdkit writes nothing
+  to stderr (resolved 2026-11-10; R3).
+- **C3 · Q:** Is the dropped `KeyboardInterrupt` message (`app.py:129-131`) in scope? — **A:** No.
+  It is a non-goal, and no seed is recorded for it (resolved 2026-11-10; Non-goals).
+- **C4 · Q:** Does R8 correct the bare-run status that the `ALLOW_NOARGS` paragraph of
+  `docs/api/app.rst` states (`exit_status.success`, where `main` returns `exit_status.usage`)? —
+  **A:** Yes: the cycle rewrites that paragraph anyway (resolved 2026-11-10; R8).
+- **C5 · Q:** Does this cycle remove the known-limitation line from `AGENTS.md` § Invariants 3, a
+  human-gated section? — **A:** Yes. Removing a recorded known limitation once its fix lands is how
+  § Invariants evolves, and sign-off of this GOAL covers it (resolved 2026-11-10; R9).
 
 ## Related materials
 
