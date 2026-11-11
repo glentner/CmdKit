@@ -42,8 +42,9 @@ row loses its note about allowing `/tmp/cmdkit/config`.
 
 - **R1** — WHEN the suite runs, every file or directory a test creates, writes, renames or removes
   SHALL lie under pytest's base temporary directory (pytest's default, or the one `--basetemp`
-  names), apart from the exclusions C1 settles. Today three tests write under
-  `/tmp/cmdkit/config`, and importing `tests/test_config.py` creates it.
+  names). The caches the tools keep in the checkout (`.pytest_cache/`, `.hypothesis/`,
+  `__pycache__/`) are not files a test writes and fall outside this requirement (C1). Today three
+  tests write under `/tmp/cmdkit/config`, and importing `tests/test_config.py` creates it.
 - **R2** — WHEN the suite runs with `--basetemp` pointing at a fresh, empty directory, on a POSIX
   host where `/tmp/cmdkit` does not exist, the suite SHALL pass, and `/tmp/cmdkit` SHALL still not
   exist afterwards.
@@ -52,7 +53,8 @@ row loses its note about allowing `/tmp/cmdkit/config`.
   collection.
 - **R4** — WHEN two runs of the suite start at the same time from one checkout (for example the
   profile's two Pythons, run side by side), both SHALL pass, and neither SHALL read or write a
-  file a test of the other run wrote.
+  file a test of the other run wrote. The tool caches R1 sets aside are outside this requirement
+  too (C1).
 - **R5** — Every test node ID collected from `tests/` at `b9efaca` SHALL still be collected and
   pass, and SHALL exercise the same behaviour: the same file names and extensions (`.toml`, `.tml`,
   `.yaml`, `.yml`, `.json`, `.conf`, `.special`), the same calls into cmdkit and the same
@@ -64,11 +66,12 @@ row loses its note about allowing `/tmp/cmdkit/config`.
 **How it is shown.**
 
 1. R2's run, on the review host.
-2. A write audit of one whole run with `--basetemp` at a fresh directory, practical on Linux,
-   macOS and Windows alike: for example a Python audit hook (`sys.addaudithook`, available on the
-   3.9 floor) installed before pytest starts, recording every path opened for writing and every
-   path created, renamed or removed. Every recorded path lies under that `--basetemp`, apart from
-   C1's exclusions (R1). Whether the audit stays in the suite is C2.
+2. A write audit of one whole run with `--basetemp` at a fresh directory, run once at build and
+   again at review, outside the suite (C2). It works on Linux, macOS and Windows alike: for
+   example a Python audit hook (`sys.addaudithook`, available on the 3.9 floor) installed before
+   pytest starts, recording every path opened for writing and every path created, renamed or
+   removed. Every recorded path lies under that `--basetemp` or inside one of R1's tool caches
+   (R1).
 3. The profile's `verify`, both Pythons, run inside a sandbox that denies writes to `/tmp` (R3),
    and the same two runs started side by side against one checkout (R4).
 4. `grep -rnE "['\"]/tmp" tests/` prints nothing.
@@ -90,7 +93,10 @@ row loses its note about allowing `/tmp/cmdkit/config`.
 - **`tests/test_app.py`'s `NONEXISTENT-FILE`**: `FileApp` opens it relative to the working
   directory, for reading, and expects it to be missing. It writes nothing; it stays as it is.
 - **Removing a `/tmp/cmdkit` that earlier runs left on a developer's machine.**
-- **A permanent write guard in the suite**, unless C2 rules otherwise.
+- **The tool caches** in the checkout (`.pytest_cache/`, `.hypothesis/`, `__pycache__/`): nothing
+  redirects or disables them (C1).
+- **A permanent write guard in the suite.** The write audit is a one-off check at build and
+  review, and no follow-up seed is written for a guard (C2).
 
 ## Clarifications
 
@@ -105,16 +111,13 @@ Raised during shaping:
 
 - **C1 · Q:** Do R1 and R4 cover the caches the tools write in the working directory: pytest's
   `.pytest_cache/`, Hypothesis's example database `.hypothesis/`, and Python's `__pycache__/`? All
-  three are gitignored and live inside the checkout, not under `/tmp`. (a) No: they are excluded,
-  and the contract covers the files the tests write. (b) Yes: redirect or disable them as well,
-  through command-line flags or a `tests/conftest.py`, since `pyproject.toml` is out of scope.
-  [NEEDS CLARIFICATION: tool caches in or out of R1 and R4?]
+  three are gitignored and live inside the checkout, not under `/tmp`. — **A:** No. They are
+  excluded from R1 and R4, and the contract covers the files the tests themselves write; nothing
+  redirects or disables the caches (resolved 2026-11-10; R1, R4).
 - **C2 · Q:** Is the write audit (How it is shown, item 2) a one-off check at build and review, or
-  a permanent part of the suite that every CI job runs? (a) One-off: the change stays limited to
-  moving paths, and the audit is a review-time command. (b) Permanent: a guard (for example in
-  `tests/conftest.py`) fails the run on any write outside the base temporary directory, apart from
-  C1's exclusions, on every platform CI covers. [NEEDS CLARIFICATION: one-off audit or permanent
-  guard?]
+  a permanent part of the suite that every CI job runs? — **A:** One-off, at build and at review.
+  A permanent guard is not this cycle's scope and gets no follow-up seed (resolved 2026-11-10;
+  R1).
 
 ## Related materials
 
