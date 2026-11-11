@@ -6,7 +6,7 @@ appetite: big
 status: in_progress
 branch: feature/uv-build-and-ci
 base: develop
-current_phase: P2
+current_phase: P3
 last_updated: '2026-11-10'
 phases:
 - id: P1
@@ -26,7 +26,7 @@ phases:
   verify: sh spec/uv-build-and-ci/verify/gate.sh P1
 - id: P2
   name: Publish with uv build and uv publish
-  status: pending
+  status: done
   satisfies:
   - R3
   - R6
@@ -201,12 +201,12 @@ build backend, with a committed `uv.lock`; Poetry's table and lockfile are gone.
 **Goal:** creating a GitHub release builds with `uv build` and uploads with `uv publish`,
 authenticated by `PYPI_TOKEN`, on current Actions.
 
-- [ ] Rewrite `.github/workflows/publish.yml` as `PLAN.md` § 2.2 gives it: trigger unchanged
+- [x] Rewrite `.github/workflows/publish.yml` as `PLAN.md` § 2.2 gives it: trigger unchanged
       (`release: types: [created]`), `permissions: contents: read`, one `ubuntu-latest` job:
       `actions/checkout` at its current major, `astral-sh/setup-uv` at a full version tag of its
       current major (it publishes no floating major tag), `run: uv build`, `run: uv publish` with
       `env: UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}`. No other step, input or environment.
-- [ ] Re-read the current majors at build time (`git ls-remote --tags`); the gate reads them live.
+- [x] Re-read the current majors at build time (`git ls-remote --tags`); the gate reads them live.
 - **Verify:** `sh spec/uv-build-and-ci/verify/gate.sh P2`: `workflow_config.py publish publishrun`
   (static checks, actionlint, and the workflow's own run lines on an export with the upload as a
   dry run).
