@@ -102,6 +102,15 @@ Mutable values are shared between a layer and the merged view.
 *Order: 6 · Waits on: `config-variant-collision` (`config.py`) · Refs: —*
 **Seed:** [`issues/config-local-layer-tracking.md`](issues/config-local-layer-tracking.md)
 
+## The merged view and `which` agree on where `_` sits
+
+A layer added with `extend` after an in-place change wins in the merged view, while `which` still
+names `_`. The value and its label disagree.
+
+*Order: after 6, unranked · Waits on: `config-variant-collision`, `config-local-layer-tracking`
+(`config.py`) · Refs: —*
+**Seed:** [`issues/configuration-layer-order.md`](issues/configuration-layer-order.md)
+
 ---
 
 # Part III — Configuration: opt-in behaviour
