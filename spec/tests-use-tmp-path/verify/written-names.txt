@@ -1,0 +1,16 @@
+# The base names of the files the tests of tests/test_config.py open for writing, at b9efaca
+# (TestNamespace.test_factories, test_from_local, test_to_local; TestConfiguration.test_from_local).
+# config.special is named in two calls but never written: both raise NotImplementedError first.
+toml.toml
+tml.tml
+yaml.yaml
+yml.yml
+json.json
+toml.conf
+tml.conf
+yaml.conf
+yml.conf
+json.conf
+system.toml
+user.toml
+local.toml
