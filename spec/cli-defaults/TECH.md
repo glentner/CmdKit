@@ -3,7 +3,7 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: blocked
+status: in_review
 branch: fix/cli-defaults
 base: develop
 current_phase: done
@@ -217,15 +217,15 @@ application silenced the record (a rejecting filter on `cmdkit.app`, and every C
 handling: skipped when `sys.stderr` is `None`, its `OSError` or `ValueError` swallowed, so `main`
 returns 2 and writes nothing to stdout.
 
-- [ ] `src/cmdkit/app.py`: the `ArgumentError` branch as `PLAN.md` § 2.00 gives it, verbatim.
+- [x] `src/cmdkit/app.py`: the `ArgumentError` branch as `PLAN.md` § 2.00 gives it, verbatim.
       `Application.main`'s docstring and the `log_critical` paragraph of `docs/api/app.rst` say
       the message is skipped without a stderr and a failed write is ignored.
-- [ ] `tests/test_app.py`, named `test_app_argument_error_*`: the dead-pipe child, the
+- [x] `tests/test_app.py`, named `test_app_argument_error_*`: the dead-pipe child, the
       `redirect_stderr(None)` test and the closed-stderr test § 2.00 lists.
-- [ ] `tests/test_app.py`: `test_app_library_handler_on_cmdkit_logger` (I6) as § 2.00 lists.
-- [ ] `tests/test_app.py`: replace the `marked_null_handler` helper and its setup with the
+- [x] `tests/test_app.py`: `test_app_library_handler_on_cmdkit_logger` (I6) as § 2.00 lists.
+- [x] `tests/test_app.py`: replace the `marked_null_handler` helper and its setup with the
       `importlib.reload(cmdkit)` setup § 2.00 describes; the tests no longer name the private mark.
-- [ ] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 30 mutants on both
+- [x] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 30 mutants on both
       Pythons; its `noargs` drive must stay green (P2's revert stands).
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
 - **Touches:** `src/cmdkit/app.py`, `src/cmdkit/__init__.py`, `tests/test_app.py`, `docs/api/app.rst`,

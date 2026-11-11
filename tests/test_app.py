@@ -8,10 +8,13 @@
 from typing import Iterator, List, Type
 
 # standard libs
+import io
+import os
 import sys
 import logging
+import importlib
 import subprocess
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stderr
 from string import ascii_letters
 
 # external libs
@@ -19,6 +22,7 @@ import pytest
 from hypothesis import given, strategies
 
 # internal libs
+import cmdkit
 from cmdkit.app import Application, ApplicationGroup, exit_status
 from cmdkit.cli import Interface, ArgumentError
 from cmdkit.namespace import Namespace
@@ -672,11 +676,11 @@ def set_last_resort_level(request, level: int) -> None:
     logging.lastResort.setLevel(level)
 
 
-def marked_null_handler() -> logging.Handler:
-    """A NullHandler marked as cmdkit's own, as a second import of the package would add."""
-    handler = logging.NullHandler()
-    handler._cmdkit_library_handler = True
-    return handler
+def reimport_cmdkit(monkeypatch) -> None:
+    """Import the package a second time, its logger's handlers restored after the test."""
+    logger = logging.getLogger('cmdkit')
+    monkeypatch.setattr(logger, 'handlers', list(logger.handlers))
+    importlib.reload(cmdkit)
 
 
 def above_critical_root_handler() -> logging.Handler:
@@ -696,8 +700,8 @@ LOGGING_SETUPS = [
     pytest.param(lambda mp, rq: (mp.setattr(logging.getLogger('cmdkit'), 'propagate', False),
                                  add_handler(rq, '', logging.NullHandler())), True,
                  id='cmdkit-propagate-false-root-handler'),
-    pytest.param(lambda mp, rq: add_handler(rq, 'cmdkit', marked_null_handler()), True,
-                 id='second-marked-null-handler-on-cmdkit'),
+    pytest.param(lambda mp, rq: reimport_cmdkit(mp), True,
+                 id='package-imported-again'),
     pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit.app', lambda record: True), True,
                  id='accepting-filter'),
     pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit.app', lambda record: record.levelno == logging.CRITICAL),
@@ -788,6 +792,67 @@ def test_app_argument_error_silent_under_dict_config_null_handler(order) -> None
     assert proc.returncode == exit_status.bad_argument
     assert proc.stdout == b''
     assert proc.stderr == b''
+
+
+DEAD_STDERR_CHILD = """
+import sys
+from cmdkit.app import ApplicationGroup
+from cmdkit.cli import Interface
+
+class Group(ApplicationGroup):
+    interface = Interface('app', 'usage: app <command>', 'usage: app <command>')
+    command: str = None
+    interface.add_argument('command')
+    commands = {}
+
+status = Group.main(['bogus'])
+sys.stdout.write(str(status))
+sys.stdout.flush()
+"""
+
+
+def test_app_argument_error_dead_stderr_pipe() -> None:
+    """With <stderr> a pipe nobody reads, the failed write is ignored and main still returns 2."""
+    read_end, write_end = os.pipe()
+    os.close(read_end)
+    try:
+        proc = subprocess.run([sys.executable, '-I', '-c', DEAD_STDERR_CHILD],
+                              stdout=subprocess.PIPE, stderr=write_end, timeout=60)
+    finally:
+        os.close(write_end)
+    assert proc.stdout == str(exit_status.bad_argument).encode()
+
+
+def test_app_argument_error_no_stderr(capsys) -> None:
+    """With no <stderr> at all, the message is skipped, and nothing goes to <stdout>."""
+    with no_logging_configured(), redirect_stderr(None):
+        status = Group.main(['bogus'])
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+    assert captured.err == ''
+
+
+def test_app_argument_error_closed_stderr(capsys) -> None:
+    """With <stderr> closed, the failed write is ignored and main still returns 2."""
+    stream = io.StringIO()
+    stream.close()
+    with no_logging_configured(), redirect_stderr(stream):
+        status = Group.main(['bogus'])
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+
+
+def test_app_library_handler_on_cmdkit_logger(capsys) -> None:
+    """The library's one NullHandler sits on the cmdkit logger and quiets every cmdkit.* logger."""
+    assert [type(handler) for handler in logging.getLogger('cmdkit').handlers] == [logging.NullHandler]
+    assert logging.getLogger('cmdkit.app').handlers == []
+    with no_logging_configured():
+        logging.getLogger('cmdkit.config').warning('a warning with no logging configured')
+    captured = capsys.readouterr()
+    assert captured.out == ''
+    assert captured.err == ''
 
 
 def test_app_argument_error_silent_when_logging_disabled(capsys) -> None:
