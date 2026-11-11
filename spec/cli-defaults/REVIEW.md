@@ -285,3 +285,12 @@ maintainer's ruling to verifying the cycle-3 remediation and anything next to it
 
 ### Remediation status
 CR-F1, I6 and the reload case are remediated. R4-F1 (wording) is the only CONFIRMED item.
+
+## Maintainer's ruling on review cycle 4 (2026-11-11)
+
+**Fix the wording, then a light verification.**
+- R4-F1: reword the docs and the docstring so they don't claim parity with Python's last resort for
+  a closed stream.
+- R4-F2: add a root-logger assertion to the I6 test.
+- A short review cycle 5, scoped to those two, then publish.
+- R4-F3, the import-time crash with no stderr, is seeded separately.
