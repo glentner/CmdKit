@@ -119,3 +119,68 @@ Not run.
 - **F2 triage: fix.** R4 is narrowed: a bare run on a group with `ALLOW_NOARGS` shows help only when
   it would otherwise fail on the missing command. A group whose `command` is optional keeps calling
   `run`. This is recorded as a GOAL clarification.
+
+## Review cycle 2 — changes-requested (2026-11-11)
+
+**Reviewed commit:** 4645372cfe1b36e329a8149bf471bac43cc05ea8. A fresh, full blind pass over the
+whole spec-excluded diff, graded against GOAL C1–C8. It saw neither the cycle-1 review nor its files.
+
+### Verification run
+- **The profile's `verify`,** with the sandbox off: 121 passed on Python 3.9.25 and 121 on 3.14.6.
+- **Subprocess drives** against HEAD and base (`b9efaca`), on 3.9 and 3.14:
+  - 58 C6 setups: 112 of 116 runs match the last-resort reference. The no-handler walks now print
+    exactly once, so cycle 1's F1 is fixed.
+  - R4/C7/C8 groups through `main([])` and through `main(None)` with varied `sys.argv`.
+  - An § Invariants 3 drive.
+- **Import-time and post-`main` state** equals 2.7.7 (R7 is met).
+- **Mutation sweep** over 41 mutants on copies: 37 killed. The survivors are G07, G12, G09, and
+  G08, which is equivalent.
+- **The docs:** Sphinx builds on HEAD and base with the same warnings.
+
+### Findings
+
+#### [CRITICAL/CONFIRMED] F1 · Exceptions escape `ApplicationGroup.main` under `ALLOW_NOARGS` with `main(None)`
+- **Where:** `src/cmdkit/app.py:244-248`.
+- **Failure scenario:** a group with `ALLOW_NOARGS`, called as `main(None)` with `sys.argv` holding
+  `--help` or `-h`, raises `HelpOption` out of `main`. With `--version` it raises `VersionOption`.
+  With a custom action that raises, the exception escapes and the group's `exceptions` map is
+  bypassed. In each case 2.7.7 printed help or the version and returned 0, or mapped the exception
+  or logged it and re-raised.
+- **Evidence:** `r4.log` and `inv3.log` on 3.9 and 3.14.
+- **Touches:** § Invariants 3 (`main` returns an `int`; an unhandled exception is logged and
+  re-raised) and C8.
+
+#### [HIGH/CONFIRMED] F2 · `main(None)` with arguments in `sys.argv` prints help where 2.7.7 reports the argument error
+- **Where:** `src/cmdkit/app.py:244-248`, and the docs at `docs/api/app.rst:256-258` and
+  `app.py:231`.
+- **Failure scenario:** `NGroup.main(None)` with `['app','cmd','x']` or `['app','--bogus']`, and the
+  same for an optional-command group or one with `ALLOW_PARSE`, prints help and returns 0. 2.7.7
+  reports the error and returns 2. `sys.argv` is also parsed twice, so a side-effecting action runs
+  twice.
+- **Evidence:** `r4.log`.
+- **Touches:** R4, C7, C8, and R8, since the docs promise otherwise.
+
+#### [MEDIUM/CONFIRMED] F3 · The application's own `NullHandler` on `cmdkit` is treated as cmdkit's
+- **Where:** `src/cmdkit/app.py:55-56`, pinned by `tests/test_app.py:693`.
+- **Failure scenario:** the common `dictConfig` recipe routes `cmdkit` to a `NullHandler` with
+  `propagate: False`. Under it, HEAD prints the line, while 2.7.7 and Python's last-resort reference
+  are silent. A programmatic `addHandler(NullHandler())` on `cmdkit` behaves the same way.
+- **Evidence:** `c6.log`.
+- **Touches:** C6 ("anything an application did to silence cmdkit stays silent") and § Invariants 1.
+  This is the setup the plan's deviation row 2 accepted, and the review shows it contradicts C6.
+
+#### [LOW/CONFIRMED] F4 · The helper diverges from `Logger.handle` and `callHandlers` in contrived setups
+- **Where:** `src/cmdkit/app.py:48-50`.
+- **Failure scenario:** the helper re-runs logger filters on a synthetic record, which differs in
+  `funcName`, `lineno` and dedupe state, and it ignores filters on `lastResort`.
+- **Evidence:** `c6.log`.
+
+#### [LOW/CONFIRMED] F5 · No test pins `ApplicationGroup.main` passing `shared` through
+- **Where:** `src/cmdkit/app.py:249`.
+- **Failure scenario:** mutant G09 drops `shared=shared`, and the suite stays green. That mutant
+  breaks nested-group shared options, which are reachable 2.7.7 behaviour (`shared_nested.log`).
+
+### Human-gate triggers
+- F1, F2 and F3 are CONFIRMED in `src/cmdkit/app.py`, a high-blast-radius path, and F1 violates a
+  `[human gate]` section (§ Invariants 3).
+- This is the second review cycle without convergence, so the cycle escalates to the maintainer.

@@ -3,7 +3,7 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: in_review
+status: blocked
 branch: fix/cli-defaults
 base: develop
 current_phase: done
@@ -40,10 +40,10 @@ phases:
   hill: uphill
   verify: sh spec/cli-defaults/verify/gate.sh P2
 review:
-  last_reviewed_commit: 877a66634f1d0d51adbcc8bdd25006cdc2f1ad14
+  last_reviewed_commit: 4645372cfe1b36e329a8149bf471bac43cc05ea8
   verdict: changes-requested
-  blocked_reason: F1 duplicate stderr line (human gate, app.py); F2 triage
-  cycle: 1
+  blocked_reason: 'review cycle 2: F1 CRITICAL (Inv 3), F2 HIGH, F3 MEDIUM in app.py; escalated'
+  cycle: 2
 ---
 
 # TECH.md — Argument errors reach stderr, and a group can show its help when run bare
