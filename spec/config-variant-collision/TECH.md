@@ -3,7 +3,7 @@ slug: config-variant-collision
 title: A value and its _env and _eval variants are one key across layers
 kind: fix
 appetite: small
-status: in_review
+status: done
 branch: fix/config-variant-collision
 base: develop
 current_phase: done
