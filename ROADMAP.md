@@ -1,11 +1,12 @@
 # CmdKit Roadmap
 
-This document records the work between cmdkit 2.7.7 and 2.8.0, and the salvaged ideas beyond it.
-2.8.0 is a revamp: a uv build, fixes to the configuration core's outright failures, opt-in
-configuration and command-line behaviour for applications that need more control, and cleanup of
-long-standing rough edges. It breaks no existing use. As `AGENTS.md` § Invariants 1 rules, 2.x is
-additive: behaviour a consumer can rely on stays the default, new behaviour is an explicit opt-in,
-and outright failures are fixed by default.
+This document records the work after cmdkit 2.7.7, and the salvaged ideas beyond it. Together it is
+a revamp: a uv build, fixes to the configuration core's outright failures, opt-in configuration and
+command-line behaviour for applications that need more control, and cleanup of long-standing rough
+edges. It breaks no existing use. **2.8.0 ships what has landed on `develop` plus
+`config-variant-collision`; every other open entry ships in the 2.8.x patch series.** As
+`AGENTS.md` § Invariants 1 rules, 2.x is additive: behaviour a consumer can rely on stays the
+default, new behaviour is an explicit opt-in, and outright failures are fixed by default.
 
 This is a **forward-looking index, not an implementation plan.** Each entry states a problem and the
 intention behind solving it; the *how* belongs to the plan step. As-built architecture and the
@@ -36,7 +37,7 @@ command-line Part can run beside the configuration Parts.
 - Part III: opt-in configuration behaviour, ending with the environment mapping;
 - Part IV: the command line, defaults first;
 - Part V: the rest, ranked;
-- Part VI: the release candidate;
+- Part VI: the 2.8.0 release candidate, which waits only on `config-variant-collision`;
 - Beyond 2.8.0: salvaged contrib modules, which 2.8.0 doesn't wait on.
 
 The build is uv throughout. The uv build, the move to `tmp_path` and `cli-defaults` have landed, so
@@ -253,10 +254,11 @@ that CI covers macOS and Windows; tie it to the CI matrix.
 
 ## 2.8.0 release candidate
 
-The suite on 3.9–3.14, HyperShell's suite against `develop` in a throwaway environment, the
-examples and docs, and the 2.8.0 release notes. Then the maintainer releases.
+The suite on 3.9–3.14, HyperShell's suite against `develop` in a throwaway environment, and the
+2.8.0 release notes (`docs/blog/20261111_2_8_0_release.rst`). Then the maintainer releases. The
+entries left open in Parts I–V follow in 2.8.x.
 
-*Order: 21 · Waits on: every entry in Parts I–V · Refs: —*
+*Order: 21 (ships ahead of the open entries) · Waits on: `config-variant-collision` · Refs: —*
 **Seed:** [`issues/release-candidate-2-8-0.md`](issues/release-candidate-2-8-0.md)
 
 ---
