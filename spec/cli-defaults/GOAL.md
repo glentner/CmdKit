@@ -1,0 +1,167 @@
+# GOAL — Argument errors reach stderr, and a group can show its help when run bare
+
+> **Origin spec.** The *what* and *why*: the locked contract the review grades against.
+> The *how* lives in [`PLAN.md`](PLAN.md) and [`TECH.md`](TECH.md), written by the plan step.
+> Edit requirements here; do **not** silently drift them during build.
+
+- **slug:** cli-defaults
+- **kind:** fix
+- **appetite:** small
+
+## Problem
+
+**Argument errors are dropped.** `Application.main` catches an `ArgumentError` and hands it to
+`cls.log_critical` (`src/cmdkit/app.py:125-127`), which defaults to the `critical` method of the
+`cmdkit.app` logger (`app.py:63`). At import, cmdkit gives its `cmdkit` logger a `NullHandler`
+(`src/cmdkit/__init__.py:33`). The record therefore always finds a handler, so Python's last-resort
+handler, which would otherwise print it to stderr, never fires. In an application that hasn't
+configured logging, every argument error is silent: an unknown flag, an unknown command in a group,
+a missing positional. The program exits 2 and prints nothing, and its user can't tell what was
+wrong. Probe on `develop` at `b9efaca`, Python 3.12, fresh interpreter, logging unconfigured:
+
+| Call | Status | stdout | stderr |
+|---|---|---|---|
+| `Group.main(['bogus'])` (unknown command) | 2 | empty | empty |
+| `Group.main(['cmd', '--bogus'])` (unknown flag in a command) | 2 | empty | empty |
+
+This is an outright failure in the sense of `AGENTS.md` § Invariants 1: the documented behaviour has
+an answer (report the error), and today the answer is lost. No test pins the silence; the tests
+that reach `ArgumentError` (`test_app_noargs`, `test_app_invalid_number_of_positional`,
+`test_app_invalid_options`, `test_app_group_noargs` in `tests/test_app.py`) call `from_cmdline`,
+which raises, and never `main`.
+
+**A bare group can't show its help.** Run with no arguments, an `ApplicationGroup` prints its usage
+and exits 1 (`app.py:103-108`), and `tests/test_app.py::test_app_group_usage` pins that. A group
+author who would rather show the full help has no way to ask for it. Setting `ALLOW_NOARGS = True`
+on the group, the switch a plain `Application` uses to run with no arguments, makes it worse: the
+group's `command` positional is required, so the parse fails and the group exits 2, silently (the
+first problem). Probe as above: `ALLOW_NOARGS` group, `main([])` → status 2, stdout and stderr
+empty.
+
+Both defects are pre-existing: the lines involved date from 2019–2023, before this repo adopted its
+current workflow.
+
+## Outcome / vision
+
+A user who mistypes a flag or a command sees why the program refused it, on stderr, even when the
+application never configured logging; the exit status is the one it is today. An application that
+does configure logging, or routes cmdkit's messages through its own `log_critical`, sees exactly
+what it sees today: no duplicate line, no new output.
+
+A group author can set `ALLOW_NOARGS = True` and have the group print its help and exit 0 when run
+bare. Without that setting, a bare group behaves byte for byte as it does in 2.7.7.
+
+## Acceptance criteria (the contract)
+
+"No logging configured", below, means: the application hasn't replaced `log_critical`, and no
+handler other than the `NullHandler` cmdkit attaches at import would receive a record logged to
+`cmdkit.app`.
+
+- **R1** — WHILE no logging is configured, WHEN `Application.main` (or `ApplicationGroup.main`)
+  catches an `ArgumentError`, the error's message SHALL be written to stderr, once, in the form C1
+  settles [NEEDS CLARIFICATION: C1]; `main` SHALL return `exit_status.bad_argument` (2), as today;
+  and nothing SHALL be written to stdout. This covers at least an unknown command in a group, an
+  unknown flag, and a missing required positional, at the top level and inside a group's command.
+- **R2** — WHILE a logging handler other than cmdkit's `NullHandler` would receive a record logged
+  to `cmdkit.app` (for example after `logging.basicConfig`), WHEN `main` catches an
+  `ArgumentError`, the configured handlers SHALL receive exactly what they receive today (one
+  `CRITICAL` record carrying the message), and cmdkit SHALL write nothing further to stderr or
+  stdout. The exit status SHALL be unchanged.
+- **R3** — IF the application has replaced `log_critical` (on its class or on `Application`), THEN
+  WHEN `main` catches an `ArgumentError`, the replacement SHALL be called once with the error, as
+  today, and cmdkit SHALL write nothing further to stderr [NEEDS CLARIFICATION: C2].
+- **R4** — WHEN an `ApplicationGroup` subclass with `ALLOW_NOARGS = True` runs with an empty command
+  line (`main([])`, or `main(None)`, which `main` already treats as empty), it SHALL print to stdout
+  exactly what `main(['--help'])` prints for that group and SHALL return `exit_status.success` (0),
+  with nothing on stderr.
+- **R5** — WHEN an `ApplicationGroup` without `ALLOW_NOARGS = True` runs with an empty command line,
+  it SHALL print its usage and return `exit_status.usage` (1), as in 2.7.7
+  (`test_app_group_usage` keeps passing unchanged). A plain `Application`'s bare-run behaviour, with
+  and without `ALLOW_NOARGS`, SHALL be unchanged apart from R1 applying to any `ArgumentError` it
+  raises.
+- **R6** — Each new behaviour SHALL land with a test pinning the default beside the test of the new
+  behaviour (`AGENTS.md` § Invariants 1): R4's test sits beside a test of R5, and R1's test beside
+  tests of R2 and R3.
+- **R7** — The fix SHALL keep to `AGENTS.md` § Invariants 4 on import-time effects: importing cmdkit
+  adds no process-wide effect it doesn't have today.
+- **R8** — The docstrings of the touched members, and `docs/api/app.rst`, SHALL describe the
+  behaviour as shipped: `ALLOW_NOARGS` on a group (R4) and on a plain application, the default
+  reporting of argument errors (R1–R3) under `log_critical`. The `ALLOW_NOARGS` paragraph's stated
+  status for a bare run, `exit_status.success` today, SHALL be corrected to the status `main`
+  returns (`exit_status.usage`).
+- **R9** — `AGENTS.md` § Invariants 3's known-limitation line ("with no logging configured,
+  `ArgumentError` messages are dropped") SHALL be removed in the same commit as the fix.
+
+**How it is shown.**
+
+1. R1 in a fresh interpreter with logging unconfigured, for each case R1 names: status 2, stdout
+   empty, stderr carrying the message once (for the unknown command, the string `bogus`). pytest's
+   logging plugin attaches its own handlers to the root logger during a test, so an in-process test
+   of R1 has to account for them; the plan chooses how.
+2. R2 after `logging.basicConfig` (or with `caplog`): one `CRITICAL` record with the message, and
+   no extra stderr output from cmdkit.
+3. R3 with a replaced `log_critical` that records its calls: one call, and stderr empty.
+4. R4 and R5 side by side: an `ALLOW_NOARGS` group's `main([])` and `main(None)` print its
+   `--help` output and return 0; `test_app_group_usage` passes unchanged.
+5. R7: the set of handlers on the `cmdkit` and root loggers after `import cmdkit` in a fresh
+   interpreter is the same as at `b9efaca`.
+
+## Non-goals (no-gos)
+
+- **`main(None)` reading `sys.argv`.** `main` treats `None` as an empty command line and never reads
+  `sys.argv`; the documented call is `main(sys.argv[1:])`. Reading `sys.argv` by default would
+  change a default, so it stays as it is.
+- **The exit statuses.** Every path keeps its `ExitStatus` value; only the opt-in in R4 returns a
+  different one, from a configuration that today exits 2 in silence.
+- **Suggestions for a mistyped command** (`did you mean …`): that is the next roadmap cycle,
+  `issues/cli-command-suggestions.md`, which edits the same message after this one lands.
+- **Group exception-handler isolation** (`issues/app-exception-handlers.md`) and **argparse's
+  generated help as a fallback** (`issues/argparse-help-fallback.md`): later cycles that build on
+  this one.
+- **The `uncaught exception occurred!` path.** `main` logs it through `log_exception` and re-raises,
+  so the interpreter already prints the traceback.
+- **`Interface` itself** (`src/cmdkit/cli.py`): it keeps raising and never printing (§ Invariants 3).
+- **The build files and `tests/test_config.py`**, which open PRs #30 and #31 change.
+
+## Clarifications
+
+Rulings at shaping (2026-11-10):
+
+- **Q:** Kind and appetite? — **A:** `fix`, `small`, from the seed's frontmatter (resolved
+  2026-11-10).
+- **Q:** Is the dropped message an outright failure, fixed by default? — **A:** Yes. With no
+  logging configured, an `ArgumentError` message reaches stderr and the exit status stays as it is
+  today. Applications that configure logging see no change in what their handlers receive (resolved
+  2026-11-10; R1, R2).
+- **Q:** Is a bare group's help-and-exit-0 the default or an opt-in? — **A:** Opt-in, through
+  `ALLOW_NOARGS` on the group, which today gives a silent exit 2. The default (usage, exit 1,
+  pinned by `test_app_group_usage`) is unchanged (resolved 2026-11-10; R4, R5).
+- **Q:** Do opt-ins need a test pinning the default? — **A:** Yes, beside the test of the new
+  behaviour, per § Invariants 1 (resolved 2026-11-10; R6).
+- **Q:** Does `main(None)` start reading `sys.argv`? — **A:** No (resolved 2026-11-10; Non-goals).
+
+Open:
+
+- **C1 · Q:** In what form does R1's message reach stderr, and from where? (a) The bare message
+  text and a newline, as Python's last-resort handler would print it; (b) argparse's form,
+  `{prog}: error: {message}`; (c) a cmdkit logging style. And is it written by a handler cmdkit
+  attaches when it finds none configured, or by a direct write on that path in `main`?
+  [NEEDS CLARIFICATION: C1]
+- **C2 · Q:** When the application replaces `log_critical` but configures no handler behind it
+  (its replacement logs to a logger that also drops the record), does cmdkit still write to
+  stderr? (a) No: the replacement is the application's choice and wins, as R3 states; (b) yes,
+  whenever no handler would receive a record on `cmdkit.app`. [NEEDS CLARIFICATION: C2]
+- **C3 · Q:** `main` reports a `KeyboardInterrupt` through the same `log_critical`
+  (`keyboard-interrupt: going down now!`, `app.py:129-131`), and that message is dropped the same
+  way. (a) Out of scope: it stays as it is; (b) in scope, under R1–R3's rules.
+  [NEEDS CLARIFICATION: C3]
+
+## Related materials
+
+- Seed: `issues/cli-defaults.md`; `ROADMAP.md` Part IV, order 11.
+- Files: `src/cmdkit/app.py` (lines 58, 63, 94–138); `src/cmdkit/__init__.py` (line 33);
+  `src/cmdkit/cli.py` (`Interface.error` and `exit`, lines 94–100); `tests/test_app.py`
+  (`test_app_group_usage`, the `Group` fixture); `docs/api/app.rst` (`ALLOW_NOARGS`,
+  `log_critical`); `AGENTS.md` § Invariants 1, 3 and 4.
+- Python's last-resort handler: <https://docs.python.org/3/library/logging.html#logging.lastResort>.
+- Configuring logging for a library: <https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library>.

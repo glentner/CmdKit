@@ -1,5 +1,5 @@
 ---
-status: unshaped
+status: adopted:cli-defaults
 kind: fix
 appetite: small
 ---
