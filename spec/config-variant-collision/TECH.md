@@ -3,7 +3,7 @@ slug: config-variant-collision
 title: A value and its _env and _eval variants are one key across layers
 kind: fix
 appetite: small
-status: blocked
+status: in_review
 branch: fix/config-variant-collision
 base: develop
 current_phase: done
@@ -218,6 +218,10 @@ of the highest layer that sets any of them; attribute access, item access and `w
       and `which` both raise `TypeError`; and the same with a fresh `u = {}` added above, where
       `which` keeps `TypeError`. Run the P1 gate and then the P2 gate on the final tree, and commit
       as P1.
+- [x] Review cycle 2, F5: in `TestVariantCollision.test_which_scalar_below_fresh_variant`, pin
+      that `which('s', 't', 'x')` over `s.t = 5` beneath `s.t = {'x_env': 1}` raises `TypeError`,
+      as in 2.7.7, while item access raises `KeyError`, and `which('s', 't', 'x_env')` names the
+      upper layer.
 - **Verify:** `sh spec/config-variant-collision/verify/gate.sh P1`: `static P1`, `suite P1`,
   `drive P1`, `mutants`.
 - **Touches:** `src/cmdkit/config.py`, `tests/test_config.py`, `docs/index.rst`, `AGENTS.md`.
@@ -263,6 +267,16 @@ and in the merged view; a name whose variant is in the merged view is a paramete
   the fix widens that to a source holding the path down to the displaced key, which `PLAN.md`
   (frozen at the plan commit) does not restate. P1's gate runs unchanged on the final tree, since
   its checks hold with P2 landed, and P2's gate runs after it on the same tree.
+- 2026-11-11, review cycle 2 (the maintainer ruled: extend C8, then ship). P1 is reopened for F5
+  only, with P2 left done and no change to `src/`: `test_which_scalar_below_fresh_variant` pins
+  the `TypeError` `which` keeps when a lower source holds a shorter prefix than the depth of a
+  higher variant (it kills the mutant `depth in held` to `held`). Shape C and the mirrored first
+  shape join C8 in `GOAL.md`, and are recorded with their tests in
+  `issues/config-local-layer-tracking.md`, whose stale `config.py` line numbers gain a dated
+  correction. The docs findings (F2, F3, F4, F6) land in their own `[docs]` commit. The branch now
+  carries `develop` and the release materials, so the frozen gate's `static` mode, which compares
+  against the merge-base, no longer applies; its `suite`, `drive` and `mutants` modes run one by
+  one on the final tree.
 
 ---
 

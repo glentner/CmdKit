@@ -996,6 +996,16 @@ class TestVariantCollision:
         with pytest.raises(TypeError, match='not subscriptable'):
             cfg.which('u', 't')
 
+    def test_which_scalar_below_fresh_variant(self) -> None:
+        """A variant beneath a key whose lower value was a scalar displaces nothing: TypeError stays."""
+        cfg = Configuration(l1=Namespace({'s': {'t': 5}}), l2=Namespace({'s': {'t': {'x_env': 1}}}))
+        assert dict(cfg) == {'s': {'t': {'x_env': 1}}}
+        with pytest.raises(KeyError):
+            cfg['s']['t']['x']
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('s', 't', 'x')
+        assert cfg.which('s', 't', 'x_env') == 'l2'
+
     def test_update(self) -> None:
         """An in-place update replaces a layer's different variant, in `_` and in the merged view."""
         layer = {'s': {'token': 'a', 'k': 1}}
