@@ -15,8 +15,9 @@ Claims in the documentation have drifted from the code and CI:
 
 - `docs/index.rst:105` says cmdkit "is tested on Python 3.7+"; the floor is 3.9
   (`requires-python >=3.9`).
-- `README.rst` and `docs/index.rst` say it is tested on Windows, macOS and Linux; the `tests` workflow
-  runs on Ubuntu only until the uv cycle adds macOS and Windows, which makes the claim true.
+- `README.rst` and `docs/index.rst` say it is tested on Windows, macOS and Linux. Since the uv cycle
+  (#30), the `tests` workflow runs macOS and Windows on 3.9 and 3.14 beside Linux, so the claim is
+  true; R2 keeps it tied to the matrix.
 - The `Configuration` and `Configuration.extend` docstring examples are missing a closing parenthesis
   (`src/cmdkit/config.py:43-44`, `:81-82`). The `from_context` docstring names the wrong user path;
   `issues/platform-default-paths.md` fixes that one with the code.
@@ -44,7 +45,8 @@ stated in both documents. A test parses each `>>>` statement in the package's do
 
 ## Notes
 
-- Waits on `uv-build-and-ci` (`pyproject.toml`, the CI matrix, `.readthedocs.yaml`).
+- Waited on `uv-build-and-ci` (`pyproject.toml`, the CI matrix, `.readthedocs.yaml`), which
+  landed in #30; nothing blocks it now.
 - Running the docstring examples as doctests would need fixtures for files and the environment; out of
   scope here.
 - Found by: adoption sweep, 2026-11-10.

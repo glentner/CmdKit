@@ -31,7 +31,7 @@ builds on that cycle's behaviour or edits the same files. Every cycle lands as i
 `develop`. While a PR waits for review, the next cycle that doesn't wait on it can proceed, so the
 command-line Part can run beside the configuration Parts.
 
-- Part I: the build and the test suite;
+- Part I: the build and the test suite, shipped;
 - Part II: outright failures in the configuration core, fixed by default;
 - Part III: opt-in configuration behaviour, ending with the environment mapping;
 - Part IV: the command line, defaults first;
@@ -39,31 +39,16 @@ command-line Part can run beside the configuration Parts.
 - Part VI: the release candidate;
 - Beyond 2.8.0: salvaged contrib modules, which 2.8.0 doesn't wait on.
 
-The verify step runs under Poetry's build backend and uv's alike, so no cycle waits on the uv cycle
-except those that edit its files: `docs-accuracy` and the release candidate.
+The build is uv throughout, and Part I has landed, so no remaining cycle waits on it.
+`config-variant-collision` waited on the move to `tmp_path`, and `docs-accuracy` on the uv build,
+whose files it edits.
 
 ---
 
 # Part I — Build and tests
 
-## Build, lock, test and publish with uv
-
-Move from Poetry to uv throughout: PEP 621 metadata, `uv.lock`, uv's build backend, `uv build` and
-`uv publish` in CI with the existing PyPI token, Read the Docs through uv, CI on 3.9–3.14 (plus macOS
-and Windows on 3.9 and 3.14) with current Actions, and a dependabot configuration for uv and GitHub Actions that targets `develop`. Its lock
-supersedes dependabot PRs #25, #27 and #28.
-
-*Order: 1 · Waits on: adoption · Refs: #25, #27, #28*
-**Seed:** [`issues/uv-build-and-ci.md`](issues/uv-build-and-ci.md)
-
-## Tests write only to pytest's temporary directories
-
-The suite writes fixed files under `/tmp/cmdkit/config`. It fails where `/tmp` isn't writable and
-races with itself across Python versions. Move every file test to `tmp_path`. Every configuration
-cycle edits `tests/test_config.py`, so this goes first.
-
-*Order: 2 · Waits on: nothing · Refs: —*
-**Seed:** [`issues/tests-use-tmp-path.md`](issues/tests-use-tmp-path.md)
+Shipped: the build, lock, tests and publish moved to uv (#30), and the suite writes only to pytest's
+temporary directories (#31).
 
 ---
 
@@ -75,7 +60,7 @@ cycle edits `tests/test_config.py`, so this goes first.
 raises "more than one variant", and item access returns the stale lower value. The highest layer
 that sets any variant should win.
 
-*Order: 3 · Waits on: `tests-use-tmp-path` · Refs: —*
+*Order: 3 · Waits on: nothing (`tests-use-tmp-path` landed, #31) · Refs: —*
 **Seed:** [`issues/config-variant-collision.md`](issues/config-variant-collision.md)
 
 ## File loading accepts paths and handles, and its errors name the file
@@ -225,10 +210,11 @@ module TODO's new-like configuration without a key.
 
 ## The documentation states what the code and CI do
 
-Fix the stale Python floor, the tested-platforms claim, broken docstring examples, and a deprecation
-notice on `Environ.reduce` that nothing enforces (the docs change; no warning is added).
+Fix the stale Python floor, broken docstring examples, and a deprecation notice on `Environ.reduce`
+that nothing enforces (the docs change; no warning is added). The tested-platforms claim is true now
+that CI covers macOS and Windows; tie it to the CI matrix.
 
-*Order: 20 · Waits on: `uv-build-and-ci` · Refs: —*
+*Order: 20 · Waits on: nothing (`uv-build-and-ci` landed, #30) · Refs: —*
 **Seed:** [`issues/docs-accuracy.md`](issues/docs-accuracy.md)
 
 ---
