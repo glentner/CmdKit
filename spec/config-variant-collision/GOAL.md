@@ -225,6 +225,15 @@ Raised during planning, ruled at the plan sign-off (2026-11-11):
   keeps today's answer in those two sequences: they are the same class as item assignment and `del`
   bypassing `_` (a non-goal), and are recorded with a test that shows them in
   `issues/config-local-layer-tracking.md` (resolved 2026-11-11; R3, R5).
+  - 2026-11-11 (ruled on review cycle 2): C8 extends to two more sequences of the same class,
+    where `_` folds in-place changes and loses the one that displaced or held a key, accepted for
+    this cycle. **Shape C:** `Configuration(l={'s': 0})`, then `update(s={'t': 1})`, then
+    `update(s={'t_env': 'X'})`: item access along `s`, `t` raises `KeyError`, and
+    `which('s', 't')` raises `TypeError` from the layer's scalar. **The mirrored form of the first
+    sequence:** `Configuration(l={'a_env_eval': 1})`, then `update(a_env='X')`, then
+    `update(a='v')`: item access for `a_env_eval` raises `KeyError`, and `which('a_env_eval')`
+    names `l`. Both are recorded, each with a test that shows it, in
+    `issues/config-local-layer-tracking.md`.
 
 ## Related materials
 
