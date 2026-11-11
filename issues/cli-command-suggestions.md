@@ -12,7 +12,7 @@ appetite: small
 ## Problem
 
 An unknown command in an `ApplicationGroup` raises `ArgumentError(f'unrecognized command:
-{self.command}')` (`src/cmdkit/app.py:196-197`). The message names no alternative, so a typo
+{self.command}')` (`src/cmdkit/app.py:252-253`). The message names no alternative, so a typo
 (`confg`) leaves the user guessing. Python 3.14's argparse can suggest close matches
 (`suggest_on_error`), but only for `choices`, and only on 3.14. A group dispatches a free positional
 in `run`, so the feature never applies.
@@ -40,5 +40,5 @@ reported message contains `config`. `main(['zzz'])` reports `unrecognized comman
 ## Notes
 
 - `difflib.get_close_matches` over the group's `commands` keys works on 3.9.
-- Waits on `cli-defaults`, which makes the message visible.
+- Waited on `cli-defaults`, which made the message visible; it landed in #33.
 - Found by: adoption sweep, 2026-11-10.

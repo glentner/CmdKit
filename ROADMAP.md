@@ -31,7 +31,7 @@ builds on that cycle's behaviour or edits the same files. Every cycle lands as i
 `develop`. While a PR waits for review, the next cycle that doesn't wait on it can proceed, so the
 command-line Part can run beside the configuration Parts.
 
-- Part I: the build and the test suite, shipped;
+- Part I: the build and the test suite;
 - Part II: outright failures in the configuration core, fixed by default;
 - Part III: opt-in configuration behaviour, ending with the environment mapping;
 - Part IV: the command line, defaults first;
@@ -39,9 +39,9 @@ command-line Part can run beside the configuration Parts.
 - Part VI: the release candidate;
 - Beyond 2.8.0: salvaged contrib modules, which 2.8.0 doesn't wait on.
 
-The build is uv throughout, and Part I has landed, so no remaining cycle waits on it.
-`config-variant-collision` waited on the move to `tmp_path`, and `docs-accuracy` on the uv build,
-whose files it edits.
+The build is uv throughout. The uv build, the move to `tmp_path` and `cli-defaults` have landed, so
+no remaining cycle waits on them: `config-variant-collision` waited on the move to `tmp_path`,
+`docs-accuracy` on the uv build, whose files it edits, and most of Part IV on `cli-defaults`.
 
 ---
 
@@ -139,16 +139,7 @@ split stays the default.
 
 # Part IV — Command line
 
-## Argument errors reach stderr, and a group can show its help when run bare
-
-With no logging configured, every argument error is dropped and the program exits 2 in silence: fix
-that by default. As an opt-in, `ALLOW_NOARGS` on a group prints its help and exits 0. The bare group's
-usage and exit 1 stay the default.
-
-*Order: 11 · Waits on: nothing · Refs: —*
-**Seed:** [`issues/cli-defaults.md`](issues/cli-defaults.md)
-- 2026-11-11: the bare-group help moved out of this cycle to its own entry below
-  (`group-noargs-help`); this cycle ships the stderr report.
+Shipped: with no logging configured, argument errors reach stderr instead of being dropped (#33).
 
 ## A group with `ALLOW_NOARGS` can show its help when run bare
 
@@ -156,7 +147,8 @@ Moved out of `cli-defaults`. A bare run of a group that requires its command sho
 exits 0 under the opt-in; every other run, `main(None)` with arguments in `sys.argv` among them,
 stays exactly as in 2.7.7. Decide on the effective command line, inside `main`'s handling.
 
-*Order: unset (filed during the cli-defaults cycle) · Waits on: `cli-defaults` · Refs: —*
+*Order: unset (filed during the cli-defaults cycle) · Waits on: nothing (`cli-defaults` landed, #33)
+· Refs: —*
 **Seed:** [`issues/group-noargs-help.md`](issues/group-noargs-help.md)
 
 ## The argument-error report follows `Logger.handle` when filters keep state
@@ -164,7 +156,8 @@ stays exactly as in 2.7.7. Decide on the effective command line, inside `main`'s
 The report asks `cmdkit.app`'s filters about a record it builds, and never asks `lastResort`'s, so a
 filter that keeps state, reads caller fields or lowers the level can make it differ from Python.
 
-*Order: unset (filed during the cli-defaults cycle) · Waits on: `cli-defaults` · Refs: —*
+*Order: unset (filed during the cli-defaults cycle) · Waits on: nothing (`cli-defaults` landed, #33)
+· Refs: —*
 **Seed:** [`issues/last-resort-filter-fidelity.md`](issues/last-resort-filter-fidelity.md)
 
 ## `import cmdkit` works when the process has no stderr or stdout
@@ -180,7 +173,7 @@ closed descriptor at startup, `pythonw`) importing cmdkit raises `AttributeError
 
 `unrecognized command: 'confg' (did you mean 'config'?)` on every supported Python.
 
-*Order: 12 · Waits on: `cli-defaults` · Refs: —*
+*Order: 12 · Waits on: nothing (`cli-defaults` landed, #33) · Refs: —*
 **Seed:** [`issues/cli-command-suggestions.md`](issues/cli-command-suggestions.md)
 
 ## Importing cmdkit leaves other parsers' `--version` alone
@@ -198,7 +191,7 @@ Hand-written usage and help keep cmdkit's colorization, unchanged. An applicatio
 gets argparse's generated help, coloured by argparse where recent Pythons can. Golden tests of today's
 output come first.
 
-*Order: 14 · Waits on: `import-side-effects`, `cli-defaults` · Refs: —*
+*Order: 14 · Waits on: `import-side-effects` (`cli-defaults` landed, #33) · Refs: —*
 **Seed:** [`issues/argparse-help-fallback.md`](issues/argparse-help-fallback.md)
 
 ## A group's own exception handlers never swallow its command's exit status
@@ -206,7 +199,7 @@ output come first.
 A group subclass that defines `exceptions` loses its command's exit status. The shared
 `Application.exceptions` table stays the default; an explicit opt-in isolates a class's own table.
 
-*Order: 15 · Waits on: `cli-defaults`, `cli-command-suggestions` · Refs: —*
+*Order: 15 · Waits on: `cli-command-suggestions` (`cli-defaults` landed, #33) · Refs: —*
 **Seed:** [`issues/app-exception-handlers.md`](issues/app-exception-handlers.md)
 
 ---
