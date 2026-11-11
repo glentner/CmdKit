@@ -106,9 +106,23 @@ atomic code+state commit.
   does that before the push, and until the open tests-to-`tmp_path` change lands it needs `/tmp`
   writable.
 - **A known flaky test.** The gate seeds Hypothesis; the profile's `verify` does not. A red
-  `test_app_invalid_options` there with a prefix of a long option (`opt='he'`) is the pre-existing
+  `test_app_invalid_options` there with a prefix of `--help` or `--debug` (`opt='he'`) is the pre-existing
   defect in `issues/test-invalid-options-help-prefix.md`, not this change: move `.hypothesis/`
   aside (Hypothesis replays a saved failure) and re-run.
+- **Review cycle 1 remediation (plan revised 2026-11-11).** The review returned
+  changes-requested and the maintainer ruled (`REVIEW.md`, "Maintainer's rulings"; GOAL C7). The
+  build's remediation run reopens two done phases with `set_phase.py`, per code-build Step 1.3,
+  and leaves the review fields to the next review:
+  - **P1 reopens for F1, F3 and F5** (R1, R2, R6): the helper's rule and the suite's pins.
+  - **P2 reopens for F2** (R4, C7): the bare group's help only when the parse of the bare
+    command line fails.
+  - **F4** is the plan's own deferral seed, corrected in this revision's plan commit; no phase.
+
+  The `verify:` strings are unchanged: `gate.sh P1` and `gate.sh P2` gained the review's checks
+  in this revision (`PLAN.md` § 6), and `verify/` is frozen again at this plan commit. P1 is
+  reopened before P2 and its gate does not need P2's remediation (it sweeps only P1's mutants and
+  skips `noargs`), so the two run in order and commit apart. Write `PLAN.md` § 2's code lines
+  verbatim: `mutants` anchors on them, and an anchor it can't find is red.
 - **Phase bodies are instructions, not reports.** Results go in the build report and the commit
   body, never in a phase body: the ledger reads phase bodies.
 
@@ -138,6 +152,30 @@ error's bare message to stderr, once, keeping its status; configured handlers an
       logger's handlers inside a test body and restores them in place) and the tests `PLAN.md`
       § 2 lists for R1, R2, R3, C6 and R7, side by side; existing tests stay byte for byte.
 - [x] Stage the work, then run the verify.
+
+**Review cycle 1 remediation (F1, F3, F5).** The property, both ways: cmdkit writes the line
+exactly when cmdkit's own `NullHandler` is the only reason Python's last resort did not print the
+record; never when Python already printed it (no handler on the walk at all), and never when the
+application silenced the record (a rejecting filter on `cmdkit.app`, and every C6 silent setup).
+
+- [ ] `src/cmdkit/app.py`: replace `_last_resort_would_print` with `_hidden_by_null_handler(logger,
+      level, msg)` as `PLAN.md` § 2 gives it, the body verbatim, with a docstring stating the rule
+      both ways; the `ArgumentError` branch calls it as § 2 shows (`log`, `logging.CRITICAL`,
+      `error`). Nothing else in `Application.main` changes.
+- [ ] `Application.main`'s docstring and the `log_critical` / `log_exception` paragraph of
+      `docs/api/app.rst`: the line is written when cmdkit's `NullHandler` is the only reason the
+      last resort stayed quiet; Python's own line stands alone where no handler is found; a
+      rejecting filter on `cmdkit.app` keeps it silent.
+- [ ] `tests/test_app.py`: the parametrized test over the setups `PLAN.md` § 2 lists under
+      "every decision pinned in the suite", each `once` or `silent`, beside the R1, R2 and R3
+      tests, and the other additions `PLAN.md` § 2 lists for the report (the filters that select
+      on message, level and name; `log_critical` replaced by another logger's `critical`). Name
+      them `test_app_argument_error_*`: the sweep counts kills only from that family (and
+      `test_app_noargs_allowed_*`). No test reads the module's source. Tests this branch added may
+      be adjusted where the rule changed; tests older than the branch stay byte for byte (the
+      static check grades that).
+- [ ] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 21 mutants on
+      both Pythons.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
 - **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`, `AGENTS.md`.
 
@@ -160,6 +198,26 @@ plain application either way, behave as in 2.7.7.
 - [x] Deferral ledger: walk P1 and this phase for any work set aside; each item has an `issues/`
       seed from the template and a `ROADMAP.md` entry, staged with this phase.
 - [x] Stage the work, then run the verify.
+
+**Review cycle 1 remediation (F2, GOAL C7).** A bare run of an `ALLOW_NOARGS` group shows its help
+only when the run would otherwise fail on the missing command; a group whose `command` is optional
+calls `run` exactly as on 2.7.7.
+
+- [ ] `src/cmdkit/app.py`: `ApplicationGroup.main` as `PLAN.md` § 2 gives it, the body verbatim
+      (the group's interface parses the given `cmdline`, so `None` reads `sys.argv` as on 2.7.7;
+      `['--help']` only when it raises `ArgumentError`), and its docstring says so.
+- [ ] `docs/api/app.rst`: `Application.ALLOW_NOARGS` names a group that requires its command;
+      `ApplicationGroup.ALLOW_NOARGS` says the help is shown when the interface rejects an empty
+      command line and that a group whose `command` is optional proceeds to `run`.
+- [ ] `tests/test_app.py`: the optional-command group `PLAN.md` § 2 describes, with its
+      usage-and-1 test (no opt-in) beside its `run` test (`main([])`, and `main(None)` with
+      `sys.argv` patched), both after the R4 tests; `main(None)` on an `ALLOW_NOARGS` group with
+      `sys.argv` `['app', 'bogus']` reports the error; every `main(None)` call in a test patches
+      `sys.argv`. Name them `test_app_group_*` (the sweep's family for this phase).
+- [ ] Deferral ledger: walk P1's and this phase's remediation items for any work set aside; each
+      item has an `issues/` seed from the template and a `ROADMAP.md` entry, staged with this phase.
+- [ ] Stage the work, then run the verify. Its `mutants P2` sweep must kill all 25 mutants on
+      both Pythons.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P2`.
 - **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`.
 

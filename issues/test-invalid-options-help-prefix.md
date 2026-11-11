@@ -14,9 +14,11 @@ appetite: small
 `tests/test_app.py::test_app_invalid_options` draws an option name of 2 to 10 ASCII letters and
 expects `DemoApp.from_cmdline(['arg_1', f'--{opt}'])` to raise `ArgumentError`, skipping only
 `debug` and `option`. argparse accepts unambiguous abbreviations of long options, so `--he`,
-`--hel` and `--help` select `-h/--help`, and `Interface` raises `HelpOption`, not `ArgumentError`;
-the same goes for prefixes of `--debug` and `--option` (`--de`, `--opt`). The test then fails with
-`HelpOption` (falsifying example `opt='he'`). Measured on `develop` (`b9efaca`), Python 3.14: 1 of 40
+`--hel` and `--help` select `-h/--help`, and `Interface` raises `HelpOption`, not `ArgumentError`
+(falsifying example `opt='he'`). Prefixes of `--debug` (`--de`) select the `store_true` flag and
+raise nothing, so the test fails with "DID NOT RAISE". Prefixes of `--option` (`--opt`) are not a
+problem: the option needs a value, so the parse raises `ArgumentError` ("expected one argument")
+and the test passes. Measured on `develop` (`b9efaca`), Python 3.14: 1 of 40
 fixed `--hypothesis-seed` values fails, so the profile's `verify`, which runs the suite on two
 Pythons, goes red now and then with no change to the code. After a failure, Hypothesis saves the
 example in `.hypothesis/` and replays it, so the same checkout then fails on every run until that
@@ -36,8 +38,8 @@ raises `ArgumentError`. It never fails by chance.
 
 ## Sketch of the acceptance criteria
 
-- **R1** — WHEN the drawn option name is a prefix of `help`, `debug` or `option`, the test SHALL
-  skip it (or assert the documented outcome for it), and otherwise SHALL assert `ArgumentError`.
+- **R1** — WHEN the drawn option name is a prefix of `help` or `debug`, the test SHALL skip it (or
+  assert the documented outcome for it), and otherwise SHALL assert `ArgumentError`.
 - **R2** — The suite SHALL pass under any `--hypothesis-seed`, on 3.9 and 3.14.
 
 ## Notes

@@ -12,6 +12,9 @@ P1 and P2:
     - AGENTS.md loses exactly the § Invariants 3 line about dropped argument errors, and nothing
       else in it changes;
     - no spec ids (R1, P2, ...) or spec paths in added lines under src/ or tests/;
+    - no added test line reads the module's source or bytecode (inspect, __file__, hashlib,
+      co_code, linecache): a test that pins the text kills every mutant without pinning any
+      behaviour (adversarial review of the revised plan);
     - every test function the base has in tests/test_app.py is still there, unchanged
       (test_app_group_usage among them).
 P2 also:
@@ -38,6 +41,7 @@ REQUIRED = {'src/cmdkit/app.py', 'tests/test_app.py', 'docs/api/app.rst', 'AGENT
 DROPPED_LINE = ('- Known limitation (recorded, not fixed): with no logging configured, '
                 '`ArgumentError` messages are dropped → `issues/cli-defaults.md`.')
 SPEC_ID = re.compile(r'\b[RP][0-9]+\b|spec/cli-defaults')
+SOURCE_READ = re.compile(r'\binspect\b|getsource|__file__|hashlib|co_code|linecache|__code__')
 OLD_NOARGS = 'is printed to ``sys.stdout`` and ``exit_status.success``'
 DEFERRAL = re.compile(r'do not fix here|known limitation|left as a follow-up|follow-up|deferred|'
                       r'not fixed|out of scope', re.IGNORECASE)
@@ -92,6 +96,8 @@ def common(base: str) -> None:
         if path.startswith(('src/', 'tests/')):
             leaks += [f'{path}: {line.strip()}' for line in diff_lines(base, path)[0] if SPEC_ID.search(line)]
     check('no spec ids in added source or test lines', not leaks, '; '.join(leaks))
+    readers = [line.strip() for line in diff_lines(base, 'tests/test_app.py')[0] if SOURCE_READ.search(line)]
+    check('no added test line reads the module source', not readers, '; '.join(readers))
 
     before = test_functions(git('show', f'{base}:tests/test_app.py'))
     after = test_functions(git('show', ':tests/test_app.py'))

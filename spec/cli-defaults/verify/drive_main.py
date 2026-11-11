@@ -17,11 +17,19 @@ Modes:
     errors   argument errors: reported on stderr when no logging is configured, left to the
              configured handlers or the replaced log_critical otherwise, and silent wherever
              Python's last resort would be; the decision is taken per call; importing and
-             calling leave the logging handlers as they were.
-    noargs   a bare group with and without ALLOW_NOARGS; a bare plain application.
+             calling leave the logging handlers as they were. Review cycle 1: where no handler
+             is found at all, Python's last resort prints the line and cmdkit adds nothing
+             (finding F1, every error target); a filter on cmdkit.app that rejects the record
+             keeps it silent (finding F3), and the filter sees the record's message, level and
+             logger name (adversarial review of the revised plan).
+    noargs   a bare group with and without ALLOW_NOARGS; a bare plain application. Review
+             cycle 1: a group whose command is optional calls run on a bare run, opt-in or not
+             as 2.7.7 does (finding F2, GOAL C7); a group that requires it shows its help, and
+             main(None) with arguments in sys.argv parses them, as 2.7.7 does, rather than
+             showing help (adversarial review of the revised plan).
     all      both.
 
-Footprint: one child at a time, each a short-lived interpreter under 40 MB; about 50 children.
+Footprint: one child at a time, each a short-lived interpreter under 40 MB; about 90 children.
 """
 
 # standard libs
@@ -62,12 +70,27 @@ class AllowParseGroup(Group):
     ALLOW_NOARGS = True
     ALLOW_PARSE = True
 
+class OptGroup(ApplicationGroup):
+    interface = Interface('opt', 'usage: opt [<command>]', 'usage: opt [<command>]\n\nOPT-HELP',
+                          disable_colors=True)
+    command: str = None
+    interface.add_argument('command', nargs='?', default=None)
+    commands = {'cmd': Cmd}
+    def run(self):
+        if self.command is None:
+            print('default action')
+        else:
+            super().run()
+
+class AllowOptGroup(OptGroup):
+    ALLOW_NOARGS = True
+
 class Outer(ApplicationGroup):
     interface = Interface('outer', 'usage: outer <command>', 'usage: outer <command>\n\nOUTER-HELP',
                           disable_colors=True)
     command: str = None
     interface.add_argument('command')
-    commands = {'sub': AllowGroup, 'plain': Group}
+    commands = {'sub': AllowGroup, 'plain': Group, 'opt': AllowOptGroup}
 
 class App(Application):
     interface = Interface('solo', 'usage: solo ARG [-d]', 'usage: solo ARG [-d]\n\nSOLO-HELP',
@@ -158,6 +181,14 @@ def errors() -> None:
         ('nested group, unknown command', 'Outer', ['plain', 'bogus'], 'Group', ['bogus'], 'bogus'),
         ('ALLOW_NOARGS application, bare, missing positional', 'AllowApp', [], 'App', [], 'arg'),
     ]
+    # Review cycle 1, F1: setups that leave no handler at all on the propagate walk. Python's
+    # last resort prints the record itself, bare; cmdkit must not print it a second time.
+    no_handler = [
+        ('dictConfig naming cmdkit strips its handlers',
+         "import logging.config; logging.config.dictConfig({'version': 1, 'loggers': {'cmdkit': {'level': 'WARNING'}}})"),
+        ("cmdkit's handlers cleared", "logging.getLogger('cmdkit').handlers.clear()"),
+        ('cmdkit.app propagate False', "logging.getLogger('cmdkit.app').propagate = False"),
+    ]
     for name, app, argv, source, source_argv, token in cases:
         if source == 'Group' and source_argv == ['bogus']:
             message = 'unrecognized command: bogus'  # raised by ApplicationGroup.run, not the parser
@@ -170,6 +201,11 @@ def errors() -> None:
         check(f'unconfigured: {name}',
               proc.returncode == 2 and proc.stdout == b'' and proc.stderr == (message + '\n').encode(),
               show(proc))
+        for setup_name, setup in no_handler:
+            proc = run_main(f'{app}.main({argv!r})', body_pre=setup)
+            check(f'no handler at all, Python prints once: {setup_name}: {name}',
+                  proc.returncode == 2 and proc.stdout == b'' and proc.stderr == (message + '\n').encode(),
+                  show(proc))
 
     # Configured before import: basicConfig on the root logger gets one CRITICAL record and
     # cmdkit writes nothing of its own.
@@ -223,6 +259,42 @@ logging.getLogger('cmdkit').addHandler(Keep())
     proc = run_main("Group.main(['bogus'])", body_pre=(
         "logging.getLogger('cmdkit.app').setLevel(logging.ERROR); logging.lastResort.setLevel(logging.ERROR)"))
     check('cmdkit.app and the last resort at ERROR: a CRITICAL record still prints, bare',
+          proc.returncode == 2 and proc.stdout == b''
+          and proc.stderr == b'unrecognized command: bogus\n', show(proc))
+    # Review cycle 1, F3: a filter on cmdkit.app that rejects the record stops Python before it
+    # looks for handlers, so nothing is printed; one that accepts it changes nothing. Python
+    # consults only the logging logger's own filters, so a rejecting filter on cmdkit does not
+    # silence the line.
+    reject = 'class Reject(logging.Filter):\n    def filter(self, record):\n        return False\n'
+    accept = 'class Accept(logging.Filter):\n    def filter(self, record):\n        return True\n'
+    proc = run_main("Group.main(['bogus'])", body_pre=reject + "logging.getLogger('cmdkit.app').addFilter(Reject())")
+    check('a filter on cmdkit.app rejects the record: cmdkit silent',
+          proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+    proc = run_main("Group.main(['cmd', 'x', '--bogus'])",
+                    body_pre=reject + "logging.getLogger('cmdkit.app').addFilter(Reject())")
+    check('a filter on cmdkit.app rejects the record: cmdkit silent, error inside a group command',
+          proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+    proc = run_main("Group.main(['bogus'])", body_pre=accept + "logging.getLogger('cmdkit.app').addFilter(Accept())")
+    check('a filter on cmdkit.app accepts the record: the bare line once',
+          proc.returncode == 2 and proc.stdout == b''
+          and proc.stderr == b'unrecognized command: bogus\n', show(proc))
+    by_message = ('class ByMessage(logging.Filter):\n    def filter(self, record):\n'
+                  "        return 'bogus' not in record.getMessage()\n")
+    proc = run_main("Group.main(['bogus'])", body_pre=by_message + "logging.getLogger('cmdkit.app').addFilter(ByMessage())")
+    check('a filter on cmdkit.app rejects the message: cmdkit silent',
+          proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+    by_level = ('class ByLevel(logging.Filter):\n    def filter(self, record):\n'
+                '        return record.levelno >= logging.CRITICAL\n')
+    proc = run_main("Group.main(['bogus'])", body_pre=by_level + "logging.getLogger('cmdkit.app').addFilter(ByLevel())")
+    check('a filter on cmdkit.app passes CRITICAL only: the bare line once',
+          proc.returncode == 2 and proc.stdout == b''
+          and proc.stderr == b'unrecognized command: bogus\n', show(proc))
+    proc = run_main("Group.main(['bogus'])", body_pre="logging.getLogger('cmdkit.app').addFilter(logging.Filter('cmdkit.app'))")
+    check('a name filter for cmdkit.app on cmdkit.app: the bare line once',
+          proc.returncode == 2 and proc.stdout == b''
+          and proc.stderr == b'unrecognized command: bogus\n', show(proc))
+    proc = run_main("Group.main(['bogus'])", body_pre=reject + "logging.getLogger('cmdkit').addFilter(Reject())")
+    check('a rejecting filter on the cmdkit logger, which Python does not consult: the bare line once',
           proc.returncode == 2 and proc.stdout == b''
           and proc.stderr == b'unrecognized command: bogus\n', show(proc))
     proc = run_main("Group.main(['bogus'])", body_pre=dict_config % "'disable_existing_loggers': False, ")
@@ -320,6 +392,31 @@ def noargs() -> None:
     proc = run_main("Outer.main(['sub'])")
     check('opt-in as a nested command: bare sub-group prints its --help and returns 0',
           proc.returncode == 0 and proc.stdout == helped.stdout and proc.stderr == b'', show(proc))
+
+    # Review cycle 1, F2 (GOAL C7): a group whose command is optional calls run on a bare run,
+    # as 2.7.7 does; only a run that would fail on the missing command shows the help.
+    for call in ('AllowOptGroup.main([])', 'AllowOptGroup.main(None)', 'AllowOptGroup.main()'):
+        proc = run_main(call)
+        check(f'optional command, opt-in: {call} calls run and returns 0',
+              proc.returncode == 0 and proc.stdout == b'default action\n' and proc.stderr == b'', show(proc))
+    proc = run_main("Outer.main(['opt'])")
+    check('optional command, opt-in, nested as a command: the bare sub-group calls run',
+          proc.returncode == 0 and proc.stdout == b'default action\n' and proc.stderr == b'', show(proc))
+    proc = run_main("AllowOptGroup.main(['cmd', 'x'])")
+    check('optional command, opt-in: a named command still runs',
+          proc.returncode == 0 and proc.stdout == b'ran cmd x\n' and proc.stderr == b'', show(proc))
+    # main(None) with the opt-in parses sys.argv (argparse's default), as 2.7.7 does: arguments
+    # there are not a bare run, and an error among them is reported, not replaced by the help.
+    proc = run_main('AllowGroup.main(None)', body_pre="sys.argv = ['app', 'bogus']")
+    check("opt-in: main(None) with sys.argv ['app', 'bogus'] reports the error, status 2",
+          proc.returncode == 2 and proc.stdout == b''
+          and proc.stderr == b'unrecognized command: bogus\n', show(proc))
+    proc = run_main('AllowGroup.main(None)', body_pre="sys.argv = ['app', 'cmd']")
+    check("opt-in: main(None) with sys.argv ['app', 'cmd'] dispatches to cmd, as 2.7.7 does",
+          proc.returncode == 1 and proc.stdout == b'usage: app cmd ARG [-d]\n' and proc.stderr == b'', show(proc))
+    proc = run_main('OptGroup.main([])')
+    check('optional command, default: OptGroup.main([]) prints usage and returns 1',
+          proc.returncode == 1 and proc.stdout == b'usage: opt [<command>]\n' and proc.stderr == b'', show(proc))
 
     usage = b'usage: app <command>\n'
     for call in ('Group.main([])', 'Group.main(None)', "Outer.main(['plain'])"):
