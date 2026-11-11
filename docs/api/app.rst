@@ -46,11 +46,13 @@ Reference
     .. autoattribute:: ALLOW_NOARGS
 
         By default, if the ``cmdline`` list of arguments passed to :func:`~Application.main`
-        is empty, the usage text is printed to ``sys.stdout`` and ``exit_status.success``
+        is empty, the usage text is printed to ``sys.stdout`` and ``exit_status.usage``
         is returned.
 
         If instead the application should proceed to its ``run`` method even in the
         absence of any arguments, set ``ALLOW_NOARGS`` as a class-level attribute.
+        The arguments are then parsed as usual, so a required argument that is missing
+        is an argument error (see :data:`~Application.log_critical`).
 
         .. code-block::
 
@@ -91,6 +93,25 @@ Reference
         In the main try/except block, this method is called with a message.
         This can be overridden by any function with the same interface.
         It is recommended to override this with your own logger.
+
+        When :func:`~main` catches an :class:`~cmdkit.cli.ArgumentError`, the default
+        ``log_critical`` logs it as a single ``CRITICAL`` record on the ``cmdkit.app`` logger.
+        If the :class:`~logging.NullHandler` *cmdkit* attaches to its own logger is the only
+        reason Python's last-resort handler did not print that record, which is the case when
+        the application has not configured logging, the message is also written as is to
+        ``sys.stderr``, followed by a newline; a user who mistypes an option still sees why it
+        was refused. With a handler of the application's in place, the record goes to it as
+        usual and nothing else is written. Where no handler is found at all (for instance once
+        the ``cmdkit`` logger's handlers are removed), Python's last resort prints the record
+        itself, and that line stands alone. Anything that silences the logger, such as
+        :func:`logging.disable`, a filter on ``cmdkit.app`` that rejects the record, the
+        default ``disable_existing_loggers`` of :func:`logging.config.dictConfig`, or a
+        :class:`~logging.NullHandler` of the application's own on the ``cmdkit`` logger (such as
+        routing ``cmdkit`` to a ``NullHandler`` with ``propagate: False`` in a ``dictConfig``),
+        keeps it silent. Without a ``sys.stderr`` (it is ``None``) the message is skipped, and
+        a failure to write it (a closed stream or a broken pipe) is ignored: :func:`~main` still
+        returns ``exit_status.bad_argument`` and writes nothing to ``sys.stdout``. An override of ``log_critical`` alone handles the message: *cmdkit*
+        writes nothing further.
 
     |
 

@@ -1,0 +1,329 @@
+---
+slug: cli-defaults
+title: Argument errors reach stderr, and a group can show its help when run bare
+kind: fix
+appetite: small
+status: done
+branch: fix/cli-defaults
+base: develop
+current_phase: done
+last_updated: '2026-11-11'
+phases:
+- id: P1
+  name: Argument errors reach stderr when no logging is configured
+  status: done
+  satisfies:
+  - R1
+  - R2
+  - R3
+  - R6
+  - R7
+  - R8
+  - R9
+  depends_on: []
+  parallel: false
+  hammerable: false
+  hill: uphill
+  verify: sh spec/cli-defaults/verify/gate.sh P1
+- id: P2
+  name: A group's bare run stays as in 2.7.7 (the bare-group help moved out)
+  status: done
+  satisfies:
+  - R5
+  - R6
+  - R8
+  depends_on:
+  - P1
+  parallel: false
+  hammerable: false
+  hill: uphill
+  verify: sh spec/cli-defaults/verify/gate.sh P2
+review:
+  last_reviewed_commit: f7a5bacede11b0d37a994c5e9ba930d60d03d259
+  verdict: approved
+  blocked_reason: ''
+  cycle: 6
+---
+
+# TECH.md — Argument errors reach stderr, and a group can show its help when run bare
+
+The **context engine and finite-state machine** for building this change. The YAML frontmatter
+above is the resume ground truth; the per-phase checklists below are the work. The build step
+executes the next actionable phase, runs its `verify:` command, updates the state, and makes one
+atomic code+state commit.
+
+- **Vision / requirements (locked):** [`GOAL.md`](GOAL.md) — R-IDs are the contract.
+- **Authoritative design:** [`PLAN.md`](PLAN.md).
+- **Backing research:** [`research/00-digest.md`](research/00-digest.md) and its briefs.
+
+## Frontmatter field reference
+
+- `status` (top): `planned | in_progress | blocked | in_review | done`.
+- `appetite`: `small | big` — caps phase count and build-iteration budget (circuit breaker).
+- `branch`, `base`: the cycle's branch (prefix per GOAL `kind`, from the profile's `branches`) and
+  the profile's `base`.
+- phase `status`: `pending | in_progress | done | blocked`
+- `satisfies`: GOAL R-IDs this phase delivers (traceability anchor for the review).
+- `depends_on`: phase ids that must be `done` first.
+- `parallel`: `true` only for genuinely independent, non-coupled work. Any phase touching the
+  profile's `coupled core` is always `false`.
+- `hammerable`: `false` marks a correctness phase that scope-hammering must never cut.
+- `hill`: `uphill` → `crest` → `downhill`. A phase stuck `uphill` across builds is a raised hand.
+- `attempts`: durable failed-verify counter (absent = 0).
+- `verify`: the exact command that proves the phase.
+- `review.cycle`: completed review passes.
+
+## Conventions (apply to every phase)
+
+- Commit conventions, code style, and load-bearing invariants come from the repo's `AGENTS.md` — it
+  is the constitution. Walk the sections of its § Invariants that this change touches; that is the
+  curated footgun checklist.
+- One phase per build-step invocation by default; one atomic commit containing **both** the code and
+  the `TECH.md` state change. The branch commit subject is the build step's (the profile's
+  `branch commits`), not restated here; branch commits are squashed away at publish per the
+  profile's `landing`. Trailers follow the profile's `branch commits`.
+- The last phase carries the standing last-phase items: the deferral ledger, and every item the
+  previous cycle's last phase carried for a project-level obligation (none: the previous cycle's
+  last-phase items were its own CI evidence and its ledger). A plan that drops one says why in
+  `PLAN.md`.
+- A PR body (when the profile's `landing` opens one) ends with an attribution naming the actual
+  harness, model, and variant.
+- A CLI/feature change obeys the profile's `same-commit rules` (§ Conventions in `AGENTS.md`): the
+  help text, docs, or generated files it names change **in the same commit**.
+
+### Cycle-specific
+
+- **The gate.** Each phase's `verify:` is `sh spec/cli-defaults/verify/gate.sh P<n>`; its modes and
+  checks are in the script's header and `PLAN.md` § 6. It installs and grades an export of the git
+  index and diffs the index against the plan commit, so **stage the phase's work before running
+  it**. `verify/` is frozen at the plan commit and the gate refuses to run when it differs; a
+  remediation checker goes in `spec/cli-defaults/remediation/`.
+- **How to run it.** From the cycle worktree, sandboxed or not. Set `UV_CACHE_DIR` and
+  `UV_TOOL_DIR` to per-step directories outside the repository and keep `TMPDIR` writable (the
+  export goes to a fresh directory there and is left in place). A sandboxed run names `pypi.org`
+  and `files.pythonhosted.org` for uv. The gate never runs the full suite: the profile's `verify`
+  does that before the push, and until the open tests-to-`tmp_path` change lands it needs `/tmp`
+  writable.
+- **A known flaky test.** The gate seeds Hypothesis; the profile's `verify` does not. A red
+  `test_app_invalid_options` there with a prefix of `--help` or `--debug` (`opt='he'`) is the pre-existing
+  defect in `issues/test-invalid-options-help-prefix.md`, not this change: move `.hypothesis/`
+  aside (Hypothesis replays a saved failure) and re-run.
+- **Review cycle 1 remediation (plan revised 2026-11-11).** The review returned
+  changes-requested and the maintainer ruled (`REVIEW.md`, "Maintainer's rulings"; GOAL C7). The
+  build's remediation run reopens two done phases with `set_phase.py`, per code-build Step 1.3,
+  and leaves the review fields to the next review:
+  - **P1 reopens for F1, F3 and F5** (R1, R2, R6): the helper's rule and the suite's pins.
+  - **P2 reopens for F2** (R4, C7): the bare group's help only when the parse of the bare
+    command line fails.
+  - **F4** is the plan's own deferral seed, corrected in this revision's plan commit; no phase.
+
+  The `verify:` strings are unchanged: `gate.sh P1` and `gate.sh P2` gained the review's checks
+  in this revision (`PLAN.md` § 6), and `verify/` is frozen again at this plan commit. P1 is
+  reopened before P2 and its gate does not need P2's remediation (it sweeps only P1's mutants and
+  skips `noargs`), so the two run in order and commit apart. Write `PLAN.md` § 2's code lines
+  verbatim: `mutants` anchors on them, and an anchor it can't find is red.
+- **Review cycle 2 remediation (plan revised 2026-11-11, GOAL C9: the split).** Review cycle 2
+  escalated and the maintainer split the cycle (`REVIEW.md`, "Maintainer's ruling on the cycle-2
+  escalation"). The build's remediation run reopens two done phases with `set_phase.py`, per
+  code-build Step 1.3, and leaves the review fields to review cycle 3, the last allowed:
+  - **P1 reopens for cycle 2's F3** (R1, R2, R7): the mark on cmdkit's own `NullHandler`.
+  - **P2 reopens as the revert** (R5, R6, R8): `ApplicationGroup.main`, its tests and its docs go.
+    Its name and `satisfies` were retuned with `set_phase.py` in this revision.
+  - Cycle 2's F1, F2 and F5 leave with the bare-group help: `issues/group-noargs-help.md`.
+  - Cycle 2's F4, filed in this revision's plan commit: `issues/last-resort-filter-fidelity.md`.
+
+  The `verify:` strings are unchanged; `gate.sh P1` and `gate.sh P2` gained this revision's checks
+  (`PLAN.md` § 6) and `verify/` is frozen again at this plan commit. P1 runs first and its gate
+  does not need P2's work (it skips `noargs` and P2's static checks); the two commit apart. Write
+  `PLAN.md` § 2.0's lines verbatim: the static check and the mutant sweep anchor on them.
+- **Review cycle 3 remediation (plan revised 2026-11-11, GOAL C10: a scoped fourth cycle).** The
+  build's remediation run reopens **P1** with `set_phase.py` for CR-F1 (R1) and the review's I6
+  observation; **P2 stays done**. The review fields are left to review cycle 4, which is scoped to
+  this remediation. The `verify:` strings are unchanged; `gate.sh P1` now grades everything P2's
+  gate does, and `verify/` is frozen again at this plan commit. Write `PLAN.md` § 2.00's lines
+  verbatim. Run the gate with `CLI_DEFAULTS_VERIFY_TREE` set to the tree id recorded at sign-off.
+- **Phase bodies are instructions, not reports.** Results go in the build report and the commit
+  body, never in a phase body: the ledger reads phase bodies.
+
+---
+
+## Phase P1 — Argument errors reach stderr when no logging is configured
+**Satisfies:** R1, R2, R3, R6, R7, R8, R9 · **Depends on:** —
+**Goal:** with no logging configured and the default `log_critical`, `main` writes an argument
+error's bare message to stderr, once, keeping its status; configured handlers and a replaced
+`log_critical` see exactly what they see in 2.7.7; nothing is attached to any logger.
+
+- [x] `src/cmdkit/app.py`: add `import sys` to the standard-libs group; add the private module
+      function `_last_resort_would_print(logger, level)` as `PLAN.md` § 2 specifies (GOAL C6: the
+      enabled check, the `logging.lastResort` presence and level check, then the walk along
+      `propagate` that any handler stops whatever its level, except an exact
+      `logging.NullHandler` on the `cmdkit` logger), with a docstring.
+- [x] `Application.main`: in the `ArgumentError` branch, after `cls.log_critical(error)`, write
+      `print(error, file=sys.stderr)` when `cls.log_critical == log.critical` and
+      `_last_resort_would_print(log, logging.CRITICAL)` is true. Leave the other branches as they
+      are.
+- [x] `Application.main`'s docstring: how an argument error is reported.
+- [x] `docs/api/app.rst`: the `log_critical` / `log_exception` paragraph describes the default
+      report on stderr and that an override alone handles the message.
+- [x] `AGENTS.md`: delete the last bullet of § Invariants 3, the one recording that `ArgumentError`
+      messages are dropped with no logging configured, and change nothing else in the file.
+- [x] `tests/test_app.py`: add the `no_logging_configured()` context manager (hides the root
+      logger's handlers inside a test body and restores them in place) and the tests `PLAN.md`
+      § 2 lists for R1, R2, R3, C6 and R7, side by side; existing tests stay byte for byte.
+- [x] Stage the work, then run the verify.
+
+**Review cycle 1 remediation (F1, F3, F5).** The property, both ways: cmdkit writes the line
+exactly when cmdkit's own `NullHandler` is the only reason Python's last resort did not print the
+record; never when Python already printed it (no handler on the walk at all), and never when the
+application silenced the record (a rejecting filter on `cmdkit.app`, and every C6 silent setup).
+
+- [x] `src/cmdkit/app.py`: replace `_last_resort_would_print` with `_hidden_by_null_handler(logger,
+      level, msg)` as `PLAN.md` § 2 gives it, the body verbatim, with a docstring stating the rule
+      both ways; the `ArgumentError` branch calls it as § 2 shows (`log`, `logging.CRITICAL`,
+      `error`). Nothing else in `Application.main` changes.
+- [x] `Application.main`'s docstring and the `log_critical` / `log_exception` paragraph of
+      `docs/api/app.rst`: the line is written when cmdkit's `NullHandler` is the only reason the
+      last resort stayed quiet; Python's own line stands alone where no handler is found; a
+      rejecting filter on `cmdkit.app` keeps it silent.
+- [x] `tests/test_app.py`: the parametrized test over the setups `PLAN.md` § 2 lists under
+      "every decision pinned in the suite", each `once` or `silent`, beside the R1, R2 and R3
+      tests, and the other additions `PLAN.md` § 2 lists for the report (the filters that select
+      on message, level and name; `log_critical` replaced by another logger's `critical`). Name
+      them `test_app_argument_error_*`: the sweep counts kills only from that family (and
+      `test_app_noargs_allowed_*`). No test reads the module's source. Tests this branch added may
+      be adjusted where the rule changed; tests older than the branch stay byte for byte (the
+      static check grades that).
+- [x] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 21 mutants on
+      both Pythons.
+
+**Review cycle 2 remediation (cycle 2's F3; GOAL C9).** cmdkit's own `NullHandler` is the one
+`src/cmdkit/__init__.py` creates, recognised by a mark set there; an application's own
+`NullHandler` on the `cmdkit` logger, added or configured by `dictConfig`, keeps the line silent.
+
+- [x] `src/cmdkit/__init__.py`: replace the `addHandler(NullHandler())` line with `PLAN.md` § 2.0's
+      four lines, verbatim, under the existing comment. Change nothing else in the file.
+- [x] `src/cmdkit/app.py`: in `_hidden_by_null_handler`, the walk's test becomes § 2.0's mark test,
+      verbatim; the docstring says only the marked handler counts as cmdkit's.
+- [x] `docs/api/app.rst` (`log_critical` paragraph) and `Application.main`'s docstring: an
+      application's own `NullHandler` on the `cmdkit` logger is a handler of the application's.
+- [x] `tests/test_app.py`: the setups and the `dictConfig` test § 2.0 lists, named
+      `test_app_argument_error_*`; the setup that pinned an application's `NullHandler` on `cmdkit`
+      as printing now pins it silent. No test reads or pins the source text: the sweep's control
+      run fails on one.
+- [x] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 25 mutants on both
+      Pythons.
+
+**Review cycle 3 remediation (CR-F1; GOAL C10).** The report's write has the last resort's error
+handling: skipped when `sys.stderr` is `None`, its `OSError` or `ValueError` swallowed, so `main`
+returns 2 and writes nothing to stdout.
+
+- [x] `src/cmdkit/app.py`: the `ArgumentError` branch as `PLAN.md` § 2.00 gives it, verbatim.
+      `Application.main`'s docstring and the `log_critical` paragraph of `docs/api/app.rst` say
+      the message is skipped without a stderr and a failed write is ignored.
+- [x] `tests/test_app.py`, named `test_app_argument_error_*`: the dead-pipe child, the
+      `redirect_stderr(None)` test and the closed-stderr test § 2.00 lists.
+- [x] `tests/test_app.py`: `test_app_library_handler_on_cmdkit_logger` (I6) as § 2.00 lists.
+- [x] `tests/test_app.py`: replace the `marked_null_handler` helper and its setup with the
+      `importlib.reload(cmdkit)` setup § 2.00 describes; the tests no longer name the private mark.
+- [x] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 30 mutants on both
+      Pythons; its `noargs` drive must stay green (P2's revert stands).
+
+**Review cycle 4 remediation (amendment 2026-11-11; the maintainer's ruling on review cycle 4,
+not in `PLAN.md`).** Wording and a test only; no code line changes.
+
+- [x] R4-F1: `docs/api/app.rst` (`log_critical` paragraph) and `Application.main`'s docstring stop
+      claiming parity with Python's last resort for a closed stream (its `handleError` catches
+      only `OSError`); they state cmdkit's own behaviour: skipped without a stderr, a failed
+      write ignored, `main` returns 2.
+- [x] R4-F2: `test_app_library_handler_on_cmdkit_logger` also checks, in a fresh `-I` child, that
+      importing cmdkit leaves the root logger with no handler and that an application's own
+      warning still reaches Python's last resort.
+- [x] R4-F3, the import-time crash without a stderr (pre-existing in 2.7.7), seeded:
+      `issues/import-without-stderr.md` and its `ROADMAP.md` entry, staged with this phase.
+- [x] Stage the work, then run the verify.
+
+**CI on Windows: line endings in child output (amendment 2026-11-11).** The tests that compare a
+child interpreter's captured output read `\r\n` as `\n`; the assertions stay otherwise exact.
+After the merge of `develop`, `static` is base-anchored and fails for the merge's own files, so
+this item is graded by the gate's `tests`, `errors` and `noargs` modes and the profile's `verify`.
+
+- [x] `tests/test_app.py`: every comparison of a child's stdout or stderr normalises line endings.
+- [x] Stage the work, then run `gate.sh tests`, `errors` and `noargs`, and the profile's `verify`.
+- **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
+- **Touches:** `src/cmdkit/app.py`, `src/cmdkit/__init__.py`, `tests/test_app.py`, `docs/api/app.rst`,
+  `AGENTS.md`, `issues/import-without-stderr.md`, `ROADMAP.md`.
+
+## Phase P2 — A group's bare run stays as in 2.7.7 (the bare-group help moved out)
+**Satisfies:** R5, R6, R8 (R4 left with GOAL C9) · **Depends on:** P1
+**Since review cycle 2:** this phase reverts the work its earlier items below did; they are the
+record.
+**Goal:** an `ApplicationGroup` with `ALLOW_NOARGS = True` run with an empty command line prints
+what its `--help` prints and returns `exit_status.success`; without the opt-in a bare group, and a
+plain application either way, behave as in 2.7.7.
+
+- [x] `src/cmdkit/app.py`: add `ApplicationGroup.main` as `PLAN.md` § 2 specifies (an empty
+      command line becomes `['--help']` when `cls.ALLOW_NOARGS is True`, then the base `main`),
+      with a docstring. `from_cmdline` stays as it is.
+- [x] `docs/api/app.rst`: the `ALLOW_NOARGS` paragraph states `exit_status.usage` for a bare run
+      and what the attribute does on a group; the `ApplicationGroup` section gains an
+      `ALLOW_NOARGS` entry.
+- [x] `tests/test_app.py`: the R4 tests (`main([])` and `main(None)` on an `ALLOW_NOARGS` group,
+      byte-equal to its `--help` output, status 0) directly after `test_app_group_usage`, and
+      `Group.main(None)` printing usage with status 1; the plain-application tests for
+      `ALLOW_NOARGS` with and without a required positional.
+- [x] Deferral ledger: walk P1 and this phase for any work set aside; each item has an `issues/`
+      seed from the template and a `ROADMAP.md` entry, staged with this phase.
+- [x] Stage the work, then run the verify.
+
+**Review cycle 1 remediation (F2, GOAL C7).** A bare run of an `ALLOW_NOARGS` group shows its help
+only when the run would otherwise fail on the missing command; a group whose `command` is optional
+calls `run` exactly as on 2.7.7.
+
+- [x] `src/cmdkit/app.py`: `ApplicationGroup.main` as `PLAN.md` § 2 gives it, the body verbatim
+      (the group's interface parses the given `cmdline`, so `None` reads `sys.argv` as on 2.7.7;
+      `['--help']` only when it raises `ArgumentError`), and its docstring says so.
+- [x] `docs/api/app.rst`: `Application.ALLOW_NOARGS` names a group that requires its command;
+      `ApplicationGroup.ALLOW_NOARGS` says the help is shown when the interface rejects an empty
+      command line and that a group whose `command` is optional proceeds to `run`.
+- [x] `tests/test_app.py`: the optional-command group `PLAN.md` § 2 describes, with its
+      usage-and-1 test (no opt-in) beside its `run` test (`main([])`, and `main(None)` with
+      `sys.argv` patched), both after the R4 tests; `main(None)` on an `ALLOW_NOARGS` group with
+      `sys.argv` `['app', 'bogus']` reports the error; every `main(None)` call in a test patches
+      `sys.argv`. Name them `test_app_group_*` (the sweep's family for this phase).
+- [x] Deferral ledger: walk P1's and this phase's remediation items for any work set aside; each
+      item has an `issues/` seed from the template and a `ROADMAP.md` entry, staged with this phase.
+- [x] Stage the work, then run the verify. Its `mutants P2` sweep must kill all 25 mutants on
+      both Pythons.
+
+**Review cycle 2 remediation: the revert (GOAL C9).** The bare-group help leaves the cycle for
+`issues/group-noargs-help.md`. `ApplicationGroup`'s bare-run behaviour returns to 2.7.7's, apart
+from R1's report of any argument error it meets.
+
+- [x] `src/cmdkit/app.py`: remove `ApplicationGroup.main` whole; the `ApplicationGroup` class is
+      then byte-identical to `b9efaca`'s.
+- [x] `docs/api/app.rst`: remove the `ApplicationGroup` section's `ALLOW_NOARGS` entry and its
+      `.. automethod:: main`, and the `Application.ALLOW_NOARGS` sentence that points to a group's
+      help. Keep C4's `exit_status.usage` and the sentence on a missing required argument.
+- [x] `tests/test_app.py`: remove the tests that assert a group's help on a bare run; keep, or put
+      in their place, the `test_app_group_*` tests `PLAN.md` § 2.0 lists, each pinning 2.7.7's
+      bare-group behaviour (an `ALLOW_NOARGS` group that requires its command reports it missing
+      with status 2).
+- [x] Deferral ledger: walk P1's and this phase's review cycle 2 items; each item set aside has its
+      `issues/` seed and `ROADMAP.md` entry (both were filed with this plan revision).
+- [x] Stage the work, then run the verify. Its `mutants P2` sweep must kill all 25 mutants on both
+      Pythons.
+- **Verify:** `sh spec/cli-defaults/verify/gate.sh P2`.
+- **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`.
+
+---
+
+## How the build step drives this
+
+1. The next-phase helper prints the next actionable phase (statuses are authoritative; the
+   `current_phase` pointer is reconciled against them).
+2. Pre-flight: the cycle worktree is clean, on `branch`, and `base` is reachable.
+3. Execute every `[ ]` in the phase (consult `PLAN.md` / `research/` for detail).
+4. Run the phase's `verify:` command — never advance on a checkbox alone.
+5. Amend this file freely if reality diverges (note the amendment in the commit body). STOP and
+   escalate only on a **`GOAL.md` contradiction**.
+6. Mark the phase `done`, advance `current_phase`; one `[fix]` commit; stop and report.
