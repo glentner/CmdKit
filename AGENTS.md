@@ -44,7 +44,7 @@ This repo is built by the spec-driven factory: GOAL → PLAN/TECH → build → 
 | landing | `squash-pr`: one PR per cycle from its branch into `develop`, titled `[{category}] {What changed}` and squashed on merge. The maintainer merges every PR |
 | ci | `gh pr checks` must be green before landing: the `tests` workflow runs on every PR into `develop` |
 | setup | none: `verify` installs the tree into a fresh, isolated environment on every run |
-| verify | `(for v in 3.9 3.14; do uv run --isolated --no-project --python $v --with pytest --with hypothesis --with tomli --with tomli-w --with pyyaml --with-editable . python -m pytest || exit 1; done)`: the whole suite on the floor and the newest Python. It runs under Poetry's build backend and uv's alike. Until `issues/tests-use-tmp-path.md` lands, the suite writes to `/tmp/cmdkit/config`, so a sandboxed run must allow that path |
+| verify | `(for v in 3.9 3.14; do uv run --isolated --no-project --python $v --with pytest --with hypothesis --with tomli --with tomli-w --with pyyaml --with-editable . python -m pytest || exit 1; done)`: the whole suite on the floor and the newest Python. It installs the tree through uv's build backend. |
 | throwaway environment | none: cmdkit is a library and keeps no state of its own. A test that reaches `AppContext.default` passes `create_dirs=False` or a temporary home, because the default creates directories under the user's home |
 | coupled core | the configuration core (`src/cmdkit/namespace.py` `NSCoreMixin` and `Environ`, `src/cmdkit/config.py`); the command-line path (`src/cmdkit/cli.py`, `src/cmdkit/app.py`, `colorize_usage` in `src/cmdkit/ansi.py`); the public interface (`src/cmdkit/__init__.py` `__all__` and `docs/api/`); the build (`pyproject.toml`, the lockfile, `.github/workflows/`, `.readthedocs.yaml`) |
 | same-commit rules | see § Conventions |
@@ -58,16 +58,16 @@ This repo is built by the spec-driven factory: GOAL → PLAN/TECH → build → 
 release:
   trigger: on-demand
   version:
-    source: pyproject.toml tool.poetry.version     # project.version once the uv cycle lands; it moves this line in the same commit
+    source: pyproject.toml project.version
     scheme: pep440
     tag_format: "{v}"
     prerelease_syntax: '^\d+\.\d+\.\d+(a|b|rc)\d+$'
     propose_next: none
   bump:
-    lock: none                  # poetry.lock carries no project version; `uv lock` once uv.lock exists
+    lock: uv lock               # rewrites cmdkit's own entry in uv.lock; a bumped version without it fails `uv lock --check`
     lockstep: []
-    files: [pyproject.toml]     # plus uv.lock once it exists
-    diff_rule: only the version string changes (and, with uv.lock, cmdkit's own entry in it)
+    files: [pyproject.toml, uv.lock]
+    diff_rule: only the version string changes, in pyproject.toml and in cmdkit's own entry in uv.lock
     subject: "[build] Version {v}"
   gate:
     - (for v in 3.9 3.10 3.11 3.12 3.13 3.14; do uv run --isolated --no-project --python $v --with pytest --with hypothesis --with tomli --with tomli-w --with pyyaml --with-editable . python -m pytest || exit 1; done)
@@ -125,7 +125,7 @@ A CONFIRMED finding in any of these files needs a human decision before the cycl
 - `src/cmdkit/cli.py` (`Interface`, and the `argparse` override that reaches every parser in the process)
 - `src/cmdkit/logging.py` (the logger class and record factory it installs process-wide)
 - `src/cmdkit/__init__.py` (the public interface and everything that runs at import)
-- `pyproject.toml` and the lockfile (`poetry.lock` today, `uv.lock` after the uv cycle)
+- `pyproject.toml` and the lockfile: `uv.lock` (`poetry.lock` until the move to uv)
 - `.github/workflows/publish.yml` (the PyPI publish path)
 
 A cycle that adds a module to the public interface, a new process-wide effect, or a new publish path adds its paths here in the same commit.
@@ -159,7 +159,6 @@ Consumers pin `cmdkit>=2.7.7` with no upper bound (HyperShell pins `cmdkit[toml]
 ### 4. Footprint
 
 - The Python floor is 3.9 (`requires-python >=3.9`), and CI and the release gate cover every minor version from the floor to the newest.
-- Known limitation (recorded, not fixed): CI covers 3.10–3.13 only → `issues/uv-build-and-ci.md`.
 - No required runtime dependency. TOML writing and pre-3.11 reading come from the `toml` extra, YAML from the `yaml` extra; TOML reading uses the standard library's `tomllib` from 3.11.
 - Importing cmdkit adds no process-wide effect beyond those it has today (the `--version` action override, the logger class, the record factory, three level names), and that list only shrinks → `issues/import-side-effects.md`.
 

@@ -1,5 +1,5 @@
 ---
-status: unshaped
+status: adopted:tests-use-tmp-path
 kind: fix
 appetite: small
 ---
