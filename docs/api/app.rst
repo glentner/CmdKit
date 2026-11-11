@@ -106,9 +106,11 @@ Reference
         usual and nothing else is written. Where no handler is found at all (for instance once
         the ``cmdkit`` logger's handlers are removed), Python's last resort prints the record
         itself, and that line stands alone. Anything that silences the logger, such as
-        :func:`logging.disable`, a filter on ``cmdkit.app`` that rejects the record, or the
-        default ``disable_existing_loggers`` of :func:`logging.config.dictConfig`, keeps it
-        silent. An override of ``log_critical`` alone handles the message: *cmdkit* writes
+        :func:`logging.disable`, a filter on ``cmdkit.app`` that rejects the record, the
+        default ``disable_existing_loggers`` of :func:`logging.config.dictConfig`, or a
+        :class:`~logging.NullHandler` of the application's own on the ``cmdkit`` logger (such as
+        routing ``cmdkit`` to a ``NullHandler`` with ``propagate: False`` in a ``dictConfig``),
+        keeps it silent. An override of ``log_critical`` alone handles the message: *cmdkit* writes
         nothing further.
 
     |

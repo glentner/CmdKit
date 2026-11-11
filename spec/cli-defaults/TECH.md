@@ -3,10 +3,10 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: blocked
+status: in_progress
 branch: fix/cli-defaults
 base: develop
-current_phase: done
+current_phase: P2
 last_updated: '2026-11-11'
 phases:
 - id: P1
@@ -27,7 +27,7 @@ phases:
   verify: sh spec/cli-defaults/verify/gate.sh P1
 - id: P2
   name: A group's bare run stays as in 2.7.7 (the bare-group help moved out)
-  status: done
+  status: pending
   satisfies:
   - R5
   - R6
@@ -194,17 +194,17 @@ application silenced the record (a rejecting filter on `cmdkit.app`, and every C
 `src/cmdkit/__init__.py` creates, recognised by a mark set there; an application's own
 `NullHandler` on the `cmdkit` logger, added or configured by `dictConfig`, keeps the line silent.
 
-- [ ] `src/cmdkit/__init__.py`: replace the `addHandler(NullHandler())` line with `PLAN.md` § 2.0's
+- [x] `src/cmdkit/__init__.py`: replace the `addHandler(NullHandler())` line with `PLAN.md` § 2.0's
       four lines, verbatim, under the existing comment. Change nothing else in the file.
-- [ ] `src/cmdkit/app.py`: in `_hidden_by_null_handler`, the walk's test becomes § 2.0's mark test,
+- [x] `src/cmdkit/app.py`: in `_hidden_by_null_handler`, the walk's test becomes § 2.0's mark test,
       verbatim; the docstring says only the marked handler counts as cmdkit's.
-- [ ] `docs/api/app.rst` (`log_critical` paragraph) and `Application.main`'s docstring: an
+- [x] `docs/api/app.rst` (`log_critical` paragraph) and `Application.main`'s docstring: an
       application's own `NullHandler` on the `cmdkit` logger is a handler of the application's.
-- [ ] `tests/test_app.py`: the setups and the `dictConfig` test § 2.0 lists, named
+- [x] `tests/test_app.py`: the setups and the `dictConfig` test § 2.0 lists, named
       `test_app_argument_error_*`; the setup that pinned an application's `NullHandler` on `cmdkit`
       as printing now pins it silent. No test reads or pins the source text: the sweep's control
       run fails on one.
-- [ ] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 25 mutants on both
+- [x] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 25 mutants on both
       Pythons.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
 - **Touches:** `src/cmdkit/app.py`, `src/cmdkit/__init__.py`, `tests/test_app.py`, `docs/api/app.rst`,

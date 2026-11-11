@@ -30,18 +30,19 @@ log = logging.getLogger(__name__)
 
 def _hidden_by_null_handler(logger: logging.Logger, level: int, msg: object) -> bool:
     """
-    True if the :class:`logging.NullHandler` on the `cmdkit` logger is the only reason
-    Python's last-resort handler did not print a record with `msg` at `level` from `logger`.
+    True if the :class:`logging.NullHandler` cmdkit attaches to its logger at import is the only
+    reason Python's last-resort handler did not print a record with `msg` at `level` from `logger`.
 
     This follows :meth:`logging.Logger.handle` and :meth:`logging.Logger.callHandlers` in order,
     and is false wherever Python would print nothing anyway: the logger is not enabled for `level`
     (a disabled logger, a logger level above `level`, or :func:`logging.disable`), the logger's
     own filters reject the record, or :data:`logging.lastResort` is unset or above `level`.
     Otherwise the logger and its ancestors are searched for as long as they propagate. Any handler
-    found, whatever its level, other than an exact :class:`logging.NullHandler` on the `cmdkit`
-    logger (which the library attaches at import) means the application has configured logging:
-    false. If no handler is found at all, Python's last resort has already printed the record:
-    also false, so the message appears only once.
+    found, whatever its level, other than cmdkit's own (recognised by the mark set on it where the
+    package attaches it) means the application has configured logging: false. That includes a
+    :class:`logging.NullHandler` the application adds to the `cmdkit` logger itself to silence it.
+    If no handler is found at all, Python's last resort has already printed the record: also
+    false, so the message appears only once.
     """
     if not logger.isEnabledFor(level):
         return False
@@ -53,7 +54,7 @@ def _hidden_by_null_handler(logger: logging.Logger, level: int, msg: object) -> 
     current = logger
     while current is not None:
         for handler in current.handlers:
-            if current.name != 'cmdkit' or type(handler) is not logging.NullHandler:
+            if getattr(handler, '_cmdkit_library_handler', False) is not True:
                 return False
             found = True
         if not current.propagate:
@@ -138,7 +139,8 @@ class Application(abc.ABC):
         is found, and the ``cmdkit.app`` logger is neither silenced nor filtering the record
         out), the message is also written as is to ``sys.stderr``, followed by a newline.
         Where no handler is found at all, Python's last resort prints the record itself, and
-        that line stands alone.
+        that line stands alone. A :class:`~logging.NullHandler` the application adds to the
+        ``cmdkit`` logger is a handler of the application's, and keeps the message silent.
 
         See Also:
             :data:`~Application.exceptions`

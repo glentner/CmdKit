@@ -10,6 +10,7 @@ from typing import Iterator, List, Type
 # standard libs
 import sys
 import logging
+import subprocess
 from contextlib import contextmanager
 from string import ascii_letters
 
@@ -672,6 +673,13 @@ def set_last_resort_level(request, level: int) -> None:
     logging.lastResort.setLevel(level)
 
 
+def marked_null_handler() -> logging.Handler:
+    """A NullHandler marked as cmdkit's own, as a second import of the package would add."""
+    handler = logging.NullHandler()
+    handler._cmdkit_library_handler = True
+    return handler
+
+
 def above_critical_root_handler() -> logging.Handler:
     """A handler of the application's whose level no record reaches."""
     handler = logging.StreamHandler()
@@ -689,8 +697,8 @@ LOGGING_SETUPS = [
     pytest.param(lambda mp, rq: (mp.setattr(logging.getLogger('cmdkit'), 'propagate', False),
                                  add_handler(rq, '', logging.NullHandler())), True,
                  id='cmdkit-propagate-false-root-handler'),
-    pytest.param(lambda mp, rq: add_handler(rq, 'cmdkit', logging.NullHandler()), True,
-                 id='second-null-handler-on-cmdkit'),
+    pytest.param(lambda mp, rq: add_handler(rq, 'cmdkit', marked_null_handler()), True,
+                 id='second-marked-null-handler-on-cmdkit'),
     pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit.app', lambda record: True), True,
                  id='accepting-filter'),
     pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit.app', lambda record: record.levelno == logging.CRITICAL),
@@ -723,6 +731,14 @@ LOGGING_SETUPS = [
                  id='null-handler-on-app-logger'),
     pytest.param(lambda mp, rq: add_handler(rq, 'cmdkit', SubNullHandler()), False,
                  id='null-handler-subclass-on-cmdkit'),
+    pytest.param(lambda mp, rq: add_handler(rq, 'cmdkit', logging.NullHandler()), False,
+                 id='application-null-handler-on-cmdkit'),
+    pytest.param(lambda mp, rq: mp.setattr(logging.getLogger('cmdkit'), 'handlers',
+                                           [logging.NullHandler(), *logging.getLogger('cmdkit').handlers]), False,
+                 id='application-null-handler-before-cmdkits'),
+    pytest.param(lambda mp, rq: (mp.setattr(logging.getLogger('cmdkit'), 'handlers', [logging.NullHandler()]),
+                                 mp.setattr(logging.getLogger('cmdkit'), 'propagate', False)), False,
+                 id='cmdkit-routed-to-application-null-handler'),
     pytest.param(lambda mp, rq: add_handler(rq, '', above_critical_root_handler()), False,
                  id='root-handler-above-critical'),
 ]
@@ -738,6 +754,41 @@ def test_app_argument_error_last_resort_rule(capsys, monkeypatch, request, setup
     assert status == exit_status.bad_argument
     assert captured.out == ''
     assert captured.err == ('unrecognized command: bogus\n' if once else '')
+
+
+DICT_CONFIG_RECIPE = """
+import logging.config
+config = {
+    'version': 1,
+    'handlers': {'null': {'class': 'logging.NullHandler'}},
+    'loggers': {'cmdkit': {'handlers': ['null'], 'propagate': False}},
+}
+if ORDER == 'before':
+    logging.config.dictConfig(config)
+from cmdkit.app import ApplicationGroup
+from cmdkit.cli import Interface
+if ORDER == 'after':
+    logging.config.dictConfig(config)
+
+class Group(ApplicationGroup):
+    interface = Interface('app', 'usage: app <command>', 'usage: app <command>')
+    command: str = None
+    interface.add_argument('command')
+    commands = {}
+
+raise SystemExit(Group.main(['bogus']))
+"""
+
+
+@pytest.mark.parametrize('order', ['before', 'after'])
+def test_app_argument_error_silent_under_dict_config_null_handler(order) -> None:
+    """Routing cmdkit to a NullHandler of the application's with dictConfig keeps the message silent."""
+    code = f'ORDER = {order!r}\n' + DICT_CONFIG_RECIPE
+    proc = subprocess.run([sys.executable, '-I', '-c', code],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+    assert proc.returncode == exit_status.bad_argument
+    assert proc.stdout == b''
+    assert proc.stderr == b''
 
 
 def test_app_argument_error_silent_when_logging_disabled(capsys) -> None:
