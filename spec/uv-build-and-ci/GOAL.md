@@ -74,7 +74,9 @@ uv throughout, and nothing of Poetry left in the build:
   3. the encoding changes from `Metadata-Version: 2.1` to PEP 621 metadata: the `Metadata-Version`
      value; the `Home-page` URL carried as a `Project-URL` instead; `Author` and `Author-email`
      combined into one `Author-email: Geoffrey Lentner <glentner@purdue.edu>`;
-  4. `License-Expression: Apache-2.0` in place of `License: Apache-2.0`;
+  4. the PEP 639 encoding of the licence: `License-Expression: Apache-2.0` in place of
+     `License: Apache-2.0`, `License-File:` fields, and the licence text under
+     `.dist-info/licenses/`, provided the same licence text ships;
   5. the `License :: OSI Approved :: Apache Software License` classifier dropped, only if the build
      backend refuses it beside a license expression.
 
@@ -199,6 +201,11 @@ Raised during shaping:
   `>=3.9,<4.0`: the floor decision doesn't remove the cap, and no consumer-facing field changes in
   this cycle. The test lists every permitted difference, and anything else in the diff fails it
   (resolved 2026-11-10; R1, R2).
+- **C5 · Q:** Does the PEP 639 licence encoding fall inside the permitted differences? uv's backend
+  may write `License-File:` fields and place the licence text under `.dist-info/licenses/`. —
+  **A:** Yes, under R2's item 4: `License-File:` fields and the licence text's location under
+  `.dist-info/licenses/` are allowed, provided the same licence text ships (resolved 2026-11-10;
+  R2).
 
 ## Related materials
 
