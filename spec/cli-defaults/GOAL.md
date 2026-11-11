@@ -64,6 +64,8 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
   message text followed by a newline (C1); `main` SHALL return `exit_status.bad_argument` (2), as
   today; and nothing SHALL be written to stdout. This covers at least an unknown command in a group, an
   unknown flag, and a missing required positional, at the top level and inside a group's command.
+  When `sys.stderr` is `None` the message is not written, and a failure to write it (`OSError`,
+  `ValueError`) is swallowed; `main` still returns 2 and writes nothing to stdout (C10).
 - **R2** — WHILE a logging handler other than cmdkit's `NullHandler` would receive a record logged
   to `cmdkit.app` (for example after `logging.basicConfig`), WHEN `main` catches an
   `ArgumentError`, the configured handlers SHALL receive exactly what they receive today (one
@@ -258,6 +260,16 @@ Ruled at the escalation after review cycle 2, 2026-11-11:
     (its filter check runs on a record cmdkit builds, and `logging.lastResort`'s own filters are not
     consulted) moves to `issues/last-resort-filter-fidelity.md`.
   - The rest stands: R1–R3, R6–R9 and C1–C6 (resolved 2026-11-11; R4, R5, R6, R8, C6).
+
+Ruled at the escalation after review cycle 3, 2026-11-11 (a scoped fourth cycle):
+
+- **C10 (2026-11-11, R1, CR-F1) · Q:** R1's write to stderr has none of the error handling Python's
+  last-resort handler has. With stderr a pipe whose reader has exited, `main` raises
+  `BrokenPipeError` instead of returning 2; with `sys.stderr` set to `None` after import, the
+  message goes to stdout. What does R1 require there? — **A:** The report is skipped when
+  `sys.stderr` is `None`, and a failure writing it (`OSError`, `ValueError`) is swallowed, as
+  Python's last resort does: `main` still returns `exit_status.bad_argument` (2), and nothing goes
+  to stdout. Nothing else in R1–R3 changes (resolved 2026-11-11; R1).
 
 ## Related materials
 
