@@ -196,3 +196,44 @@ whole spec-excluded diff, graded against GOAL C1–C8. It saw neither the cycle-
   behaviour returns to 2.7.7's, and the feature moves to a new seed for its own cycle, designed
   around the effective command line rather than a pre-parse. Cycle 2's F1, F2 and F5 leave with it.
 - **The next review is cycle 3, the last one allowed.**
+
+## Review cycle 3 — changes-requested (2026-11-11)
+
+**Reviewed commit:** e146bc27ebf8c141305cb35d3017e3eaec814e58. A fresh, full blind pass over the
+whole spec-excluded diff, graded against GOAL C1–C9. It saw no earlier review or its files.
+
+### Verification run
+- **The profile's `verify`,** with the sandbox off: 126 passed on Python 3.9.25 and 126 on 3.14.6.
+- **R5/C9 matrix:** 1,120 cases × 2 Pythons against base. 1,004 are identical, 116 differ only by
+  R1's single stderr line where base exited 2 in silence, and nothing else differs. Every return
+  was an `int`.
+- **C6 matrix:** 134 setups. HEAD equals the last-resort reference everywhere except the contract's
+  carve-outs and F1(b). The line was never printed twice.
+- **R7:** the post-import logging state is identical to base apart from the mark attribute.
+- **Mutation sweep:** 41 mutants, 37 killed. The survivors are A9 (equivalent outside the deferred
+  filters), A12 (a null control), I4 and I6 (coverage only).
+- **The docs:** Sphinx builds on HEAD and base with the same warnings.
+
+### Findings
+
+#### [CRITICAL/CONFIRMED] CR-F1 · The new stderr write has none of the last resort's error handling
+- **Where:** `src/cmdkit/app.py:175`.
+- **Failure scenario (a):** stderr is a pipe whose reader has exited. `Group.main(['bogus'])` raises
+  `BrokenPipeError` out of `main`. Base, and Python's own last resort, return 2.
+- **Failure scenario (b):** `sys.stderr` is `None` after import. The message goes to stdout, while
+  base and the reference write nothing.
+- **Evidence:** `epipe.log` and `c6-matrix.log`, on 3.9 and 3.14.
+- **Touches:** R1 (returns 2, writes nothing to stdout) and § Invariants 3 (`main` returns an
+  `int`). The reach is narrow: no logging configured, the default `log_critical`, and a dead or
+  `None` stderr.
+
+#### Coverage observations (LOW, not graded as findings)
+- **I6:** moving cmdkit's `NullHandler` from `cmdkit` to `cmdkit.app` survives the suite, because
+  which logger carries the handler is never pinned.
+- **I4:** dropping `del _null_handler` survives the suite.
+- **A private name in the tests:** `tests/test_app.py:675-679` sets the private mark by hand, where
+  `importlib.reload` would drive the same case through behaviour.
+
+### Human-gate triggers
+- CR-F1 is CONFIRMED in `src/cmdkit/app.py`, a high-blast-radius path, and it violates § Invariants 3.
+- This is review cycle 3, the bound. The cycle escalates to the maintainer.
