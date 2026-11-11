@@ -3,7 +3,7 @@ slug: uv-build-and-ci
 title: Build, lock, test and publish with uv
 kind: build
 appetite: big
-status: in_review
+status: done
 branch: feature/uv-build-and-ci
 base: develop
 current_phase: done

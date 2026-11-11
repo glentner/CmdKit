@@ -1,0 +1,22 @@
+# Written only by $KB/bin/factory/metrics.py. Observation, never state: nothing routes on it.
+slug: uv-build-and-ci
+escaped_from: null
+planned: {date: '2026-11-10', phases: 5}
+landed: {date: '2026-11-10', phases: 5, failed_verifies: 0}
+open: null
+runs:
+- {step: feature, start: '2026-11-10T21:06:55-05:00', stop: '2026-11-10T21:13:27-05:00', seconds: 392, end: gate, agent: claude-opus-5-5}
+- {step: plan, start: '2026-11-10T21:13:34-05:00', stop: '2026-11-10T22:05:07-05:00', seconds: 3093, end: gate, agent: claude-opus-5-5}
+- {step: 'build:P1', start: '2026-11-10T22:05:12-05:00', stop: '2026-11-10T22:08:29-05:00', seconds: 197, end: gate, agent: claude-opus-5-5}
+- {step: 'build:P2', start: '2026-11-10T22:08:29-05:00', stop: '2026-11-10T22:09:37-05:00', seconds: 68, end: gate, agent: claude-opus-5-5}
+- {step: 'build:P3', start: '2026-11-10T22:09:37-05:00', stop: '2026-11-10T22:11:23-05:00', seconds: 106, end: gate, agent: claude-opus-5-5}
+- {step: 'build:P4', start: '2026-11-10T22:11:23-05:00', stop: '2026-11-10T22:13:12-05:00', seconds: 109, end: gate, agent: claude-opus-5-5}
+- {step: 'build:P4', start: '2026-11-10T22:14:43-05:00', stop: '2026-11-10T22:19:58-05:00', seconds: 315, end: gate, agent: claude-opus-5-5}
+- {step: review, start: '2026-11-10T22:20:20-05:00', stop: '2026-11-10T22:30:44-05:00', seconds: 624, end: gate, agent: claude-opus-5-5}
+- {step: publish, start: '2026-11-10T22:30:57-05:00', stop: '2026-11-10T22:32:58-05:00', seconds: 121, end: done, agent: claude-opus-5-5}
+reviews:
+- cycle: 1
+  date: '2026-11-10'
+  verdict: approved
+  confirmed: {critical: 0, high: 0, medium: 0, low: 0}
+  plausible: 0
