@@ -17,7 +17,8 @@
 #              gone, and nothing else in AGENTS.md changed; docs/api/app.rst changed; no spec ids
 #              in added source or test lines; test_app_group_usage unchanged; no added test
 #              line reads the module source; src/cmdkit/__init__.py changed for the mark only.
-#   static P2  change_set.py P2: all of P1's checks, plus the deferral ledger over TECH.md, and
+#   static P2  change_set.py P2 (and P1, since review cycle 3): the checks above, plus the deferral
+#              ledger over TECH.md, and
 #              (GOAL C9) no ApplicationGroup.main and no ApplicationGroup ALLOW_NOARGS docs.
 #   errors     drive_main.py errors, on 3.9 and 3.14: argument errors in fresh interpreters,
 #              review cycle 2's F3 (an application's own NullHandler on cmdkit) included.
@@ -31,7 +32,9 @@
 #              mutant killed by tests/test_app.py alone; the anchors are PLAN.md § 2's lines, and
 #              a missing one is red.
 #   mutants P2 mutants.py P2: the same mutants (the bare group's left with GOAL C9).
-#   P1         frozen, static P1, errors, tests, mutants P1: the phase's verify.
+#   P1         frozen, static P1, errors, noargs, tests, mutants P1: the phase's verify. Since
+#              review cycle 3 reopened P1 on the final tree (GOAL C10), P1 grades everything P2
+#              does: static P1 runs P2's checks too, and noargs runs here as well.
 #   P2         frozen, static P2, errors, noargs, tests, mutants P2: the phase's verify.
 #
 # Every mode that installs or runs the tree uses an export of the index (git checkout-index), so a
@@ -164,7 +167,7 @@ case "$mode" in
     noargs) export_index; drive noargs ;;
     tests) export_index; tests ;;
     mutants) export_index; mutants "${2:-}" ;;
-    P1) frozen; static P1; export_index; drive errors; tests; mutants P1 ;;
+    P1) frozen; static P1; export_index; drive errors; drive noargs; tests; mutants P1 ;;
     P2) frozen; static P2; export_index; drive errors; drive noargs; tests; mutants P2 ;;
     *) echo "usage: gate.sh frozen|static P1|static P2|errors|noargs|tests|mutants P1|mutants P2|P1|P2"; exit 2 ;;
 esac

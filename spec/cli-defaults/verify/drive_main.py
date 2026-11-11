@@ -24,7 +24,9 @@ Modes:
              logger name (adversarial review of the revised plan). Review cycle 2, F3: only the
              NullHandler cmdkit's __init__ marks counts as cmdkit's; an application's own
              NullHandler on the cmdkit logger, added or configured by dictConfig, keeps it
-             silent; a second marked one (a reload) does not.
+             silent; a second marked one (a reload) does not. Review cycle 3, CR-F1 (GOAL C10):
+             with stderr a pipe whose reader is gone, or sys.stderr set to None or closed, main
+             still returns 2 and writes nothing to stdout.
     noargs   a bare group behaves exactly as in 2.7.7, apart from R1 reporting its argument
              errors (GOAL C9): groups that require or take an optional command, with and without
              ALLOW_NOARGS, with ALLOW_PARSE, with an exceptions map, nested; main([]), main() and
@@ -212,6 +214,18 @@ else:
     return json.loads(proc.stdout.decode())
 
 
+def run_dead_stderr(call: str, body_pre: str = '') -> subprocess.CompletedProcess:
+    """A child whose stderr is a pipe with its read end already closed; it prints main's status."""
+    read_end, write_end = os.pipe()
+    os.close(read_end)
+    try:
+        return subprocess.run([sys.executable, '-I', '-c', PRELUDE + f'\n{body_pre}\nstatus = {call}\n'
+                               "sys.stdout.write(repr(status))\n"],
+                              env=ENV, stdout=subprocess.PIPE, stderr=write_end, timeout=60)
+    finally:
+        os.close(write_end)
+
+
 def run_main(call: str, pre: str = '', body_pre: str = '', post: str = '') -> subprocess.CompletedProcess:
     """A child that exits with the status `call` returns."""
     return child(f'''
@@ -316,6 +330,20 @@ logging.getLogger('cmdkit').addHandler(Keep())
     check("cmdkit reloaded (a second marked NullHandler): the bare line once",
           proc.returncode == 2 and proc.stdout == b''
           and proc.stderr == b'unrecognized command: bogus\n', show(proc))
+
+    # Review cycle 3, CR-F1 (GOAL C10): the write has the last resort's error handling. A dead
+    # stderr pipe or a closed stderr is swallowed, and a None stderr skips the write: main returns 2
+    # and nothing reaches stdout. The status is reported on stdout as its repr, and nothing else.
+    for call in ("Group.main(['bogus'])", "Group.main(['cmd', 'x', '--bogus'])", "App.main(['x', '--bogus'])"):
+        proc = run_dead_stderr(call)
+        check(f'stderr a dead pipe: {call} returns 2, stdout clean',
+              proc.stdout == b'2', f'status={proc.returncode} stdout={proc.stdout!r}')
+    proc = run_main("Group.main(['bogus'])", body_pre='sys.stderr = None')
+    check('sys.stderr None: status 2, nothing on stdout or stderr',
+          proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+    proc = run_main("Group.main(['bogus'])", body_pre='import io; sys.stderr = io.StringIO(); sys.stderr.close()')
+    check('sys.stderr closed: status 2, nothing on stdout',
+          proc.returncode == 2 and proc.stdout == b'', show(proc))
 
     # A NullHandler the application puts on the root logger is a handler other than cmdkit's.
     proc = run_main("Group.main(['bogus'])", body_pre='logging.getLogger().addHandler(logging.NullHandler())')

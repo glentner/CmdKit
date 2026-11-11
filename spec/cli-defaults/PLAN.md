@@ -37,7 +37,56 @@ creates, recognised by a mark set on it there, so an application's own `NullHand
 `issues/last-resort-filter-fidelity.md`. § 2.0 below is the design as revised; where the older text
 of § 2 to § 6 differs from it, § 2.0 governs, and the older text stays as the record.
 
+**Revised after review cycle 3 (2026-11-11): a scoped fourth cycle (GOAL C10).** Review cycle 3
+found the new stderr write without the last resort's error handling (CR-F1): a dead stderr pipe
+raised `BrokenPipeError` out of `main`, and a `None` stderr sent the message to stdout. The
+maintainer allowed one scoped cycle. **P1 reopens** for the guarded write (§ 2.00), a test pinning
+which logger carries cmdkit's `NullHandler` (I6), and the re-import setup driven by
+`importlib.reload` instead of the private mark. P2 stays done.
+
 ## 2. Design
+
+### 2.00 Review cycle 3 revision: the guarded write (GOAL C10)
+
+The `ArgumentError` branch of `Application.main` becomes, verbatim (the static check compares the
+`if`'s body with this, and the mutant sweep anchors on these lines):
+
+```python
+        except ArgumentError as error:
+            cls.log_critical(error)
+            if cls.log_critical == log.critical and _hidden_by_null_handler(log, logging.CRITICAL, error):
+                if sys.stderr is not None:
+                    try:
+                        print(error, file=sys.stderr)
+                    except (OSError, ValueError):
+                        pass
+            return exit_status.bad_argument
+```
+
+- `print(…, file=None)` writes to `sys.stdout`, hence the `None` check; Python's last resort skips
+  a `None` stream the same way.
+- `OSError` covers a dead pipe (`BrokenPipeError`) and a failing device; `ValueError` covers a
+  closed stream. Python's `StreamHandler.emit` swallows any exception through `handleError`;
+  catching more than these two would be indistinguishable in any test, and is left out so that an
+  unexpected error (a broken custom stream) stays visible.
+- `print` writes the message and its newline and flushes (stderr is line-buffered from 3.9), so
+  the failure surfaces inside the `try`. Python may still report a failed flush of the dead stderr
+  at exit; the tests assert `main`'s return value, which the child prints on stdout, not the
+  process's exit status.
+
+Tests (`tests/test_app.py`; the sweep counts kills from `test_app_argument_error_*` and the new
+`test_app_library_handler_*`):
+- a dead pipe: a `python -I` child whose stderr is a pipe with its read end already closed runs
+  `Group.main(['bogus'])` and prints the status; its stdout is exactly `2`;
+- `redirect_stderr(None)`: status 2, stdout and stderr empty;
+- a closed `StringIO` as `sys.stderr`: status 2, stdout empty;
+- I6: after import, the `cmdkit` logger carries exactly one `NullHandler` and `cmdkit.app` none,
+  and a warning logged on `cmdkit.config` with no logging configured prints nothing (the library
+  handler quiets every `cmdkit.*` logger, as in 2.7.7);
+- the re-import setup: `importlib.reload(cmdkit)` under a `monkeypatch` of the `cmdkit` logger's
+  handler list (restored after the test), replacing the helper that set the private mark by hand.
+  The reload re-runs `__init__.py` only; `cmdkit.app` and the classes the tests hold stay the same
+  objects, so it is clean in-suite. The line is printed once.
 
 ### 2.0 Review cycle 2 revision: the mark, and the revert (GOAL C9)
 
@@ -395,6 +444,13 @@ the reading and C7's words part is named in the row.
 
 ## 5. Risks & open questions
 
+**Review cycle 3 revision (GOAL C10).**
+- **The catch is narrow on purpose:** `OSError` and `ValueError` only. A custom `sys.stderr` that
+  raises something else still raises out of `main`, where Python's last resort would swallow it.
+  Recorded, not pinned.
+- **A dead stderr at exit:** Python may print "Exception ignored" or exit 120 when it cannot flush
+  a dead stderr at shutdown. That is the interpreter's, not `main`'s, and 2.7.7 behaves the same.
+
 **Review cycle 2 revision (GOAL C9).**
 - **The adversarial review of this revision** (one pass, trigger 3) confirmed six holes, all
   folded: a test pinning the source by a route the static regex missed made the sweep green (the
@@ -533,6 +589,22 @@ gates keep every check above and add:
   commits); `frozen` checks `verify/` against the latest plan commit, and that every plan commit
   touches only `spec/cli-defaults/`, `issues/` and `ROADMAP.md`.
 
+**Revised after review cycle 3 (GOAL C10).** `verify/` is frozen again at this revision's plan
+commit:
+- `drive_main.py errors` adds CR-F1's cases: stderr a dead pipe for an unknown command, an
+  unknown flag inside a group's command and an unknown flag at the top level, each child printing
+  `main`'s status (it must be `2`, and nothing else on stdout); `sys.stderr = None` (status 2,
+  stdout and stderr empty); a closed `sys.stderr` (status 2, stdout empty).
+- `mutants.py` adds 4 for the guard (the `None` check removed; nothing caught; only `OSError`
+  caught; only `ValueError` caught) and 1 for I6 (the handler attached to `cmdkit.app`), and moves
+  the stdout mutant's anchor to the new indentation: 30 in all. Each mutated file gets a unique
+  future mtime, so no cached `.pyc`, in any child the suite starts (a `-I` child ignores
+  `PYTHONPYCACHEPREFIX`), can stand in for it. Kills count from `test_app_library_handler_*` too.
+- `change_set.py`: the report's `if` must hold exactly § 2.00's guarded write; the source-read
+  regex allows `importlib.reload` and nothing else from `importlib`. P1 now runs every check P2
+  does, since P1 is reopened on the final tree.
+- `gate.sh P1` runs `noargs` too: P1 grades everything P2 does.
+
 **Revised after review cycle 2 (GOAL C9).** `verify/` is frozen again at this revision's plan
 commit. Every earlier check of the report stays; the bare-group checks are replaced:
 
@@ -662,3 +734,19 @@ first-plan-commit base ran for real:
   `verify/` tree.
 - **Full suite once** on P2's tree, with the profile's `verify` (sandbox off, `--hypothesis-seed=0`):
   125 passed on each of 3.9 and 3.14.
+
+**Dry run after review cycle 3** (2026-11-11), on a detached prototype at `4dec7af` (the
+maintainer's ruling) and on a throwaway clone carrying this revision as a `[fix] Plan
+cli-defaults:` commit on top of the C10 commit, so `frozen` and the base ran for real:
+
+- **The head before this fix (`4dec7af`), red where it should be:** `static P1` fails the
+  2.7.7-outside-the-report check (the report's `if` holds the bare `print`, not the guarded
+  write). `errors` fails 5: the three dead-pipe children die with `BrokenPipeError` (exit 120, no
+  status on stdout), `sys.stderr = None` puts the message on stdout, and a closed `sys.stderr`
+  raises out of `main`. `mutants P1` is red: the 5 guard anchors are missing, and the I6 mutant
+  (the handler on `cmdkit.app`) survives the cycle-3 suite. `noargs` and `tests` stay green.
+- **The remediated tree** (§ 2.00's branch, its docstring and docs, the five tests, the reload
+  setup in place of the private mark): `gate.sh P1` green on 3.9 and 3.14 in 105 s, `frozen` and
+  `noargs` included; `tests/test_app.py` 83 passed; the controls fail nothing; `mutants P1` 30 of 30
+  killed on each, every kill from its family. `gate.sh P2` is green on the same tree.
+- **Full suite once** (sandbox off, `--hypothesis-seed=0`): 130 passed on each of 3.9 and 3.14.

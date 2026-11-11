@@ -13,7 +13,8 @@ P1 and P2:
       else in it changes;
     - no spec ids (R1, P2, ...) or spec paths in added lines under src/ or tests/;
     - no added test line reads the module's source or bytecode (inspect, __file__, __spec__,
-      __loader__, importlib, open(, a '.py' path, hashes and the like) or sets pytestmark: a test
+      __loader__, importlib other than importlib.reload, open(, a '.py' path, hashes and the like)
+      or sets pytestmark: a test
       that pins the text kills every mutant without pinning any behaviour (adversarial reviews);
     - every top-level def, class and constant the base test module has is unchanged, decorators
       included;
@@ -22,9 +23,11 @@ P1 and P2:
     - src/cmdkit/__init__.py changes for the mark on cmdkit's own NullHandler only (review cycle
       2, F3; GOAL C9): exactly the one addHandler line removed, and exactly PLAN.md § 2's four
       lines added, in order (comment lines aside).
-P2 also (GOAL C9: the bare-group help left the cycle):
+P2 also, and P1 too since review cycle 3 reopened it on the final tree (GOAL C9: the bare-group
+help left the cycle):
     - src/cmdkit/app.py, docstrings aside, is the base's but for `import sys`, the helper and the
-      report's `if` in the ArgumentError branch: ApplicationGroup and the rest of
+      report's `if` in the ArgumentError branch, whose body is exactly the guarded write (GOAL
+      C10): ApplicationGroup and the rest of
       Application.main as in 2.7.7 (adversarial review of the C9 revision);
     - ApplicationGroup in src/cmdkit/app.py defines no main of its own, as in 2.7.7;
     - the ApplicationGroup section of docs/api/app.rst documents no ALLOW_NOARGS, as in 2.7.7;
@@ -58,10 +61,19 @@ MARK_ADDED = [
 DROPPED_LINE = ('- Known limitation (recorded, not fixed): with no logging configured, '
                 '`ArgumentError` messages are dropped → `issues/cli-defaults.md`.')
 SPEC_ID = re.compile(r'\b[RP][0-9]+\b|spec/cli-defaults')
-SOURCE_READ = re.compile(r'\binspect\b|getsource|__file__|__spec__|__loader__|get_data|find_spec|importlib|'
+SOURCE_READ = re.compile(r'\binspect\b|getsource|__file__|__spec__|__loader__|get_data|find_spec|'
+                         r'importlib\.(?!reload\()|from importlib|'
                          r'pkgutil|hashlib|zlib|crc32|co_code|linecache|__code__|\bopen\(|read_text|read_bytes|'
                          r'\.py[\'"]|pytestmark')
 HELPER_NAME = '_hidden_by_null_handler'
+# GOAL C10 (review cycle 3, CR-F1): the write is skipped without a stderr, and its failure swallowed
+GUARDED_WRITE = ast.unparse(ast.parse('''
+if sys.stderr is not None:
+    try:
+        print(error, file=sys.stderr)
+    except (OSError, ValueError):
+        pass
+'''))
 REPORT_TEST = ('cls.log_critical == log.critical and '
                '_hidden_by_null_handler(log, logging.CRITICAL, error)')
 OLD_NOARGS = 'is printed to ``sys.stdout`` and ``exit_status.success``'
@@ -144,7 +156,7 @@ def app_module_rest(base: str) -> tuple:
         if isinstance(node, ast.ExceptHandler) and node.type is not None and ast.unparse(node.type) == 'ArgumentError':
             body = [stmt for stmt in node.body
                     if not (isinstance(stmt, ast.If) and ast.unparse(stmt.test) == REPORT_TEST
-                            and [ast.unparse(b) for b in stmt.body] == ['print(error, file=sys.stderr)']
+                            and [ast.unparse(b) for b in stmt.body] == [GUARDED_WRITE]
                             and not stmt.orelse)]
             if len(body) != len(node.body):
                 removed.append('the report')
@@ -241,8 +253,7 @@ def main() -> int:
         return 2
     phase, base = sys.argv[1], sys.argv[2]
     common(base)
-    if phase == 'P2':
-        phase_two(base)
+    phase_two(base)  # since review cycle 3, P1 is reopened on the final tree: both phases grade it all
     if FAILURES:
         print(f'FAIL: {len(FAILURES)} check(s) failed')
         return 1

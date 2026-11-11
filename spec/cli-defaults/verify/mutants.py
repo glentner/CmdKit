@@ -18,8 +18,8 @@ verbatim. For each mutant the file is rewritten, tests/test_app.py runs in a chi
 with a fresh bytecode prefix (passed as -X pycache_prefix and as PYTHONPYCACHEPREFIX, so the
 suite's own child interpreters see the mutant too, and no stale .pyc can stand in for it), and the
 file is restored. A mutant is killed when pytest exits 1 (tests failed) and at least one failing
-test is one that pins the report: a test named test_app_argument_error_* or
-test_app_noargs_allowed_* (a failure only elsewhere, such as a test that reads the module's
+test is one that pins the report: a test named test_app_argument_error_*,
+test_app_noargs_allowed_* or test_app_library_handler_* (a failure only elsewhere, such as a test that reads the module's
 source, does not count). Exit 0 is a survivor, and anything else (a collection or usage error) a
 broken mutant: both red. The unmutated tree must pass first, and both files must be
 byte-identical to it at the end.
@@ -28,6 +28,10 @@ Before the mutants, a control run appends a comment line to each target file: a 
 that is pinning the source text, not the behaviour, and the sweep is red (adversarial review of the
 C9 revision: a pin test would otherwise "kill" every mutant).
 
+Review cycle 3 (CR-F1, GOAL C10) adds the guarded write's mutants and I6's (the handler on the
+wrong logger). A too-broad catch (`except Exception:`) is left out as equivalent here: Python's
+last resort itself swallows any exception from its write, so no test could tell it from C10's.
+
 Footprint: one pytest child at a time (and the suite's one short-lived child), under 100 MB;
 about 1 s per mutant warm.
 """
@@ -35,6 +39,7 @@ about 1 s per mutant warm.
 # standard libs
 import os
 import sys
+import time
 import tempfile
 import subprocess
 
@@ -103,7 +108,15 @@ CALL_SITE = [
      '            if cls.log_critical == log.critical and _hidden_by_null_handler(log, logging.CRITICAL, error):\n',
      '            if cls.log_critical == log.critical and _hidden_by_null_handler(log, logging.WARNING, error):\n'),
     ('written to stdout',
-     '                print(error, file=sys.stderr)\n', '                print(error)\n'),
+     '                        print(error, file=sys.stderr)\n', '                        print(error)\n'),
+    ('the None check on sys.stderr removed (GOAL C10)',
+     '                if sys.stderr is not None:\n', '                if True:\n'),
+    ('a failed write not caught (GOAL C10)',
+     '                    except (OSError, ValueError):\n', '                    except ():\n'),
+    ('only OSError caught: a closed stderr raises out of main',
+     '                    except (OSError, ValueError):\n', '                    except OSError:\n'),
+    ('only ValueError caught: a dead pipe raises out of main',
+     '                    except (OSError, ValueError):\n', '                    except ValueError:\n'),
 ]
 
 INIT = [
@@ -111,9 +124,12 @@ INIT = [
      '_null_handler._cmdkit_library_handler = True\n', ''),
     ('the mark set to a truthy value other than True',
      '_null_handler._cmdkit_library_handler = True\n', '_null_handler._cmdkit_library_handler = 1\n'),
+    ('cmdkit\'s NullHandler attached to cmdkit.app, not cmdkit (review cycle 3, I6)',
+     'Logger.with_name(__name__).addHandler(_null_handler)\n',
+     "Logger.with_name(__name__ + '.app').addHandler(_null_handler)\n"),
 ]
 
-KILLERS = ('test_app_argument_error_', 'test_app_noargs_allowed_')
+KILLERS = ('test_app_argument_error_', 'test_app_noargs_allowed_', 'test_app_library_handler_')
 
 MUTANTS = ([('src/cmdkit/app.py', name, anchor, new) for name, anchor, new in HELPER + CALL_SITE]
            + [('src/cmdkit/__init__.py', name, anchor, new) for name, anchor, new in INIT])
@@ -187,6 +203,10 @@ def main() -> int:
                 continue
             with open(target, 'w', encoding='utf-8') as stream:
                 stream.write(original.replace(anchor, replacement))
+            # a future mtime, unique per mutant: no cached .pyc, in any interpreter the suite
+            # starts (an -I child ignores PYTHONPYCACHEPREFIX), can stand in for the mutant
+            stamp = time.time() + 3600 + number
+            os.utime(target, (stamp, stamp))
             try:
                 proc = pytest(export, os.path.join(work, f'm{number:02d}'))
             finally:
