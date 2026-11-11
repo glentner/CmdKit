@@ -6,12 +6,12 @@ appetite: big
 status: in_progress
 branch: feature/uv-build-and-ci
 base: develop
-current_phase: P1
+current_phase: P2
 last_updated: '2026-11-10'
 phases:
 - id: P1
   name: Package with uv (PEP 621 metadata, uv_build, uv.lock)
-  status: pending
+  status: done
   satisfies:
   - R1
   - R2
@@ -177,20 +177,20 @@ the high-blast-radius list), R10 · **Depends on:** —
 **Goal:** `uv build` makes the 2.7.7 package under the same version, from PEP 621 metadata and uv's
 build backend, with a committed `uv.lock`; Poetry's table and lockfile are gone.
 
-- [ ] Rewrite `pyproject.toml` as `PLAN.md` § 2.1 gives it: `[project]` (name, version `2.7.7`,
+- [x] Rewrite `pyproject.toml` as `PLAN.md` § 2.1 gives it: `[project]` (name, version `2.7.7`,
       description, `readme`, `license = "Apache-2.0"`, `license-files = ["LICENSE"]`, one author
       table, keywords, classifiers with 3.14 added and the licence classifier kept,
       `requires-python = ">=3.9,<4.0"`, `dependencies = []`), `[project.optional-dependencies]`
       `toml` and `yaml` with 2.7.7's exact bounds, `[project.urls]` Homepage, Documentation and
       Repository, `[dependency-groups]` `dev` and `docs` translated from the Poetry carets,
       `[build-system]` `uv_build>=0.13.7,<0.14.0`. Keep `[tool.pytest.ini_options]` byte for byte.
-- [ ] `git rm poetry.lock`; `uv lock`; commit `uv.lock`.
-- [ ] `AGENTS.md` § Factory release recipe (same commit as the version's new home, per its own
+- [x] `git rm poetry.lock`; `uv lock`; commit `uv.lock`.
+- [x] `AGENTS.md` § Factory release recipe (same commit as the version's new home, per its own
       comment): `version.source: pyproject.toml project.version`, `bump.lock: uv lock`,
       `bump.files: [pyproject.toml, uv.lock]`, `diff_rule` naming cmdkit's entry in `uv.lock`; no
       Poetry left in the recipe. § Invariants high-blast-radius list names `uv.lock` and keeps
       `poetry.lock` (the list only widens).
-- [ ] Nothing under `src/` changes.
+- [x] Nothing under `src/` changes.
 - **Verify:** `sh spec/uv-build-and-ci/verify/gate.sh P1`: `build_config.py package src`,
   `wheel_surface.py` (three wheels and the sdist's PKG-INFO against the pinned 2.7.7 wheel, then
   the install check), `workflow_config.py recipe`, and the profile's `verify` on an export.

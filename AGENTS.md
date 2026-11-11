@@ -58,16 +58,16 @@ This repo is built by the spec-driven factory: GOAL → PLAN/TECH → build → 
 release:
   trigger: on-demand
   version:
-    source: pyproject.toml tool.poetry.version     # project.version once the uv cycle lands; it moves this line in the same commit
+    source: pyproject.toml project.version
     scheme: pep440
     tag_format: "{v}"
     prerelease_syntax: '^\d+\.\d+\.\d+(a|b|rc)\d+$'
     propose_next: none
   bump:
-    lock: none                  # poetry.lock carries no project version; `uv lock` once uv.lock exists
+    lock: uv lock               # rewrites cmdkit's own entry in uv.lock; a bumped version without it fails `uv lock --check`
     lockstep: []
-    files: [pyproject.toml]     # plus uv.lock once it exists
-    diff_rule: only the version string changes (and, with uv.lock, cmdkit's own entry in it)
+    files: [pyproject.toml, uv.lock]
+    diff_rule: only the version string changes, in pyproject.toml and in cmdkit's own entry in uv.lock
     subject: "[build] Version {v}"
   gate:
     - (for v in 3.9 3.10 3.11 3.12 3.13 3.14; do uv run --isolated --no-project --python $v --with pytest --with hypothesis --with tomli --with tomli-w --with pyyaml --with-editable . python -m pytest || exit 1; done)
@@ -125,7 +125,7 @@ A CONFIRMED finding in any of these files needs a human decision before the cycl
 - `src/cmdkit/cli.py` (`Interface`, and the `argparse` override that reaches every parser in the process)
 - `src/cmdkit/logging.py` (the logger class and record factory it installs process-wide)
 - `src/cmdkit/__init__.py` (the public interface and everything that runs at import)
-- `pyproject.toml` and the lockfile (`poetry.lock` today, `uv.lock` after the uv cycle)
+- `pyproject.toml` and the lockfile: `uv.lock` (`poetry.lock` until the move to uv)
 - `.github/workflows/publish.yml` (the PyPI publish path)
 
 A cycle that adds a module to the public interface, a new process-wide effect, or a new publish path adds its paths here in the same commit.
