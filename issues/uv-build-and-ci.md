@@ -1,5 +1,5 @@
 ---
-status: unshaped
+status: adopted:uv-build-and-ci
 kind: build
 appetite: big
 ---
