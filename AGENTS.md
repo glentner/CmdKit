@@ -155,7 +155,6 @@ Consumers pin `cmdkit>=2.7.7` with no upper bound (HyperShell pins `cmdkit[toml]
 - `Interface` never exits the process: help, version and errors are raised (`HelpOption`, `VersionOption`, `ArgumentError`).
 - `Application.main(cmdline)` returns an `int` from `ExitStatus` and never calls `sys.exit`; an exception it doesn't handle is logged and re-raised.
 - A hand-written usage or help text is printed as written, colorized by `colorize_usage` unless colour is off or disabled.
-- Known limitation (recorded, not fixed): with no logging configured, `ArgumentError` messages are dropped → `issues/cli-defaults.md`.
 
 ### 4. Footprint
 

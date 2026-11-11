@@ -10,6 +10,7 @@ from typing import List, Dict, Callable, NamedTuple, Type, TypeVar
 
 # standard libs
 import abc
+import sys
 import logging
 
 # internal libs
@@ -25,6 +26,35 @@ TAppGrp = TypeVar('TAppGrp', bound='ApplicationGroup')
 
 
 log = logging.getLogger(__name__)
+
+
+def _last_resort_would_print(logger: logging.Logger, level: int) -> bool:
+    """
+    True if Python's last-resort handler would print a record at `level` from `logger`
+    were the :class:`logging.NullHandler` on the `cmdkit` logger not there.
+
+    This follows the decision in :meth:`logging.Logger.callHandlers`. Nothing is printed
+    if the logger is not enabled for `level` (a disabled logger, a logger level above `level`,
+    or :func:`logging.disable`), or if :data:`logging.lastResort` is unset or above `level`.
+    Otherwise the logger and its ancestors are searched for as long as they propagate,
+    and any handler found, whatever its level, means the application has configured logging.
+    The one exception is an exact :class:`logging.NullHandler` on the `cmdkit` logger,
+    which the library attaches at import.
+    """
+    if not logger.isEnabledFor(level):
+        return False
+    if logging.lastResort is None or level < logging.lastResort.level:
+        return False
+    current = logger
+    while current is not None:
+        for handler in current.handlers:
+            if current.name == 'cmdkit' and type(handler) is logging.NullHandler:
+                continue
+            return False
+        if not current.propagate:
+            break
+        current = current.parent
+    return True
 
 
 # NOTE: In next major release this will be made into an Enum
@@ -96,8 +126,15 @@ class Application(abc.ABC):
         Entry-point for application.
         This is a try-except block that handles standard scenarios.
 
+        An :class:`~cmdkit.cli.ArgumentError` is passed to :data:`~Application.log_critical`
+        and ``exit_status.bad_argument`` is returned. If ``log_critical`` is the default and
+        Python's last-resort handler would print the record (no handler of the application's
+        would see it, and the ``cmdkit.app`` logger is not silenced), the message is also
+        written as is to ``sys.stderr``, followed by a newline.
+
         See Also:
             :data:`~Application.exceptions`
+            :data:`~Application.log_critical`
         """
         try:
             if not cmdline:
@@ -124,6 +161,8 @@ class Application(abc.ABC):
 
         except ArgumentError as error:
             cls.log_critical(error)
+            if cls.log_critical == log.critical and _last_resort_would_print(log, logging.CRITICAL):
+                print(error, file=sys.stderr)
             return exit_status.bad_argument
 
         except KeyboardInterrupt:

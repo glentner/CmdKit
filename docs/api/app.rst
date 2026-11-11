@@ -92,6 +92,18 @@ Reference
         This can be overridden by any function with the same interface.
         It is recommended to override this with your own logger.
 
+        When :func:`~main` catches an :class:`~cmdkit.cli.ArgumentError`, the default
+        ``log_critical`` logs it as a single ``CRITICAL`` record on the ``cmdkit.app`` logger.
+        If the application has not configured logging, so that Python's last-resort handler
+        would print that record were it not for the :class:`~logging.NullHandler` *cmdkit*
+        attaches to its own logger, the message is also written as is to ``sys.stderr``,
+        followed by a newline; a user who mistypes an option still sees why it was refused.
+        With a handler of the application's in place, the record goes to it as usual and
+        nothing else is written. Anything that silences the logger, such as :func:`logging.disable` or the
+        default ``disable_existing_loggers`` of :func:`logging.config.dictConfig`, keeps it
+        silent. An override of ``log_critical`` alone handles the message: *cmdkit* writes
+        nothing further.
+
     |
 
     .. automethod:: from_cmdline

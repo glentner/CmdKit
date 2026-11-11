@@ -6,12 +6,12 @@ appetite: small
 status: in_progress
 branch: fix/cli-defaults
 base: develop
-current_phase: P1
+current_phase: P2
 last_updated: '2026-11-11'
 phases:
 - id: P1
   name: Argument errors reach stderr when no logging is configured
-  status: pending
+  status: done
   satisfies:
   - R1
   - R2
@@ -120,24 +120,24 @@ atomic code+state commit.
 error's bare message to stderr, once, keeping its status; configured handlers and a replaced
 `log_critical` see exactly what they see in 2.7.7; nothing is attached to any logger.
 
-- [ ] `src/cmdkit/app.py`: add `import sys` to the standard-libs group; add the private module
+- [x] `src/cmdkit/app.py`: add `import sys` to the standard-libs group; add the private module
       function `_last_resort_would_print(logger, level)` as `PLAN.md` § 2 specifies (GOAL C6: the
       enabled check, the `logging.lastResort` presence and level check, then the walk along
       `propagate` that any handler stops whatever its level, except an exact
       `logging.NullHandler` on the `cmdkit` logger), with a docstring.
-- [ ] `Application.main`: in the `ArgumentError` branch, after `cls.log_critical(error)`, write
+- [x] `Application.main`: in the `ArgumentError` branch, after `cls.log_critical(error)`, write
       `print(error, file=sys.stderr)` when `cls.log_critical == log.critical` and
       `_last_resort_would_print(log, logging.CRITICAL)` is true. Leave the other branches as they
       are.
-- [ ] `Application.main`'s docstring: how an argument error is reported.
-- [ ] `docs/api/app.rst`: the `log_critical` / `log_exception` paragraph describes the default
+- [x] `Application.main`'s docstring: how an argument error is reported.
+- [x] `docs/api/app.rst`: the `log_critical` / `log_exception` paragraph describes the default
       report on stderr and that an override alone handles the message.
-- [ ] `AGENTS.md`: delete the last bullet of § Invariants 3, the one recording that `ArgumentError`
+- [x] `AGENTS.md`: delete the last bullet of § Invariants 3, the one recording that `ArgumentError`
       messages are dropped with no logging configured, and change nothing else in the file.
-- [ ] `tests/test_app.py`: add the `no_logging_configured()` context manager (hides the root
+- [x] `tests/test_app.py`: add the `no_logging_configured()` context manager (hides the root
       logger's handlers inside a test body and restores them in place) and the tests `PLAN.md`
       § 2 lists for R1, R2, R3, C6 and R7, side by side; existing tests stay byte for byte.
-- [ ] Stage the work, then run the verify.
+- [x] Stage the work, then run the verify.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
 - **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`, `AGENTS.md`.
 

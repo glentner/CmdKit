@@ -4,7 +4,12 @@
 """Unit tests for `cmdkit.app` behavior and interfaces."""
 
 
+# type annotations
+from typing import Iterator, List, Type
+
 # standard libs
+import logging
+from contextlib import contextmanager
 from string import ascii_letters
 
 # external libs
@@ -406,3 +411,116 @@ def test_shared_group_option(capsys) -> None:
     assert app.command == CMD2
     assert app.shared == Namespace({'opt': False})
     assert app.cmdline == ['foo', '--debug']
+
+
+@contextmanager
+def no_logging_configured() -> Iterator[None]:
+    """Hide the root logger's handlers (pytest's own) in a test body, then restore them in place."""
+    root = logging.getLogger()
+    saved = root.handlers[:]
+    root.handlers.clear()
+    try:
+        yield
+    finally:
+        root.handlers[:] = saved
+
+
+def argument_error(app: Type[Application], cmdline: List[str]) -> str:
+    """The message of the ArgumentError that `app` raises for `cmdline`, parsing or running."""
+    with pytest.raises(ArgumentError) as info:
+        app.from_cmdline(cmdline).run()
+    return str(info.value)
+
+
+ARGUMENT_ERRORS = [
+    pytest.param(DemoApp, ['arg_1', '--bogus'], DemoApp, ['arg_1', '--bogus'], '--bogus', id='unknown-flag'),
+    pytest.param(DemoApp, ['--debug'], DemoApp, ['--debug'], 'arg_1', id='missing-positional'),
+    pytest.param(Group, ['bogus'], Group, ['bogus'], 'bogus', id='unknown-command'),
+    pytest.param(Group, [CMD1, 'x', '--bogus'], Command1, ['x', '--bogus'], '--bogus', id='command-unknown-flag'),
+    pytest.param(Group, [CMD1, '--debug'], Command1, ['--debug'], 'arg', id='command-missing-positional'),
+]
+
+
+@pytest.mark.parametrize('app, cmdline, source, source_cmdline, token', ARGUMENT_ERRORS)
+def test_app_argument_error_reported_without_logging(capsys, app, cmdline, source, source_cmdline, token) -> None:
+    """With no logging configured, an argument error is written to <stderr> once, as is."""
+    message = argument_error(source, source_cmdline)
+    assert token in message
+    with no_logging_configured():
+        status = app.main(cmdline)
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+    assert captured.err == message + '\n'
+
+
+@pytest.mark.parametrize('app, cmdline, source, source_cmdline, token', ARGUMENT_ERRORS)
+def test_app_argument_error_logged_with_logging(capsys, caplog, app, cmdline, source, source_cmdline, token) -> None:
+    """With logging configured, the handlers get one critical record and nothing else is written."""
+    message = argument_error(source, source_cmdline)
+    assert token in message
+    status = app.main(cmdline)
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+    assert captured.err == ''
+    assert [(r.name, r.levelno, r.getMessage()) for r in caplog.records] == [
+        ('cmdkit.app', logging.CRITICAL, message)
+    ]
+
+
+def test_app_argument_error_log_critical_replaced_on_class(capsys) -> None:
+    """A log_critical replaced on the class is called once, and nothing is written."""
+    calls = []
+
+    class Recorded(Group):
+        log_critical = staticmethod(calls.append)
+
+    with no_logging_configured():
+        status = Recorded.main(['bogus'])
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert [str(error) for error in calls] == ['unrecognized command: bogus']
+    assert captured.out == ''
+    assert captured.err == ''
+
+
+def test_app_argument_error_log_critical_replaced_on_application(capsys, monkeypatch) -> None:
+    """A log_critical replaced on Application is called once, and nothing is written."""
+    calls = []
+    monkeypatch.setattr(Application, 'log_critical', calls.append)
+    message = argument_error(Command1, ['x', '--bogus'])
+    with no_logging_configured():
+        status = Group.main([CMD1, 'x', '--bogus'])
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert [str(error) for error in calls] == [message]
+    assert captured.out == ''
+    assert captured.err == ''
+
+
+def test_app_argument_error_silent_when_logging_disabled(capsys) -> None:
+    """With logging disabled at the critical level, nothing is written, as without the report."""
+    with no_logging_configured():
+        logging.disable(logging.CRITICAL)
+        try:
+            status = Group.main(['bogus'])
+        finally:
+            logging.disable(logging.NOTSET)
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+    assert captured.err == ''
+
+
+def test_app_argument_error_leaves_no_handler(capsys) -> None:
+    """Reporting an argument error attaches no handler to any logger."""
+    names = ('cmdkit', 'cmdkit.app', '')
+    with no_logging_configured():
+        before = {name: logging.getLogger(name).handlers[:] for name in names}
+        status = Group.main(['bogus'])
+        after = {name: logging.getLogger(name).handlers[:] for name in names}
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.err == 'unrecognized command: bogus\n'
+    assert before == after
