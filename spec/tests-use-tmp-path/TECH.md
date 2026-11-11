@@ -25,10 +25,10 @@ phases:
   hill: uphill
   verify: sh spec/tests-use-tmp-path/verify/gate.sh P1
 review:
-  last_reviewed_commit: ''
-  verdict: none
+  last_reviewed_commit: a3cec2817a69871e3f5e33fbd25d2691edbd24f9
+  verdict: approved
   blocked_reason: ''
-  cycle: 0
+  cycle: 1
 ---
 
 # TECH.md — Tests write only to pytest's temporary directories
