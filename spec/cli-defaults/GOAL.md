@@ -72,12 +72,14 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
   WHEN `main` catches an `ArgumentError`, the replacement SHALL be called once with the error, as
   today, and cmdkit SHALL write nothing further to stderr, whether or not any handler stands behind
   the replacement (C2).
-- **R4** — WHEN an `ApplicationGroup` subclass with `ALLOW_NOARGS = True` runs with an empty command
-  line (`main([])`, or `main(None)`, which `main` already treats as empty), and that run would
-  otherwise fail on the missing command (C7), it SHALL print to stdout exactly what
-  `main(['--help'])` prints for that group and SHALL return `exit_status.success` (0), with nothing
-  on stderr. A group whose `command` positional is optional SHALL call `run` on a bare run exactly
-  as in 2.7.7 (C7).
+- **R4** — WHEN an `ApplicationGroup` subclass with `ALLOW_NOARGS = True` runs with an empty
+  effective command line (`main([])`, or `main(None)` with no arguments in `sys.argv`; C8), and the
+  group's interface would reject that bare command line, as it does when the `command` positional is
+  required (C7, C8), it SHALL print to stdout exactly what `main(['--help'])` prints for that group
+  and SHALL return `exit_status.success` (0), with nothing on stderr. A group whose `command`
+  positional is optional SHALL call `run` on a bare run exactly as in 2.7.7 (C7). Under the opt-in,
+  `main(None)` SHALL parse `sys.argv[1:]` exactly as in 2.7.7, so arguments there dispatch or are
+  reported as an argument error as in 2.7.7, and never show the help in their place (C8).
 - **R5** — WHEN an `ApplicationGroup` without `ALLOW_NOARGS = True` runs with an empty command line,
   it SHALL print its usage and return `exit_status.usage` (1), as in 2.7.7
   (`test_app_group_usage` keeps passing unchanged). A plain `Application`'s bare-run behaviour, with
@@ -106,8 +108,10 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
 2. R2 after `logging.basicConfig` (or with `caplog`): one `CRITICAL` record with the message, and
    no extra stderr output from cmdkit.
 3. R3 with a replaced `log_critical` that records its calls: one call, and stderr empty.
-4. R4 and R5 side by side: an `ALLOW_NOARGS` group's `main([])` and `main(None)` print its
-   `--help` output and return 0; `test_app_group_usage` passes unchanged. An `ALLOW_NOARGS` group
+4. R4 and R5 side by side: an `ALLOW_NOARGS` group's `main([])`, and its `main(None)` with no
+   arguments in `sys.argv`, print its `--help` output and return 0; `test_app_group_usage` passes
+   unchanged. With `sys.argv` carrying arguments (`['app', 'bogus']`), its `main(None)` reports the
+   argument error with status 2, as in 2.7.7 (C8). An `ALLOW_NOARGS` group
    whose `command` positional is optional (`nargs='?'`) calls its `run` on a bare run, with the
    output and status 2.7.7 gives (C7).
 5. R7: the set of handlers on the `cmdkit`, `cmdkit.app` and root loggers after `import cmdkit` in
@@ -118,7 +122,8 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
 
 - **`main(None)` reading `sys.argv`.** `main` treats `None` as an empty command line and never reads
   `sys.argv`; the documented call is `main(sys.argv[1:])`. Reading `sys.argv` by default would
-  change a default, so it stays as it is.
+  change a default, so it stays as it is. Under `ALLOW_NOARGS`, 2.7.7 already parses `sys.argv[1:]`
+  for `None` (argparse's default), and that stays as it is too (C8).
 - **The exit statuses.** Every path keeps its `ExitStatus` value; only the opt-in in R4 returns a
   different one, from a configuration that today exits 2 in silence.
 - **Suggestions for a mistyped command** (`did you mean …`): that is the next roadmap cycle,
@@ -201,6 +206,21 @@ Raised at review cycle 1 (finding F2), ruled 2026-11-11:
   group whose `command` positional is optional calls `run` exactly as on 2.7.7. The Non-goals'
   premise, that the opt-in "today exits 2 in silence", then holds for every group R4 changes
   (resolved 2026-11-11; R4).
+
+Raised at the PLAN/TECH sign-off of the review cycle 1 revision, ruled 2026-11-11:
+
+- **C8 (2026-11-11, R4) · Q:** R4 called `main(None)` a command line `main` "already treats as
+  empty". Under `ALLOW_NOARGS`, 2.7.7 passes `None` to argparse, which parses `sys.argv[1:]`. Does
+  R4 keep that, and what does "would otherwise fail on the missing command" (C7) mean in the code?
+  — **A:** `main(None)` parses `sys.argv[1:]` exactly as in 2.7.7. R4's bare-run rule applies when
+  the effective command line is empty: `[]`, or `None` with no arguments in `sys.argv`. A non-empty
+  `sys.argv` under `None` dispatches, or is reported as an argument error, as in 2.7.7, and never
+  shows the help in its place. C7's condition is read as the plan's deviation row 3 reads it, and
+  the review grades against this reading: under the opt-in, a bare run that the group's interface
+  would reject shows the help; one it accepts proceeds as in 2.7.7. For a group whose only
+  required argument is `command`, the two readings are the same. A group whose `command` is
+  optional but which requires some other argument shows its help on a bare run too, rather than
+  that argument's error (resolved 2026-11-11; R4).
 
 ## Related materials
 
