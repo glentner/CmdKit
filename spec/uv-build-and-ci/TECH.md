@@ -6,7 +6,7 @@ appetite: big
 status: in_progress
 branch: feature/uv-build-and-ci
 base: develop
-current_phase: P3
+current_phase: P4
 last_updated: '2026-11-10'
 phases:
 - id: P1
@@ -38,7 +38,7 @@ phases:
   verify: sh spec/uv-build-and-ci/verify/gate.sh P2
 - id: P3
   name: Read the Docs through uv, and dependabot
-  status: pending
+  status: done
   satisfies:
   - R3
   - R4
@@ -218,13 +218,13 @@ after the docs group changes) · **Depends on:** P1
 **Goal:** Read the Docs installs the docs group and cmdkit with uv; R7's command builds; dependabot
 watches uv and Actions against `develop`.
 
-- [ ] `.readthedocs.yaml`: `build.os: ubuntu-24.04`, `build.tools.python: "3.13"`, and
+- [x] `.readthedocs.yaml`: `build.os: ubuntu-24.04`, `build.tools.python: "3.13"`, and
       `python.install: [{method: uv, command: sync, groups: [docs]}]`; `sphinx.configuration`
       unchanged; no `build.jobs`.
-- [ ] Add `"setuptools<82"` to the `docs` group with a comment naming why
+- [x] Add `"setuptools<82"` to the `docs` group with a comment naming why
       (`sphinxcontrib-details-directive` imports `pkg_resources`; an exact uv environment has no
       setuptools), then `uv lock`. This is the one addition the lock needs for R7 (`PLAN.md` § 3).
-- [ ] `.github/dependabot.yml`: `version: 2`; `uv` and `github-actions` at `directory: "/"`,
+- [x] `.github/dependabot.yml`: `version: 2`; `uv` and `github-actions` at `directory: "/"`,
       `target-branch: "develop"`, weekly.
 - **Verify:** `sh spec/uv-build-and-ci/verify/gate.sh P3`: `workflow_config.py rtd dependabot`
   (schema-checked), `build_config.py package nopoetry`, `docs_build.py` (R7's command on an export,

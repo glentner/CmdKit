@@ -53,6 +53,9 @@ docs = [
     "pydata-sphinx-theme>=0.15.1,<0.16.0",
     "enum-tools[sphinx]>=0.10.0,<0.11.0",
     "docutils>=0.21.1,<0.22.0",
+    # sphinxcontrib-details-directive imports pkg_resources, which setuptools 82 removed;
+    # a uv environment holds only what is declared, so setuptools is named here
+    "setuptools<82",
 ]
 
 [build-system]
