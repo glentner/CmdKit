@@ -10,7 +10,8 @@ Release Notes (v2.8.0)
     Further 2.8.x patch releases are on the way.
 
 The v2.8.0 release fixes two long-standing failures by default and moves the project's
-build to `uv <https://docs.astral.sh/uv/>`_. Nothing a consumer installs changes.
+build to `uv <https://docs.astral.sh/uv/>`_. Its dependencies and supported Python versions are
+unchanged.
 
 - A value and its ``_env`` and ``_eval`` variants are now one key across the layers of a
   ``Configuration``: the highest layer that sets any of them decides.
@@ -52,8 +53,10 @@ an error or lost, depending on how the value was read.
 In 2.8.0, ``name``, ``name_env`` and ``name_eval`` are one key across a ``Configuration``'s
 layers, and the highest layer that sets any of them decides. "Higher" is the precedence
 ``which`` already reports: the layers in the order they were added, then ``_``, the layer
-that records in-place changes. The rule holds at the top level and at any depth, for layers
-given at construction, added with ``extend`` or loaded from files by ``from_local``.
+that records in-place changes. One known gap, tracked on the roadmap: a layer added with
+``extend`` after an in-place change wins in the merged view, while ``which`` still names ``_``.
+The rule holds at the top level and at any depth, for layers given at construction, added with
+``extend`` or loaded from files by ``from_local``.
 
 - The merged view keeps only the variants the deciding layer sets; ``dict(cfg)`` and iteration
   show it. Mapping values displace and are displaced like any other value, and where the deciding
@@ -93,9 +96,9 @@ so ``_`` never holds both. Assigning a top-level name, as in ``cfg.token = 'v'``
 view holds another variant of it, such as ``token_env``, is now an in-place change too; before, it
 set an ordinary Python attribute that neither ``_`` nor the merged view saw. Assignment below the
 top level (``cfg.section.name = v``) is unchanged. Plain ``Namespace.update`` is unchanged and stays
-``dict``-like: the rule belongs to how a ``Configuration`` layers its namespaces. In two rare
-sequences of in-place changes, ``which`` can still name a lower layer for a key that item access
-no longer finds. They are recorded on the roadmap, with the other gaps in how ``_`` tracks
+``dict``-like: the rule belongs to how a ``Configuration`` layers its namespaces. In a few rare
+sequences of in-place changes, ``which`` can still answer from a lower layer for a key that item
+access no longer finds. They are recorded on the roadmap, with the other gaps in how ``_`` tracks
 in-place changes.
 
 No layer is ever modified: after construction, ``extend``, ``update``, attribute assignment or
@@ -196,5 +199,3 @@ Project
 - The 2022 drafts `#14 <https://github.com/glentner/CmdKit/pull/14>`__ (rank-aware decorators
   for MPI) and `#15 <https://github.com/glentner/CmdKit/pull/15>`__ (a user and group guard)
   are salvaged as ``contrib`` proposals on the roadmap, after 2.8.0.
-- The remaining roadmap entries, opt-in configuration and command-line behaviour among them,
-  ship in the 2.8.x series.
