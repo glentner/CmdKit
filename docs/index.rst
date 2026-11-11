@@ -108,8 +108,8 @@ two of them is still ambiguous, and accessing the parameter raises an error.
 Installation
 ------------
 
-*CmdKit* is tested on Python 3.7+ for `Windows`, `macOS`, and `Linux`, and can be installed
-from the `Python Package Index` using `Pip`.
+*CmdKit* supports Python 3.9 and later, is tested for `Windows`, `macOS`, and `Linux`, and can be
+installed from the `Python Package Index` using `Pip`.
 
 ::
 

@@ -49,4 +49,6 @@ stated in both documents. A test parses each `>>>` statement in the package's do
   landed in #30; nothing blocks it now.
 - Running the docstring examples as doctests would need fixtures for files and the environment; out of
   scope here.
+- The Python floor in `docs/index.rst` was corrected to 3.9 with the 2.8.0 release notes; the rest
+  stays open.
 - Found by: adoption sweep, 2026-11-10.

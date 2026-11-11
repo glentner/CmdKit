@@ -42,6 +42,11 @@ Reference
 
     .. automethod:: which
 
+        ``which`` is keyed on the literal key. Where a higher layer's variant of a name has
+        displaced a key on the path (``name``, ``name_env`` and ``name_eval`` are one key across
+        layers, as above), item access raises ``KeyError`` and so does ``which``, for that key
+        and for anything beneath it.
+
     |
 
     .. automethod:: duplicates

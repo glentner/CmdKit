@@ -12,8 +12,6 @@ A place for announcements, release notes, thoughts and ideas for the project.
 
 `November 11, 2026`
 
-.. pending: config-variant-collision
-
 The v2.8.0 release fixes two long-standing failures by default and moves the project's
 build to uv.
 
