@@ -73,3 +73,11 @@ records.
 
 - F1 is CONFIRMED in `src/cmdkit/config.py`, a high-blast-radius path, so the maintainer's ruling is
   required.
+
+## Maintainer's ruling on review cycle 1 (2026-11-11)
+
+- **F1: fix it first.** Remediate in P1, then run a scoped review cycle 2 that verifies only the
+  fix, then the PR. The property to restore: `which` agrees with item access (R3, C1) for every
+  path, including one that no layer holds and that runs through a displaced scalar.
+- **F2:** out of Scope. It goes to the `builder-trim-local-layer` seed in the next roadmap upkeep
+  PR, because this cycle's frozen gate admits no `issues/` edit after the plan.
