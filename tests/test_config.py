@@ -959,6 +959,43 @@ class TestVariantCollision:
         with pytest.raises(TypeError, match='not subscriptable'):
             cfg.which('s', 'token_env')
 
+    def test_which_displaced_scalar_prefix(self) -> None:
+        """A path through a scalar a higher variant displaced is gone for which, as for item access."""
+        # a top-level scalar displaced by its variant
+        cfg = Configuration(lower=Namespace({'u': 0}), upper=Namespace({'u_env': 'VAR'}))
+        with pytest.raises(KeyError):
+            cfg['u']
+        with pytest.raises(KeyError):
+            cfg.which('u', 't')
+        with pytest.raises(KeyError):
+            cfg.which('u', 't', 'v')
+        with pytest.raises(KeyError):
+            cfg.which('u')
+        assert cfg.which('u_env') == 'upper'
+
+        # a nested scalar displaced by its variant
+        cfg = Configuration(lower=Namespace({'s': {'token': 5}}), upper=Namespace({'s': {'token_env': 'VAR'}}))
+        with pytest.raises(KeyError):
+            cfg['s']['token']
+        with pytest.raises(KeyError):
+            cfg.which('s', 'token', 'a')
+        assert cfg.which('s', 'token_env') == 'upper'
+
+        # no displacement on the path: through the merged view's scalar, both raise TypeError
+        cfg = Configuration(base=Namespace({'w': 0}), zero=Namespace({'u_env': 'VAR'}),
+                            one=Namespace({'u': 5}))
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg['u']['t']
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('u', 't')
+
+        # nor beneath a scalar a fresh mapping replaced: which keeps its TypeError
+        cfg.extend(two=Namespace({'u': {}}))
+        with pytest.raises(KeyError):
+            cfg['u']['t']
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('u', 't')
+
     def test_update(self) -> None:
         """An in-place update replaces a layer's different variant, in `_` and in the merged view."""
         layer = {'s': {'token': 'a', 'k': 1}}

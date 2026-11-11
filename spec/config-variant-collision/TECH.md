@@ -3,7 +3,7 @@ slug: config-variant-collision
 title: A value and its _env and _eval variants are one key across layers
 kind: fix
 appetite: small
-status: blocked
+status: in_review
 branch: fix/config-variant-collision
 base: develop
 current_phase: done
@@ -24,7 +24,7 @@ phases:
   parallel: false
   hammerable: false
   hill: uphill
-  attempts: 1
+  attempts: 2
   verify: sh spec/config-variant-collision/verify/gate.sh P1
 - id: P2
   name: In-place changes follow the rule
@@ -207,6 +207,17 @@ of the highest layer that sets any of them; attribute access, item access and `w
         a scalar and a fresh mapping: each raises `TypeError` matching "not subscriptable").
 - [x] Stage everything, run the verify, then commit code, tests, docs, `AGENTS.md` and the
       `TECH.md` state change together.
+- [x] Review cycle 1, F1: in the displacement test, a lower source counts as holding a key on the
+      path when it holds the path down to that key (a scalar prefix included), not only the whole
+      path, so `which` raises `KeyError` where item access does for a path through a scalar that a
+      higher variant displaced. A path through a scalar with no displacement on it keeps its
+      `TypeError`, and the two in-place shapes of GOAL C8 keep today's answer. Pin it in
+      `TestVariantCollision.test_which_displaced_scalar_prefix`: `u = 0` under `u_env` with
+      `which('u', 't')` and `which('u', 't', 'v')`; `s.token = 5` under `s.token_env` with
+      `which('s', 'token', 'a')`; `u = 5` over `u_env` over an unrelated layer, where item access
+      and `which` both raise `TypeError`; and the same with a fresh `u = {}` added above, where
+      `which` keeps `TypeError`. Run the P1 gate and then the P2 gate on the final tree, and commit
+      as P1.
 - **Verify:** `sh spec/config-variant-collision/verify/gate.sh P1`: `static P1`, `suite P1`,
   `drive P1`, `mutants`.
 - **Touches:** `src/cmdkit/config.py`, `tests/test_config.py`, `docs/index.rst`, `AGENTS.md`.
@@ -242,6 +253,16 @@ and in the merged view; a name whose variant is in the merged view is a paramete
 - **Verify:** `sh spec/config-variant-collision/verify/gate.sh P2`: `static P2` (with the ledger),
   `suite P2`, `drive P2`, `mutants`.
 - **Touches:** `src/cmdkit/config.py`, `tests/test_config.py`.
+
+---
+
+## Amendments
+
+- 2026-11-11, review cycle 1, F1 (the maintainer ruled: fix in P1). P1 is reopened with P2 left
+  done. `PLAN.md` § 2.4 says the displacement test looks above "a source that holds all of path";
+  the fix widens that to a source holding the path down to the displaced key, which `PLAN.md`
+  (frozen at the plan commit) does not restate. P1's gate runs unchanged on the final tree, since
+  its checks hold with P2 landed, and P2's gate runs after it on the same tree.
 
 ---
 

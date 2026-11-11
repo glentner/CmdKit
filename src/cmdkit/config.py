@@ -87,19 +87,28 @@ def _lacks(mapping: Any, path: Tuple[Any, ...]) -> bool:
     return False
 
 
+def _depth_held(mapping: Any, path: Tuple[Any, ...]) -> int:
+    """How many leading keys of `path` are held through nested mappings."""
+    for depth, key in enumerate(path):
+        if not isinstance(mapping, dict) or key not in mapping:
+            return depth
+        mapping = mapping[key]
+    return len(path)
+
+
 def _displaced(sources: List[Mapping], path: Tuple[Any, ...]) -> bool:
     """
-    Whether, above a source that holds all of `path`, a source sets another variant
-    of a key on `path` in that key's place, and not the key itself.
+    Whether a source sets another variant of a key on `path` in that key's place,
+    and not the key itself, above a source that holds `path` down to that key.
     """
-    held = False
+    held = set()
     for source in sources:
         for depth, key in enumerate(path):
             parent = _value_at(source, path[:depth])
-            if held and isinstance(parent, dict) and key not in parent \
+            if depth in held and isinstance(parent, dict) and key not in parent \
                     and any(other in parent for other in _variant_siblings(key)):
                 return True
-        held = held or _value_at(source, path) is not _MISSING
+        held.update(range(_depth_held(source, path)))
     return False
 
 
