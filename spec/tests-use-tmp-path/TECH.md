@@ -3,7 +3,7 @@ slug: tests-use-tmp-path
 title: Tests write only to pytest's temporary directories
 kind: fix
 appetite: small
-status: in_review
+status: done
 branch: fix/tests-use-tmp-path
 base: develop
 current_phase: done
