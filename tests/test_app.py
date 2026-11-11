@@ -759,6 +759,11 @@ def test_app_argument_error_last_resort_rule(capsys, monkeypatch, request, setup
     assert captured.err == ('unrecognized command: bogus\n' if once else '')
 
 
+def child_text(output: bytes) -> bytes:
+    """A child's captured output with Windows line endings read as newlines."""
+    return output.replace(b'\r\n', b'\n')
+
+
 DICT_CONFIG_RECIPE = """
 import logging.config
 config = {
@@ -790,8 +795,8 @@ def test_app_argument_error_silent_under_dict_config_null_handler(order) -> None
     proc = subprocess.run([sys.executable, '-I', '-c', code],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
     assert proc.returncode == exit_status.bad_argument
-    assert proc.stdout == b''
-    assert proc.stderr == b''
+    assert child_text(proc.stdout) == b''
+    assert child_text(proc.stderr) == b''
 
 
 DEAD_STDERR_CHILD = """
@@ -820,7 +825,7 @@ def test_app_argument_error_dead_stderr_pipe() -> None:
                               stdout=subprocess.PIPE, stderr=write_end, timeout=60)
     finally:
         os.close(write_end)
-    assert proc.stdout == str(exit_status.bad_argument).encode()
+    assert child_text(proc.stdout) == str(exit_status.bad_argument).encode()
 
 
 def test_app_argument_error_no_stderr(capsys) -> None:
@@ -867,8 +872,8 @@ def test_app_library_handler_on_cmdkit_logger(capsys) -> None:
     proc = subprocess.run([sys.executable, '-I', '-c', ROOT_AFTER_IMPORT_CHILD],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
     assert proc.returncode == 0
-    assert proc.stdout == b'[]'
-    assert proc.stderr == b'an application warning\n'
+    assert child_text(proc.stdout) == b'[]'
+    assert child_text(proc.stderr) == b'an application warning\n'
 
 
 def test_app_argument_error_silent_when_logging_disabled(capsys) -> None:

@@ -3,7 +3,7 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: done
+status: in_review
 branch: fix/cli-defaults
 base: develop
 current_phase: done
@@ -241,6 +241,14 @@ not in `PLAN.md`).** Wording and a test only; no code line changes.
 - [x] R4-F3, the import-time crash without a stderr (pre-existing in 2.7.7), seeded:
       `issues/import-without-stderr.md` and its `ROADMAP.md` entry, staged with this phase.
 - [x] Stage the work, then run the verify.
+
+**CI on Windows: line endings in child output (amendment 2026-11-11).** The tests that compare a
+child interpreter's captured output read `\r\n` as `\n`; the assertions stay otherwise exact.
+After the merge of `develop`, `static` is base-anchored and fails for the merge's own files, so
+this item is graded by the gate's `tests`, `errors` and `noargs` modes and the profile's `verify`.
+
+- [x] `tests/test_app.py`: every comparison of a child's stdout or stderr normalises line endings.
+- [x] Stage the work, then run `gate.sh tests`, `errors` and `noargs`, and the profile's `verify`.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
 - **Touches:** `src/cmdkit/app.py`, `src/cmdkit/__init__.py`, `tests/test_app.py`, `docs/api/app.rst`,
   `AGENTS.md`, `issues/import-without-stderr.md`, `ROADMAP.md`.
