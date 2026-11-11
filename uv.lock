@@ -398,7 +398,7 @@ dev = [
 ]
 docs = [
     { name = "docutils", specifier = ">=0.21.1,<0.22.0" },
-    { name = "enum-tools", extras = ["sphinx"], specifier = ">=0.10.0,<0.11.0" },
+    { name = "enum-tools", extras = ["sphinx"], specifier = ">=0.10.0,<0.14.0" },
     { name = "pydata-sphinx-theme", specifier = ">=0.15.1,<0.16.0" },
     { name = "setuptools", specifier = "<82" },
     { name = "sphinx", specifier = ">=7.2.6,<8.0.0" },
@@ -457,15 +457,15 @@ wheels = [
 
 [[package]]
 name = "enum-tools"
-version = "0.10.0"
+version = "0.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pygments" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/4c/b4c2979373761641c9a6490de8f820a61124589d3dd311763b6866e87073/enum_tools-0.10.0.tar.gz", hash = "sha256:777dc3cfb4314780bb9ca2460b518be58c3f29e13bd77b33badead4c2c136976", size = 18736, upload-time = "2023-06-15T12:51:27.95Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/87/50091e20c2765aa495b24521844a7d8f7041d48e4f9b47dd928cd38c8606/enum_tools-0.13.0.tar.gz", hash = "sha256:0d13335e361d300dc0f8fd82c8cf9951417246f9676144f5ee1761eb690228eb", size = 18904, upload-time = "2025-04-17T15:26:59.412Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/ff/32606deb6780b56ac9e6749c697db3db261e4549a4b873b72f983722ead8/enum_tools-0.10.0-py3-none-any.whl", hash = "sha256:87f4e8216468e53f2920d2e016dc18eea0972b0b6c1eea65756fbc331a3113d2", size = 61455, upload-time = "2023-06-15T12:51:26.111Z" },
+    { url = "https://files.pythonhosted.org/packages/84/45/cf8a8df3ebe78db691ab54525d552085b67658877f0334f4b0c08c43b518/enum_tools-0.13.0-py3-none-any.whl", hash = "sha256:e0112b16767dd08cb94105844b52770eae67ece6f026916a06db4a3d330d2a95", size = 22366, upload-time = "2025-04-17T15:26:58.34Z" },
 ]
 
 [package.optional-dependencies]
