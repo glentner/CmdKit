@@ -6,12 +6,12 @@ appetite: small
 status: in_progress
 branch: fix/config-variant-collision
 base: develop
-current_phase: P1
+current_phase: P2
 last_updated: '2026-11-11'
 phases:
 - id: P1
   name: Layers decide variants, and which agrees
-  status: pending
+  status: done
   satisfies:
   - R1
   - R2
@@ -24,6 +24,7 @@ phases:
   parallel: false
   hammerable: false
   hill: uphill
+  attempts: 1
   verify: sh spec/config-variant-collision/verify/gate.sh P1
 - id: P2
   name: In-place changes follow the rule
@@ -145,34 +146,34 @@ code+state commit.
 of the highest layer that sets any of them; attribute access, item access and `which` agree; plain
 `Namespace` is untouched; the rule is documented, and § Invariants 2 states it, in the same commit.
 
-- [ ] `src/cmdkit/config.py`, module level after `ConfigurationError`, private helpers per
+- [x] `src/cmdkit/config.py`, module level after `ConfigurationError`, private helpers per
       `PLAN.md` § 2.1, § 2.2 and § 2.4: the sibling helper; the prune; `_apply_layer(target, new)`
       (prune, then `NSCoreMixin.update(target, new)`); a sentinel lookup; the merged-view test (a
       mapping on the way lacks the next key; a step through a non-mapping is not that case); the
       displacement test (sources bottom to top; above one that holds the whole path, one that holds
       a sibling of a key on the path at that key's place and not the key, at any depth). Each gets
       a one-line docstring and annotations; add any `typing` name they need to the existing import.
-- [ ] `Configuration.extend`: `_apply_layer(self, self.namespaces[name])` in place of
+- [x] `Configuration.extend`: `_apply_layer(self, self.namespaces[name])` in place of
       `super().update(self.namespaces[name])`; the `_` branch stays `self.local.update(mapping)`.
-- [ ] `Configuration.which`: add the guard of `PLAN.md` § 2.4 as the first statement after
+- [x] `Configuration.which`: add the guard of `PLAN.md` § 2.4 as the first statement after
       `namespaces = ...`, raising `KeyError(f'Not found: {path}')`; leave the walk below it as it is,
       character for character.
-- [ ] Do not touch `src/cmdkit/namespace.py` or any other file under `src/` (the gate checks).
-- [ ] `Configuration` class docstring: a sentence or two stating the rule, and an `Example:` block
+- [x] Do not touch `src/cmdkit/namespace.py` or any other file under `src/` (the gate checks).
+- [x] `Configuration` class docstring: a sentence or two stating the rule, and an `Example:` block
       showing it (`PLAN.md` § 2.5). `docs/index.rst`: a paragraph stating the rule, inside the
       passage that introduces `_env` and `_eval`, after "Accessing the parameter with
       dot-notation …", naming ``_env``, ``_eval`` and the layers.
-- [ ] `AGENTS.md` § Invariants 2: the line that records the collision and points at
+- [x] `AGENTS.md` § Invariants 2: the line that records the collision and points at
       `issues/config-variant-collision.md` becomes exactly
       "- `name`, `name_env` and `name_eval` are one key across layers: the highest layer that sets
       any of them decides." in the same place. No other line of `AGENTS.md` changes.
-- [ ] `tests/test_config.py`, `TestConfiguration.test_attribute_expand_multiple_variants`: keep the
+- [x] `tests/test_config.py`, `TestConfiguration.test_attribute_expand_multiple_variants`: keep the
       signature and the `cfg = Configuration(...)` statement; the docstring may change; the body
       after it is exactly these four lines, in this order, outside any `with`:
       `assert cfg.nested.a == 1`, `assert cfg.nested.b == 2`,
       `assert cfg.other.secret == 'baz'`, `assert cfg.nested.test == 'bar'`.
       Change no other base test, fixture, import or module-level statement.
-- [ ] `tests/test_config.py`, a new class `TestVariantCollision` (after `TestConfiguration`), with
+- [x] `tests/test_config.py`, a new class `TestVariantCollision` (after `TestConfiguration`), with
       these tests (the gate looks them up by name; their content follows `GOAL.md` "How it is shown"
       and `PLAN.md` § 2.6):
       - `test_pairs`, parametrized over the six ordered pairs of `token`, `token_env`,
@@ -204,7 +205,7 @@ of the highest layer that sets any of them; attribute access, item access and `w
         `test_which_through_scalars` (a layer without `x` beside `x.y`, `x = 5`, `x.z`; `x.y` and
         `x.y_env` under a higher `x = 5`; a deciding layer holding `token` and `token_env` beneath
         a scalar and a fresh mapping: each raises `TypeError` matching "not subscriptable").
-- [ ] Stage everything, run the verify, then commit code, tests, docs, `AGENTS.md` and the
+- [x] Stage everything, run the verify, then commit code, tests, docs, `AGENTS.md` and the
       `TECH.md` state change together.
 - **Verify:** `sh spec/config-variant-collision/verify/gate.sh P1`: `static P1`, `suite P1`,
   `drive P1`, `mutants`.

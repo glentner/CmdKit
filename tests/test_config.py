@@ -516,16 +516,14 @@ class TestConfiguration:
         assert cfg.nested.test == 'foo-bar'
 
     def test_attribute_expand_multiple_variants(self) -> None:
-        """Test failure to expand because multiple variants found."""
+        """Variants of one name from different layers: the higher layer decides."""
         cfg = Configuration(a=Namespace({'nested': {'test': 'foo', 'a': 1}}),
                             b=Namespace({'nested': {'test_eval': 'echo bar', 'b': 2}}),
                             c=Namespace({'other': {'secret_eval': 'echo baz'}}))
-        with pytest.raises(AttributeError) as exc_info:
-            assert cfg.nested.a == 1
-            assert cfg.nested.b == 2
-            assert cfg.other.secret == 'baz'
-            assert cfg.nested.test == 'foo'
-        assert exc_info.match('\'test\' has more than one variant')
+        assert cfg.nested.a == 1
+        assert cfg.nested.b == 2
+        assert cfg.other.secret == 'baz'
+        assert cfg.nested.test == 'bar'
 
     def test_from_local(self, tmp_path: Path) -> None:
         """Test Configuration.from_local factory method."""
@@ -631,3 +629,332 @@ class TestConfiguration:
 
         with pytest.raises(NotImplementedError):
             cfg.popitem()
+
+
+# a value and its variants, for the collision tests: the value as stored, and as expanded
+VARIANT_VALUES = {
+    'token': ('plain-value', 'plain-value'),
+    'token_env': ('CMDKIT_TEST_TOKEN', 'env-value'),
+    'token_eval': ('echo eval-value', 'eval-value'),
+}
+VARIANT_PAIRS = [
+    ('token', 'token_env'), ('token', 'token_eval'),
+    ('token_env', 'token'), ('token_env', 'token_eval'),
+    ('token_eval', 'token'), ('token_eval', 'token_env'),
+]
+
+
+class TestVariantCollision:
+    """A value and its `_env` and `_eval` variants are one key across the layers of a Configuration."""
+
+    @pytest.mark.parametrize('low, high', VARIANT_PAIRS, ids=[f'{a}-{b}' for a, b in VARIANT_PAIRS])
+    def test_pairs(self, low: str, high: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The higher layer's variant is the only one left, and every way of reading it agrees."""
+        monkeypatch.setenv('CMDKIT_TEST_TOKEN', 'env-value')
+        lower = {'section': {low: VARIANT_VALUES[low][0], 'other': 1}}
+        upper = {'section': {high: VARIANT_VALUES[high][0], 'more': 2}}
+        cfg = Configuration(lower=Namespace(lower), upper=Namespace(upper))
+
+        assert dict(cfg) == {'section': {'other': 1, high: VARIANT_VALUES[high][0], 'more': 2}}
+        assert list(cfg['section']) == ['other', high, 'more']
+        assert cfg.section.token == VARIANT_VALUES[high][1]
+        assert cfg['section'][high] == VARIANT_VALUES[high][0]
+        with pytest.raises(KeyError):
+            cfg['section'][low]
+        assert cfg.which('section', high) == 'upper'
+        with pytest.raises(KeyError):
+            cfg.which('section', low)
+        assert cfg.which('section', 'other') == 'lower'
+        assert cfg.which('section', 'more') == 'upper'
+        assert cfg.which('section') == 'upper'
+        assert cfg.namespaces['lower'] == lower
+        assert cfg.namespaces['upper'] == upper
+
+    def test_top_level(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The rule holds for parameters at the top level."""
+        monkeypatch.setenv('CMDKIT_TEST_TOKEN', 'env-value')
+        cfg = Configuration(lower=Namespace({'token': 'a', 'x': 1}),
+                            upper=Namespace({'token_env': 'CMDKIT_TEST_TOKEN'}))
+        assert dict(cfg) == {'x': 1, 'token_env': 'CMDKIT_TEST_TOKEN'}
+        assert cfg.token == 'env-value'
+        assert 'token' not in cfg
+        with pytest.raises(KeyError):
+            cfg['token']
+        assert cfg.which('token_env') == 'upper'
+        assert cfg.which('x') == 'lower'
+        with pytest.raises(KeyError):
+            cfg.which('token')
+        assert cfg.namespaces['lower'] == {'token': 'a', 'x': 1}
+
+    def test_deep(self) -> None:
+        """The rule holds three levels down, beside keys the merge keeps."""
+        lower = {'a': {'b': {'c': {'token_eval': 'echo low', 'keep': 1}, 'also': 2}}}
+        upper = {'a': {'b': {'c': {'token': 'high'}}}}
+        cfg = Configuration(lower=Namespace(lower), upper=Namespace(upper))
+        assert dict(cfg) == {'a': {'b': {'c': {'keep': 1, 'token': 'high'}, 'also': 2}}}
+        assert cfg.a.b.c.token == 'high'
+        assert cfg['a']['b']['c']['token'] == 'high'
+        with pytest.raises(KeyError):
+            cfg['a']['b']['c']['token_eval']
+        assert cfg.which('a', 'b', 'c', 'token') == 'upper'
+        assert cfg.which('a', 'b', 'c', 'keep') == 'lower'
+        assert cfg.which('a', 'b', 'also') == 'lower'
+        with pytest.raises(KeyError):
+            cfg.which('a', 'b', 'c', 'token_eval')
+        assert cfg.namespaces['lower'] == lower
+        assert cfg.namespaces['upper'] == upper
+
+    def test_suffix_alone(self) -> None:
+        """A key ending in `_env` is a variant by its suffix, whatever was meant by it."""
+        cfg = Configuration(lower=Namespace({'conda': 'x'}),
+                            upper=Namespace({'conda_env': 'base'}))
+        assert dict(cfg) == {'conda_env': 'base'}
+        assert cfg['conda_env'] == 'base'
+        with pytest.raises(KeyError):
+            cfg['conda']
+        with pytest.raises(KeyError):
+            cfg.which('conda')
+        assert cfg.which('conda_env') == 'upper'
+
+    def test_mapping_values(self) -> None:
+        """Mappings displace and are displaced like any value, and a name set again still merges."""
+        # a mapping displaced by a scalar variant
+        cfg = Configuration(lower=Namespace({'s': {'token': {'a': 1}, 'k': 0}}),
+                            upper=Namespace({'s': {'token_env': 'VAR'}}))
+        assert dict(cfg) == {'s': {'k': 0, 'token_env': 'VAR'}}
+        with pytest.raises(KeyError):
+            cfg.which('s', 'token', 'a')
+        with pytest.raises(KeyError):
+            cfg.which('s', 'token')
+        assert cfg.which('s', 'token_env') == 'upper'
+
+        # a scalar variant displaced by a mapping
+        cfg = Configuration(lower=Namespace({'s': {'token_env': 'VAR'}}),
+                            upper=Namespace({'s': {'token': {'a': 1}}}))
+        assert dict(cfg) == {'s': {'token': {'a': 1}}}
+        assert cfg.s.token.a == 1
+        assert cfg.which('s', 'token', 'a') == 'upper'
+        with pytest.raises(KeyError):
+            cfg.which('s', 'token_env')
+
+        # a mapping-valued name set again beside another variant merges depth-first
+        cfg = Configuration(lower=Namespace({'s': {'token': {'a': 1}}}),
+                            upper=Namespace({'s': {'token': {'b': 2}, 'token_env': 'VAR'}}))
+        assert dict(cfg) == {'s': {'token': {'a': 1, 'b': 2}, 'token_env': 'VAR'}}
+        assert cfg.which('s', 'token', 'a') == 'lower'
+        assert cfg.which('s', 'token', 'b') == 'upper'
+        assert cfg.which('s', 'token_env') == 'upper'
+        with pytest.raises(AttributeError, match='\'token\' has more than one variant'):
+            cfg.s.token
+
+        # a mapping-valued variant displaced by another mapping-valued variant
+        cfg = Configuration(lower=Namespace({'s': {'token_eval': {'a': 1}}}),
+                            upper=Namespace({'s': {'token': {'b': 2}}}))
+        assert dict(cfg) == {'s': {'token': {'b': 2}}}
+        with pytest.raises(KeyError):
+            cfg.which('s', 'token_eval', 'a')
+        assert cfg.namespaces['lower'] == {'s': {'token_eval': {'a': 1}}}
+
+    def test_deciding_layer_ambiguous(self) -> None:
+        """The deciding layer's own two variants are both kept, and attribute access raises."""
+        cfg = Configuration(lower=Namespace({'s': {'token_eval': 'echo low'}}),
+                            upper=Namespace({'s': {'token': 'a', 'token_env': 'VAR'}}))
+        assert dict(cfg) == {'s': {'token': 'a', 'token_env': 'VAR'}}
+        assert 'token_eval' not in cfg['s']
+        with pytest.raises(AttributeError, match='\'token\' has more than one variant'):
+            cfg.s.token
+        assert cfg.which('s', 'token') == 'upper'
+        assert cfg.which('s', 'token_env') == 'upper'
+        with pytest.raises(KeyError):
+            cfg.which('s', 'token_eval')
+
+    def test_namespace_update_unchanged(self) -> None:
+        """A plain Namespace keeps both variants on update, and attribute access raises."""
+        ns = Namespace({'s': {'token': 'a'}})
+        ns.update({'s': {'token_env': 'VAR'}})
+        assert ns == {'s': {'token': 'a', 'token_env': 'VAR'}}
+        with pytest.raises(AttributeError, match='\'token\' has more than one variant'):
+            ns.s.token
+
+    def test_no_expansion(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Building, merging and reading by item never run a command or read a variable."""
+        calls = []
+
+        def getenv(name, default=None):
+            calls.append(name)
+            return f'read-{name}'
+
+        monkeypatch.setattr(os, 'getenv', getenv)
+        marker, other = tmp_path / 'ran', tmp_path / 'ran-other'
+        one = {'s': {'token_eval': f'touch {marker}', 'x_env': 'X_VAR', 'y_eval': f'touch {other}'}}
+        two = {'s': {'token_env': 'TOKEN_VAR', 'x_eval': f'touch {marker}'}}
+        three = {'s': {'x': 'plain', 'token_eval': f'touch {marker}', 'token_env': 'TOKEN_VAR'}}
+        cfg = Configuration(one=Namespace(one), two=Namespace(two))
+        cfg.extend(three=Namespace(three))
+        assert dict(cfg) == {'s': {'y_eval': f'touch {other}', 'x': 'plain',
+                                   'token_eval': f'touch {marker}', 'token_env': 'TOKEN_VAR'}}
+        assert 'Configuration(one=' in repr(cfg)
+        assert cfg['s']['x'] == 'plain'
+        assert cfg['s']['token_eval'] == f'touch {marker}'
+        assert cfg.which('s', 'x') == 'three'
+        assert cfg.which('s', 'y_eval') == 'one'
+        with pytest.raises(KeyError):
+            cfg.which('s', 'x_env')
+        assert cfg.namespaces['one'] == one
+        assert cfg.namespaces['two'] == two
+        assert cfg.namespaces['three'] == three
+        assert calls == []
+        assert not marker.exists() and not other.exists()
+
+        # attribute access does expand: the probes above could have seen it
+        assert cfg.s.x == 'plain'
+        assert cfg.s.y == ''
+        assert other.exists() and not marker.exists()
+        with pytest.raises(AttributeError, match='\'token\' has more than one variant'):
+            cfg.s.token
+        assert Configuration(one=Namespace(one)).s.x == 'read-X_VAR'
+        assert calls == ['X_VAR']
+
+    def test_non_string_keys(self) -> None:
+        """Keys that are not strings have no variants, and merge as they always have."""
+        cfg = Configuration(lower=Namespace({1: 'a', 's': {2: 'b', 'k': 0}}),
+                            upper=Namespace({'1_env': 'VAR', 's': {2: 'c'}}))
+        assert dict(cfg) == {1: 'a', 's': {2: 'c', 'k': 0}, '1_env': 'VAR'}
+        assert cfg.which(1) == 'lower'
+        assert cfg.which('1_env') == 'upper'
+        assert cfg.which('s', 2) == 'upper'
+        with pytest.raises(KeyError):
+            cfg.which('s', 3)
+
+        cfg = Configuration(lower=Namespace({'1': 'a', 1: 'b'}),
+                            upper=Namespace({'1_eval': 'echo c', 1: 'd'}))
+        assert dict(cfg) == {1: 'd', '1_eval': 'echo c'}
+        assert cfg.which(1) == 'upper'
+        with pytest.raises(KeyError):
+            cfg.which('1')
+
+    def test_double_suffix(self) -> None:
+        """A key ending in `_env` is a variant of two names: the highest layer still decides."""
+        cfg = Configuration(one=Namespace({'token': 'a'}),
+                            two=Namespace({'token_env': 'VAR'}),
+                            three=Namespace({'token_env_eval': 'echo b'}))
+        assert dict(cfg) == {'token_env_eval': 'echo b'}
+        assert cfg.which('token_env_eval') == 'three'
+        with pytest.raises(KeyError):
+            cfg.which('token')
+        with pytest.raises(KeyError):
+            cfg.which('token_env')
+        with pytest.raises(AttributeError, match='\'token\' not found'):
+            cfg.token
+        assert cfg.token_env == 'b'
+
+        # and the other way around: a plain suffixed key displaces its own variants
+        cfg = Configuration(one=Namespace({'token_env_eval': 'echo b'}),
+                            two=Namespace({'token_env': 'VAR'}))
+        assert dict(cfg) == {'token_env': 'VAR'}
+        with pytest.raises(KeyError):
+            cfg.which('token_env_eval')
+
+    def test_extend_and_from_local(self, tmp_path: Path) -> None:
+        """Layers added after construction, and files loaded by from_local, follow the rule."""
+        cfg = Configuration(lower=Namespace({'s': {'token': 'a', 'k': 1}}))
+        cfg.extend(upper=Namespace({'s': {'token_eval': 'echo b'}}))
+        assert dict(cfg) == {'s': {'k': 1, 'token_eval': 'echo b'}}
+        assert cfg['s']['token_eval'] == 'echo b'
+        with pytest.raises(KeyError):
+            cfg['s']['token']
+        assert cfg.which('s', 'token_eval') == 'upper'
+        with pytest.raises(KeyError):
+            cfg.which('s', 'token')
+
+        first, second = tmp_path / 'first.toml', tmp_path / 'second.toml'
+        first.write_text('[server]\nauth = "secret"\nport = 1234\n')
+        second.write_text('[server]\nauth_eval = "echo from-command"\n')
+        cfg = Configuration.from_local(first=str(first), second=str(second))
+        assert dict(cfg) == {'server': {'port': 1234, 'auth_eval': 'echo from-command'}}
+        assert cfg.server.auth == 'from-command'
+        assert cfg.server.port == 1234
+        assert cfg.which('server', 'auth_eval') == 'second'
+        with pytest.raises(KeyError):
+            cfg.which('server', 'auth')
+        assert cfg.which('server', 'port') == 'first'
+        assert cfg.namespaces['first'] == {'server': {'auth': 'secret', 'port': 1234}}
+
+    def test_which_unchanged(self) -> None:
+        """Where no variant is displaced, which answers as it always has."""
+        # through a higher scalar, both orders
+        cfg = Configuration(lower=Namespace({'x': {'y': 1}}), upper=Namespace({'x': 5}))
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('x', 'y')
+        cfg = Configuration(lower=Namespace({'x': 5}), upper=Namespace({'x': {'z': 1}}))
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('x', 'y')
+
+        # a nested mapping names the highest layer
+        cfg = Configuration(lower=Namespace({'a': {'x': 1}}), upper=Namespace({'a': {'y': 2}}))
+        assert cfg.which('a') == 'upper'
+        assert cfg.which('a', 'x') == 'lower'
+
+        # a missing key, and a bare name whose only variant is suffixed
+        cfg = Configuration(one=Namespace({'token_env': 'VAR', 'a': {'b': 1}}))
+        with pytest.raises(KeyError):
+            cfg.which('nope')
+        with pytest.raises(KeyError):
+            cfg.which('a', 'nope')
+        with pytest.raises(KeyError):
+            cfg.which('token')
+        assert cfg.which('token_env') == 'one'
+
+    def test_which_restored(self) -> None:
+        """A variant displaced and then set again higher up is named by the layer that set it."""
+        cfg = Configuration(one=Namespace({'token': 'a', 's': {'token': 'a'}}),
+                            two=Namespace({'token_env': 'VAR', 's': {'token_env': 'VAR'}}),
+                            three=Namespace({'token': 'c', 's': {'token': 'c'}}))
+        assert dict(cfg) == {'token': 'c', 's': {'token': 'c'}}
+        assert cfg.which('token') == 'three'
+        assert cfg.which('s', 'token') == 'three'
+        with pytest.raises(KeyError):
+            cfg.which('token_env')
+        with pytest.raises(KeyError):
+            cfg.which('s', 'token_env')
+
+    def test_which_displaced_through_scalar(self) -> None:
+        """A variant displaced above an intervening scalar is gone for item access and which."""
+        cfg = Configuration(one=Namespace({'x': {'y': 1}}),
+                            two=Namespace({'x': 5}),
+                            three=Namespace({'x': {'y_env': 'VAR'}}))
+        assert dict(cfg) == {'x': {'y_env': 'VAR'}}
+        with pytest.raises(KeyError):
+            cfg['x']['y']
+        with pytest.raises(KeyError):
+            cfg.which('x', 'y')
+        assert cfg.which('x', 'y_env') == 'three'
+
+    def test_which_through_scalars(self) -> None:
+        """A path through a scalar still raises TypeError, beside and beneath displaced variants."""
+        # a layer without x beside x.y, x = 5, x.z
+        cfg = Configuration(zero=Namespace({'w': 0}),
+                            one=Namespace({'x': {'y': 1}}),
+                            two=Namespace({'x': 5}),
+                            three=Namespace({'x': {'z': 1}}))
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('x', 'y')
+
+        # x.y and x.y_env under a higher x = 5
+        cfg = Configuration(one=Namespace({'x': {'y': 1}}),
+                            two=Namespace({'x': {'y_env': 'VAR'}}),
+                            three=Namespace({'x': 5}))
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('x', 'y')
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('x', 'y_env')
+
+        # a deciding layer holding token and token_env beneath a scalar and a fresh mapping
+        cfg = Configuration(zero=Namespace({'s': {'token': 'z'}}),
+                            one=Namespace({'s': {'token': 'a', 'token_env': 'VAR'}}),
+                            two=Namespace({'s': 5}),
+                            three=Namespace({'s': {'other': 1}}))
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('s', 'token')
+        with pytest.raises(TypeError, match='not subscriptable'):
+            cfg.which('s', 'token_env')

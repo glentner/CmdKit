@@ -147,7 +147,7 @@ Consumers pin `cmdkit>=2.7.7` with no upper bound (HyperShell pins `cmdkit[toml]
 - A layer handed to `Configuration` is copied in; merging never mutates a layer.
 - The merge is depth-first: it descends only where both sides are mappings; anything else replaces.
 - In-place changes to a `Configuration` (`update`, attribute assignment) are recorded in its `_` layer, and `which` reports them as `_`.
-- Known limitation (recorded, not fixed): `name`, `name_env` and `name_eval` from different layers collide → `issues/config-variant-collision.md`.
+- `name`, `name_env` and `name_eval` are one key across layers: the highest layer that sets any of them decides.
 - Known limitation (recorded, not fixed): item assignment and `setdefault` bypass the `_` layer → `issues/config-local-layer-tracking.md`.
 
 ### 3. Command line (`src/cmdkit/cli.py`, `src/cmdkit/app.py`) [human gate]
