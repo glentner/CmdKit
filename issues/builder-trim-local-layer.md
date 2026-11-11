@@ -20,7 +20,7 @@ appetite: small
   true, so `ordered=True` always reverses the order. The documented results depend on it. A reader who
   "fixes" it to `reverse` breaks `trim(ordered=True)`.
 - **The module's TODO** (`:9-11`) asks for a new-like object with a `pop`/`popitem` modification.
-  `Configuration` itself refuses `pop` and `popitem` (`src/cmdkit/config.py:274-286`), so there is no
+  `Configuration` itself refuses `pop` and `popitem` (`src/cmdkit/config.py:376-388`), so there is no
   way to drop a key from every layer at once.
 
 ## Why it was deferred
@@ -53,4 +53,13 @@ original untouched.
 ## Notes
 
 - Waits on `config-local-layer-tracking`, which settles what `_` holds.
+- 2026-11-11 (from the `config-variant-collision` review, 2.8.0): `trim()` also crashes when a
+  section with duplicate leaves is displaced by a variant of the section's name. With layers
+  `one={'s': {'x': 1}}`, `two={'s': {'x': 2}}` and `three={'s_env': 'V'}`, it raises
+  `KeyError: 's'` on 2.8.0. 2.7.7 kept `s` and `s_env` side by side, so it didn't crash there, but
+  it crashes on the structural analogue, a section replaced by a scalar (`three={'s': 5}`), with
+  `AttributeError: 'int' object has no attribute 'pop'`, and 2.8.0 still does.
+  **Test that would show both:** for each `three` above, `trim()` on the three-layer
+  `BuilderConfiguration` returns without raising, and the trimmed configuration's merged view
+  equals the original's (`{'s_env': 'V'}` and `{'s': 5}`).
 - Found by: adoption sweep, 2026-11-10.

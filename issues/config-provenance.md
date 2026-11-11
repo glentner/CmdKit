@@ -11,14 +11,14 @@ appetite: big
 
 ## Problem
 
-`Configuration.which(*path)` (`src/cmdkit/config.py:150-192`) returns a layer **label** only. It has
+`Configuration.which(*path)` (`src/cmdkit/config.py:247-291`) returns a layer **label** only. It has
 no file path, no environment variable name, and no command-line flag. It raises a bare
 `KeyError('Not found: (...)')` on a miss. For a table path it names the highest layer that touches
 the table, not a single source, as its own docstring warns.
 
 The facts are known at load and then dropped:
 
-- `Configuration.from_local` holds each file's path (`config.py:113-114`);
+- `Configuration.from_local` holds each file's path (`config.py:210-211`);
 - `Environ.expand` holds each variable's name (`src/cmdkit/namespace.py:444-449`).
 
 An application that wants to say "`server.port` = 8080, from `~/.app/config.toml`" rebuilds the
@@ -57,8 +57,9 @@ labels as before.
 
 ## Notes
 
-- Waits on `config-variant-collision` (a variant's provenance), `namespace-file-loading` (paths as
-  `os.PathLike`), `environ-without-prefix` and `config-local-layer-tracking`.
+- Waits on `namespace-file-loading` (paths as `os.PathLike`), `environ-without-prefix` and
+  `config-local-layer-tracking`. It also waited on `config-variant-collision` (a variant's
+  provenance), which landed in #35.
 - `config-explicit-expansion` uses this to put the key, layer and source in its errors, and
   `environ-mapping` records the exact variable name through it.
 - Found by: an evaluation of cmdkit 2.7.7 for layered configuration, 2026-11.
