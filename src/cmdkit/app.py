@@ -28,33 +28,38 @@ TAppGrp = TypeVar('TAppGrp', bound='ApplicationGroup')
 log = logging.getLogger(__name__)
 
 
-def _last_resort_would_print(logger: logging.Logger, level: int) -> bool:
+def _hidden_by_null_handler(logger: logging.Logger, level: int, msg: object) -> bool:
     """
-    True if Python's last-resort handler would print a record at `level` from `logger`
-    were the :class:`logging.NullHandler` on the `cmdkit` logger not there.
+    True if the :class:`logging.NullHandler` on the `cmdkit` logger is the only reason
+    Python's last-resort handler did not print a record with `msg` at `level` from `logger`.
 
-    This follows the decision in :meth:`logging.Logger.callHandlers`. Nothing is printed
-    if the logger is not enabled for `level` (a disabled logger, a logger level above `level`,
-    or :func:`logging.disable`), or if :data:`logging.lastResort` is unset or above `level`.
-    Otherwise the logger and its ancestors are searched for as long as they propagate,
-    and any handler found, whatever its level, means the application has configured logging.
-    The one exception is an exact :class:`logging.NullHandler` on the `cmdkit` logger,
-    which the library attaches at import.
+    This follows :meth:`logging.Logger.handle` and :meth:`logging.Logger.callHandlers` in order,
+    and is false wherever Python would print nothing anyway: the logger is not enabled for `level`
+    (a disabled logger, a logger level above `level`, or :func:`logging.disable`), the logger's
+    own filters reject the record, or :data:`logging.lastResort` is unset or above `level`.
+    Otherwise the logger and its ancestors are searched for as long as they propagate. Any handler
+    found, whatever its level, other than an exact :class:`logging.NullHandler` on the `cmdkit`
+    logger (which the library attaches at import) means the application has configured logging:
+    false. If no handler is found at all, Python's last resort has already printed the record:
+    also false, so the message appears only once.
     """
     if not logger.isEnabledFor(level):
         return False
+    if not logger.filter(logger.makeRecord(logger.name, level, '(unknown file)', 0, msg, (), None)):
+        return False
     if logging.lastResort is None or level < logging.lastResort.level:
         return False
+    found = False
     current = logger
     while current is not None:
         for handler in current.handlers:
-            if current.name == 'cmdkit' and type(handler) is logging.NullHandler:
-                continue
-            return False
+            if current.name != 'cmdkit' or type(handler) is not logging.NullHandler:
+                return False
+            found = True
         if not current.propagate:
             break
         current = current.parent
-    return True
+    return found
 
 
 # NOTE: In next major release this will be made into an Enum
@@ -127,10 +132,13 @@ class Application(abc.ABC):
         This is a try-except block that handles standard scenarios.
 
         An :class:`~cmdkit.cli.ArgumentError` is passed to :data:`~Application.log_critical`
-        and ``exit_status.bad_argument`` is returned. If ``log_critical`` is the default and
-        Python's last-resort handler would print the record (no handler of the application's
-        would see it, and the ``cmdkit.app`` logger is not silenced), the message is also
-        written as is to ``sys.stderr``, followed by a newline.
+        and ``exit_status.bad_argument`` is returned. If ``log_critical`` is the default and the
+        :class:`~logging.NullHandler` cmdkit attaches to its own logger is the only reason
+        Python's last-resort handler did not print the record (no handler of the application's
+        is found, and the ``cmdkit.app`` logger is neither silenced nor filtering the record
+        out), the message is also written as is to ``sys.stderr``, followed by a newline.
+        Where no handler is found at all, Python's last resort prints the record itself, and
+        that line stands alone.
 
         See Also:
             :data:`~Application.exceptions`
@@ -161,7 +169,7 @@ class Application(abc.ABC):
 
         except ArgumentError as error:
             cls.log_critical(error)
-            if cls.log_critical == log.critical and _last_resort_would_print(log, logging.CRITICAL):
+            if cls.log_critical == log.critical and _hidden_by_null_handler(log, logging.CRITICAL, error):
                 print(error, file=sys.stderr)
             return exit_status.bad_argument
 

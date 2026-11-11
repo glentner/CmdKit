@@ -566,6 +566,116 @@ def test_app_argument_error_log_critical_replaced_on_application(capsys, monkeyp
     assert captured.err == ''
 
 
+def test_app_argument_error_log_critical_replaced_by_another_logger(capsys, monkeypatch) -> None:
+    """A log_critical replaced by another logger's method leaves only Python's own line."""
+    monkeypatch.setattr(Application, 'log_critical', logging.getLogger('elsewhere').critical)
+    with no_logging_configured():
+        status = Group.main(['bogus'])
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+    assert captured.err == 'unrecognized command: bogus\n'
+
+
+class SubNullHandler(logging.NullHandler):
+    """A NullHandler that is not the plain one cmdkit attaches to its logger."""
+
+
+def add_handler(request, name: str, handler: logging.Handler) -> None:
+    """Attach `handler` to the logger `name` for the rest of the test."""
+    logger = logging.getLogger(name)
+    logger.addHandler(handler)
+    request.addfinalizer(lambda: logger.removeHandler(handler))
+
+
+def add_filter(request, name: str, rule) -> None:
+    """Attach the filter `rule` to the logger `name` for the rest of the test."""
+    logger = logging.getLogger(name)
+    logger.addFilter(rule)
+    request.addfinalizer(lambda: logger.removeFilter(rule))
+
+
+def set_level(request, name: str, level: int) -> None:
+    """Set the level of the logger `name` for the rest of the test (clearing the level cache)."""
+    logger = logging.getLogger(name)
+    request.addfinalizer(lambda old=logger.level: logger.setLevel(old))
+    logger.setLevel(level)
+
+
+def set_last_resort_level(request, level: int) -> None:
+    """Set the level of Python's last-resort handler for the rest of the test."""
+    request.addfinalizer(lambda old=logging.lastResort.level: logging.lastResort.setLevel(old))
+    logging.lastResort.setLevel(level)
+
+
+def above_critical_root_handler() -> logging.Handler:
+    """A handler of the application's whose level no record reaches."""
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.CRITICAL + 1)
+    return handler
+
+
+LOGGING_SETUPS = [
+    # the message once on stderr: cmdkit's line, or Python's own where no handler is found at all
+    pytest.param(lambda mp, rq: None, True, id='unconfigured'),
+    pytest.param(lambda mp, rq: mp.setattr(logging.getLogger('cmdkit'), 'handlers', []), True,
+                 id='cmdkit-handlers-emptied'),
+    pytest.param(lambda mp, rq: mp.setattr(logging.getLogger('cmdkit.app'), 'propagate', False), True,
+                 id='app-logger-propagate-false'),
+    pytest.param(lambda mp, rq: (mp.setattr(logging.getLogger('cmdkit'), 'propagate', False),
+                                 add_handler(rq, '', logging.NullHandler())), True,
+                 id='cmdkit-propagate-false-root-handler'),
+    pytest.param(lambda mp, rq: add_handler(rq, 'cmdkit', logging.NullHandler()), True,
+                 id='second-null-handler-on-cmdkit'),
+    pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit.app', lambda record: True), True,
+                 id='accepting-filter'),
+    pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit.app', lambda record: record.levelno == logging.CRITICAL),
+                 True, id='critical-only-filter'),
+    pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit.app', logging.Filter('cmdkit.app')), True,
+                 id='name-filter'),
+    pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit', lambda record: False), True,
+                 id='rejecting-filter-on-cmdkit-not-consulted'),
+    pytest.param(lambda mp, rq: set_last_resort_level(rq, logging.CRITICAL), True,
+                 id='last-resort-at-critical'),
+    pytest.param(lambda mp, rq: (set_level(rq, 'cmdkit.app', logging.ERROR),
+                                 set_last_resort_level(rq, logging.ERROR)), True,
+                 id='app-logger-and-last-resort-at-error'),
+    # nothing on stderr: the application silenced the record, or a handler of its own is found
+    pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit.app', lambda record: False), False,
+                 id='rejecting-filter'),
+    pytest.param(lambda mp, rq: add_filter(rq, 'cmdkit.app', lambda record: 'bogus' not in record.getMessage()),
+                 False, id='message-filter'),
+    pytest.param(lambda mp, rq: mp.setattr(logging.getLogger('cmdkit.app'), 'disabled', True), False,
+                 id='app-logger-disabled'),
+    pytest.param(lambda mp, rq: set_level(rq, 'cmdkit.app', logging.CRITICAL + 1), False,
+                 id='app-logger-above-critical'),
+    pytest.param(lambda mp, rq: mp.setattr(logging, 'lastResort', None), False,
+                 id='no-last-resort'),
+    pytest.param(lambda mp, rq: set_last_resort_level(rq, logging.CRITICAL + 1), False,
+                 id='last-resort-above-critical'),
+    pytest.param(lambda mp, rq: add_handler(rq, '', logging.NullHandler()), False,
+                 id='null-handler-on-root'),
+    pytest.param(lambda mp, rq: add_handler(rq, 'cmdkit.app', logging.NullHandler()), False,
+                 id='null-handler-on-app-logger'),
+    pytest.param(lambda mp, rq: add_handler(rq, 'cmdkit', SubNullHandler()), False,
+                 id='null-handler-subclass-on-cmdkit'),
+    pytest.param(lambda mp, rq: add_handler(rq, '', above_critical_root_handler()), False,
+                 id='root-handler-above-critical'),
+]
+
+
+@pytest.mark.parametrize('setup, once', LOGGING_SETUPS)
+def test_app_argument_error_last_resort_rule(capsys, monkeypatch, request, setup, once) -> None:
+    """The message is written once where only cmdkit's NullHandler held the last resort back, else not."""
+    with no_logging_configured():
+        setup(monkeypatch, request)
+        status = Group.main(['bogus'])
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+    assert captured.err == ('unrecognized command: bogus\n' if once else '')
+
+
 def test_app_argument_error_silent_when_logging_disabled(capsys) -> None:
     """With logging disabled at the critical level, nothing is written, as without the report."""
     with no_logging_configured():

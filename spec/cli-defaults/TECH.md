@@ -3,10 +3,10 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: blocked
+status: in_progress
 branch: fix/cli-defaults
 base: develop
-current_phase: done
+current_phase: P2
 last_updated: '2026-11-11'
 phases:
 - id: P1
@@ -27,7 +27,7 @@ phases:
   verify: sh spec/cli-defaults/verify/gate.sh P1
 - id: P2
   name: A group with ALLOW_NOARGS shows its help when run bare
-  status: done
+  status: pending
   satisfies:
   - R4
   - R5
@@ -158,15 +158,15 @@ exactly when cmdkit's own `NullHandler` is the only reason Python's last resort 
 record; never when Python already printed it (no handler on the walk at all), and never when the
 application silenced the record (a rejecting filter on `cmdkit.app`, and every C6 silent setup).
 
-- [ ] `src/cmdkit/app.py`: replace `_last_resort_would_print` with `_hidden_by_null_handler(logger,
+- [x] `src/cmdkit/app.py`: replace `_last_resort_would_print` with `_hidden_by_null_handler(logger,
       level, msg)` as `PLAN.md` § 2 gives it, the body verbatim, with a docstring stating the rule
       both ways; the `ArgumentError` branch calls it as § 2 shows (`log`, `logging.CRITICAL`,
       `error`). Nothing else in `Application.main` changes.
-- [ ] `Application.main`'s docstring and the `log_critical` / `log_exception` paragraph of
+- [x] `Application.main`'s docstring and the `log_critical` / `log_exception` paragraph of
       `docs/api/app.rst`: the line is written when cmdkit's `NullHandler` is the only reason the
       last resort stayed quiet; Python's own line stands alone where no handler is found; a
       rejecting filter on `cmdkit.app` keeps it silent.
-- [ ] `tests/test_app.py`: the parametrized test over the setups `PLAN.md` § 2 lists under
+- [x] `tests/test_app.py`: the parametrized test over the setups `PLAN.md` § 2 lists under
       "every decision pinned in the suite", each `once` or `silent`, beside the R1, R2 and R3
       tests, and the other additions `PLAN.md` § 2 lists for the report (the filters that select
       on message, level and name; `log_critical` replaced by another logger's `critical`). Name
@@ -174,7 +174,7 @@ application silenced the record (a rejecting filter on `cmdkit.app`, and every C
       `test_app_noargs_allowed_*`). No test reads the module's source. Tests this branch added may
       be adjusted where the rule changed; tests older than the branch stay byte for byte (the
       static check grades that).
-- [ ] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 21 mutants on
+- [x] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 21 mutants on
       both Pythons.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
 - **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`, `AGENTS.md`.
