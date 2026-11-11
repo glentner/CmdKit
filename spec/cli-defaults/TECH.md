@@ -3,10 +3,10 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: in_progress
+status: in_review
 branch: fix/cli-defaults
 base: develop
-current_phase: P2
+current_phase: done
 last_updated: '2026-11-11'
 phases:
 - id: P1
@@ -27,7 +27,7 @@ phases:
   verify: sh spec/cli-defaults/verify/gate.sh P1
 - id: P2
   name: A group with ALLOW_NOARGS shows its help when run bare
-  status: pending
+  status: done
   satisfies:
   - R4
   - R5
@@ -203,20 +203,20 @@ plain application either way, behave as in 2.7.7.
 only when the run would otherwise fail on the missing command; a group whose `command` is optional
 calls `run` exactly as on 2.7.7.
 
-- [ ] `src/cmdkit/app.py`: `ApplicationGroup.main` as `PLAN.md` § 2 gives it, the body verbatim
+- [x] `src/cmdkit/app.py`: `ApplicationGroup.main` as `PLAN.md` § 2 gives it, the body verbatim
       (the group's interface parses the given `cmdline`, so `None` reads `sys.argv` as on 2.7.7;
       `['--help']` only when it raises `ArgumentError`), and its docstring says so.
-- [ ] `docs/api/app.rst`: `Application.ALLOW_NOARGS` names a group that requires its command;
+- [x] `docs/api/app.rst`: `Application.ALLOW_NOARGS` names a group that requires its command;
       `ApplicationGroup.ALLOW_NOARGS` says the help is shown when the interface rejects an empty
       command line and that a group whose `command` is optional proceeds to `run`.
-- [ ] `tests/test_app.py`: the optional-command group `PLAN.md` § 2 describes, with its
+- [x] `tests/test_app.py`: the optional-command group `PLAN.md` § 2 describes, with its
       usage-and-1 test (no opt-in) beside its `run` test (`main([])`, and `main(None)` with
       `sys.argv` patched), both after the R4 tests; `main(None)` on an `ALLOW_NOARGS` group with
       `sys.argv` `['app', 'bogus']` reports the error; every `main(None)` call in a test patches
       `sys.argv`. Name them `test_app_group_*` (the sweep's family for this phase).
-- [ ] Deferral ledger: walk P1's and this phase's remediation items for any work set aside; each
+- [x] Deferral ledger: walk P1's and this phase's remediation items for any work set aside; each
       item has an `issues/` seed from the template and a `ROADMAP.md` entry, staged with this phase.
-- [ ] Stage the work, then run the verify. Its `mutants P2` sweep must kill all 25 mutants on
+- [x] Stage the work, then run the verify. Its `mutants P2` sweep must kill all 25 mutants on
       both Pythons.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P2`.
 - **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`.

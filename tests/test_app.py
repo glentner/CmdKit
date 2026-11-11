@@ -8,6 +8,7 @@
 from typing import Iterator, List, Type
 
 # standard libs
+import sys
 import logging
 from contextlib import contextmanager
 from string import ascii_letters
@@ -334,8 +335,9 @@ class NoargsGroup(Group):
 
 
 @pytest.mark.parametrize('cmdline', [[], None], ids=['empty', 'none'])
-def test_app_group_noargs_allowed(capsys, cmdline) -> None:
+def test_app_group_noargs_allowed(capsys, monkeypatch, cmdline) -> None:
     """With ALLOW_NOARGS, the help statement is printed to <stdout> on no arguments."""
+    monkeypatch.setattr(sys, 'argv', [APP, ])
     help_status = NoargsGroup.main(['--help'])
     help_text = capsys.readouterr().out
     status = NoargsGroup.main(cmdline)
@@ -347,13 +349,75 @@ def test_app_group_noargs_allowed(capsys, cmdline) -> None:
     assert status == exit_status.success
 
 
-def test_app_group_usage_none(capsys) -> None:
+def test_app_group_usage_none(capsys, monkeypatch) -> None:
     """Usage statement printed to <stdout> when the command line is None."""
+    monkeypatch.setattr(sys, 'argv', [APP, ])
     status = Group.main(None)
     captured = capsys.readouterr()
     assert captured.out.strip() == APP_USAGE.strip()
     assert captured.err == ''
     assert status == exit_status.usage
+
+
+def test_app_group_noargs_allowed_reads_argv(capsys, monkeypatch) -> None:
+    """With ALLOW_NOARGS, a command line of None reads <sys.argv>: its errors are reported, not the help."""
+    monkeypatch.setattr(sys, 'argv', [APP, 'bogus'])
+    with no_logging_configured():
+        status = NoargsGroup.main(None)
+    captured = capsys.readouterr()
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+    assert captured.err == 'unrecognized command: bogus\n'
+
+
+class OptionalGroup(ApplicationGroup):
+    """Group whose command is optional, with a default action of its own."""
+
+    interface = Interface(APP, APP_USAGE, APP_HELP)
+    commands = {CMD1: Command1, CMD2: Command2}
+
+    command: str = None
+    interface.add_argument('command', nargs='?', default=None)
+
+    def run(self) -> None:
+        """Run the default action without a command, else delegate."""
+        if self.command is None:
+            print('default action')
+        else:
+            super().run()
+
+
+class NoargsOptionalGroup(OptionalGroup):
+    """Group with an optional command runs with no arguments."""
+    ALLOW_NOARGS = True
+
+
+def test_app_group_optional_command_usage(capsys) -> None:
+    """Without ALLOW_NOARGS, a group with an optional command prints usage on no arguments."""
+    status = OptionalGroup.main([])
+    captured = capsys.readouterr()
+    assert captured.out.strip() == APP_USAGE.strip()
+    assert captured.err == ''
+    assert status == exit_status.usage
+
+
+@pytest.mark.parametrize('cmdline', [[], None], ids=['empty', 'none'])
+def test_app_group_optional_command_noargs_allowed(capsys, monkeypatch, cmdline) -> None:
+    """With ALLOW_NOARGS, a group with an optional command runs on no arguments, not its help."""
+    monkeypatch.setattr(sys, 'argv', [APP, ])
+    status = NoargsOptionalGroup.main(cmdline)
+    captured = capsys.readouterr()
+    assert captured.out == 'default action\n'
+    assert captured.err == ''
+    assert status == exit_status.success
+
+
+def test_app_group_optional_command_given(capsys) -> None:
+    """With ALLOW_NOARGS, a group with an optional command still runs a named command."""
+    status = NoargsOptionalGroup.main([CMD1, 'foo'])
+    captured = capsys.readouterr()
+    assert captured.out == 'arg: foo, option: 42, debug: False\n'
+    assert status == exit_status.success
 
 
 def test_app_group_help_1(capsys) -> None:

@@ -53,8 +53,8 @@ Reference
         absence of any arguments, set ``ALLOW_NOARGS`` as a class-level attribute.
         The arguments are then parsed as usual, so a required argument that is missing
         is an argument error (see :data:`~Application.log_critical`).
-        On an :class:`ApplicationGroup`, ``ALLOW_NOARGS`` shows the group's help instead
-        (see :data:`ApplicationGroup.ALLOW_NOARGS`).
+        On an :class:`ApplicationGroup` that requires its ``command``, ``ALLOW_NOARGS`` shows
+        the group's help instead (see :data:`ApplicationGroup.ALLOW_NOARGS`).
 
         .. code-block::
 
@@ -245,9 +245,17 @@ Reference
         By default, a group run with an empty ``cmdline`` prints its usage text to
         ``sys.stdout`` and :meth:`~ApplicationGroup.main` returns ``exit_status.usage``.
 
-        If ``ALLOW_NOARGS`` is ``True``, an empty ``cmdline`` is taken as ``['--help']``:
-        the group's help text is printed to ``sys.stdout``, exactly as with ``--help``,
-        and ``exit_status.success`` is returned.
+        If ``ALLOW_NOARGS`` is ``True`` and the group's ``interface`` rejects an empty command
+        line, as it does when the ``command`` positional is required, the empty ``cmdline``
+        is taken as ``['--help']``: the group's help text is printed to ``sys.stdout``,
+        exactly as with ``--help``, and ``exit_status.success`` is returned.
+
+        A group whose ``command`` is optional (``nargs='?'``) accepts the empty command line,
+        so with ``ALLOW_NOARGS`` it proceeds to its ``run`` method, which handles
+        ``command`` being ``None``, as for any :class:`Application`. A ``cmdline`` of ``None``
+        lets the ``interface`` read ``sys.argv``, as :meth:`~Application.from_cmdline` does,
+        so arguments given there are dispatched or reported as usual and the help is shown
+        only when there are none.
 
         .. code-block::
 
