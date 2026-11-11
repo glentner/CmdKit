@@ -7,6 +7,22 @@ A place for announcements, release notes, thoughts and ideas for the project.
 
 -----
 
+:ref:`Release Notes (v2.8.0) <20261111_2_8_0_release>`
+------------------------------------------------------
+
+`November 11, 2026`
+
+.. pending: config-variant-collision
+
+The v2.8.0 release fixes two long-standing failures by default and moves the project's
+build to uv.
+
+- A value and its ``_env`` and ``_eval`` variants are one key across configuration layers.
+- With no logging configured, argument errors are written to `stderr`.
+- Build, lock, test and publish with uv; CI covers Python 3.9 to 3.14 on Linux, plus macOS and Windows.
+
+-----
+
 :ref:`Release Notes (v2.7.7) <20241226_2_7_7_release>`
 ------------------------------------------------------
 
@@ -73,6 +89,7 @@ The v2.7.1 release includes major new features along with numerous fixes and imp
     :hidden:
     :maxdepth: 1
 
+    20261111_2_8_0_release
     20241226_2_7_7_release
     20241206_2_7_6_release
     20240417_2_7_5_release
