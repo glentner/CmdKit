@@ -65,6 +65,15 @@ cycle edits `tests/test_config.py`, so this goes first.
 *Order: 2 · Waits on: nothing · Refs: —*
 **Seed:** [`issues/tests-use-tmp-path.md`](issues/tests-use-tmp-path.md)
 
+## `test_app_invalid_options` stops generating prefixes of `--help`
+
+The test draws random long options and expects each to be an argument error, but argparse takes
+`--he` as `--help`, so the suite fails now and then with no change to the code. Skip the prefixes
+of the defined long options.
+
+*Order: unset (filed during the cli-defaults cycle) · Waits on: nothing · Refs: —*
+**Seed:** [`issues/test-invalid-options-help-prefix.md`](issues/test-invalid-options-help-prefix.md)
+
 ---
 
 # Part II — Configuration: outright failures, fixed by default
@@ -153,6 +162,34 @@ usage and exit 1 stay the default.
 
 *Order: 11 · Waits on: nothing · Refs: —*
 **Seed:** [`issues/cli-defaults.md`](issues/cli-defaults.md)
+- 2026-11-11: the bare-group help moved out of this cycle to its own entry below
+  (`group-noargs-help`); this cycle ships the stderr report.
+
+## A group with `ALLOW_NOARGS` can show its help when run bare
+
+Moved out of `cli-defaults`. A bare run of a group that requires its command shows its help and
+exits 0 under the opt-in; every other run, `main(None)` with arguments in `sys.argv` among them,
+stays exactly as in 2.7.7. Decide on the effective command line, inside `main`'s handling.
+
+*Order: unset (filed during the cli-defaults cycle) · Waits on: `cli-defaults` · Refs: —*
+**Seed:** [`issues/group-noargs-help.md`](issues/group-noargs-help.md)
+
+## The argument-error report follows `Logger.handle` when filters keep state
+
+The report asks `cmdkit.app`'s filters about a record it builds, and never asks `lastResort`'s, so a
+filter that keeps state, reads caller fields or lowers the level can make it differ from Python.
+
+*Order: unset (filed during the cli-defaults cycle) · Waits on: `cli-defaults` · Refs: —*
+**Seed:** [`issues/last-resort-filter-fidelity.md`](issues/last-resort-filter-fidelity.md)
+
+## `import cmdkit` works when the process has no stderr or stdout
+
+`ansi.py` calls `isatty()` on `sys.stdout` and `sys.stderr` at import, so when either is `None` (a
+closed descriptor at startup, `pythonw`) importing cmdkit raises `AttributeError`. Pre-existing in
+2.7.7.
+
+*Order: unset (filed during the cli-defaults cycle) · Waits on: nothing · Refs: —*
+**Seed:** [`issues/import-without-stderr.md`](issues/import-without-stderr.md)
 
 ## An unknown command suggests the closest ones
 
