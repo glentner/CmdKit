@@ -3,10 +3,10 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: in_progress
+status: in_review
 branch: fix/cli-defaults
 base: develop
-current_phase: P2
+current_phase: done
 last_updated: '2026-11-11'
 phases:
 - id: P1
@@ -27,7 +27,7 @@ phases:
   verify: sh spec/cli-defaults/verify/gate.sh P1
 - id: P2
   name: A group's bare run stays as in 2.7.7 (the bare-group help moved out)
-  status: pending
+  status: done
   satisfies:
   - R5
   - R6
@@ -256,18 +256,18 @@ calls `run` exactly as on 2.7.7.
 `issues/group-noargs-help.md`. `ApplicationGroup`'s bare-run behaviour returns to 2.7.7's, apart
 from R1's report of any argument error it meets.
 
-- [ ] `src/cmdkit/app.py`: remove `ApplicationGroup.main` whole; the `ApplicationGroup` class is
+- [x] `src/cmdkit/app.py`: remove `ApplicationGroup.main` whole; the `ApplicationGroup` class is
       then byte-identical to `b9efaca`'s.
-- [ ] `docs/api/app.rst`: remove the `ApplicationGroup` section's `ALLOW_NOARGS` entry and its
+- [x] `docs/api/app.rst`: remove the `ApplicationGroup` section's `ALLOW_NOARGS` entry and its
       `.. automethod:: main`, and the `Application.ALLOW_NOARGS` sentence that points to a group's
       help. Keep C4's `exit_status.usage` and the sentence on a missing required argument.
-- [ ] `tests/test_app.py`: remove the tests that assert a group's help on a bare run; keep, or put
+- [x] `tests/test_app.py`: remove the tests that assert a group's help on a bare run; keep, or put
       in their place, the `test_app_group_*` tests `PLAN.md` § 2.0 lists, each pinning 2.7.7's
       bare-group behaviour (an `ALLOW_NOARGS` group that requires its command reports it missing
       with status 2).
-- [ ] Deferral ledger: walk P1's and this phase's review cycle 2 items; each item set aside has its
+- [x] Deferral ledger: walk P1's and this phase's review cycle 2 items; each item set aside has its
       `issues/` seed and `ROADMAP.md` entry (both were filed with this plan revision).
-- [ ] Stage the work, then run the verify. Its `mutants P2` sweep must kill all 25 mutants on both
+- [x] Stage the work, then run the verify. Its `mutants P2` sweep must kill all 25 mutants on both
       Pythons.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P2`.
 - **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`.

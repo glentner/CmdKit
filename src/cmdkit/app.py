@@ -219,38 +219,6 @@ class ApplicationGroup(Application):
     }
 
     @classmethod
-    def main(cls, cmdline: List[str] = None, shared: Namespace = None) -> int:
-        """
-        Entry-point for application group.
-
-        By default, an empty ``cmdline`` prints the usage text and returns ``exit_status.usage``,
-        as for any :class:`Application`. If the group sets ``ALLOW_NOARGS = True`` and its
-        interface rejects the bare command line (its ``command`` positional is required, and
-        nothing supplies it), the command line is taken as ``['--help']`` instead: the help
-        text is printed and ``exit_status.success`` is returned. A group whose interface
-        accepts the bare command line (its ``command`` is optional) proceeds to ``run``, as
-        with any :class:`Application`. As there, ``None`` lets the interface read
-        ``sys.argv``, so arguments there are dispatched or reported as usual.
-        Otherwise this is :meth:`Application.main`.
-
-        Example:
-            >>> class MyGroup(ApplicationGroup):
-            ...     interface = Interface('mygroup', 'usage: mygroup <command>', 'help: mygroup <command>')
-            ...     command: str = None
-            ...     interface.add_argument('command')
-            ...     ALLOW_NOARGS = True
-            >>> MyGroup.main([])
-            help: mygroup <command>
-            0
-        """
-        if not cmdline and cls.ALLOW_NOARGS is True:
-            try:
-                cls.interface.parse_args(cmdline)
-            except ArgumentError:
-                cmdline = ['--help', ]
-        return super(ApplicationGroup, cls).main(cmdline, shared=shared)
-
-    @classmethod
     def from_cmdline(cls: Type[TAppGrp], cmdline: List[str] = None) -> TAppGrp:
         """Initialize via command-line arguments (e.g., `sys.argv`)."""
         if not cmdline:

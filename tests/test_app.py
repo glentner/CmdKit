@@ -331,23 +331,22 @@ def test_app_group_usage(capsys) -> None:
 
 
 class NoargsGroup(Group):
-    """Group shows its help when run with no arguments."""
+    """Group that requires its command, with ALLOW_NOARGS set."""
     ALLOW_NOARGS = True
 
 
 @pytest.mark.parametrize('cmdline', [[], None], ids=['empty', 'none'])
-def test_app_group_noargs_allowed(capsys, monkeypatch, cmdline) -> None:
-    """With ALLOW_NOARGS, the help statement is printed to <stdout> on no arguments."""
+def test_app_group_noargs_allowed_missing_command(capsys, monkeypatch, cmdline) -> None:
+    """With ALLOW_NOARGS, a group that requires its command reports it missing on <stderr>."""
     monkeypatch.setattr(sys, 'argv', [APP, ])
-    help_status = NoargsGroup.main(['--help'])
-    help_text = capsys.readouterr().out
-    status = NoargsGroup.main(cmdline)
+    message = argument_error(NoargsGroup, [])
+    assert 'command' in message
+    with no_logging_configured():
+        status = NoargsGroup.main(cmdline)
     captured = capsys.readouterr()
-    assert help_status == exit_status.success
-    assert captured.out.strip() == APP_HELP.strip()
-    assert captured.out == help_text
-    assert captured.err == ''
-    assert status == exit_status.success
+    assert status == exit_status.bad_argument
+    assert captured.out == ''
+    assert captured.err == message + '\n'
 
 
 def test_app_group_usage_none(capsys, monkeypatch) -> None:
@@ -361,7 +360,7 @@ def test_app_group_usage_none(capsys, monkeypatch) -> None:
 
 
 def test_app_group_noargs_allowed_reads_argv(capsys, monkeypatch) -> None:
-    """With ALLOW_NOARGS, a command line of None reads <sys.argv>: its errors are reported, not the help."""
+    """With ALLOW_NOARGS, a command line of None reads <sys.argv>, and its errors are reported."""
     monkeypatch.setattr(sys, 'argv', [APP, 'bogus'])
     with no_logging_configured():
         status = NoargsGroup.main(None)
@@ -404,7 +403,7 @@ def test_app_group_optional_command_usage(capsys) -> None:
 
 @pytest.mark.parametrize('cmdline', [[], None], ids=['empty', 'none'])
 def test_app_group_optional_command_noargs_allowed(capsys, monkeypatch, cmdline) -> None:
-    """With ALLOW_NOARGS, a group with an optional command runs on no arguments, not its help."""
+    """With ALLOW_NOARGS, a group with an optional command runs on no arguments."""
     monkeypatch.setattr(sys, 'argv', [APP, ])
     status = NoargsOptionalGroup.main(cmdline)
     captured = capsys.readouterr()
