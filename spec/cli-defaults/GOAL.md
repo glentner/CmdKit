@@ -48,9 +48,10 @@ application never configured logging; the exit status is the one it is today. An
 does configure logging, or routes cmdkit's messages through its own `log_critical`, sees exactly
 what it sees today: no duplicate line, no new output.
 
-A group author can set `ALLOW_NOARGS = True` and have the group print its help and exit 0 when run
-bare without the command it requires (C7). Without that setting, a bare group behaves byte for byte
-as it does in 2.7.7.
+~~A group author can set `ALLOW_NOARGS = True` and have the group print its help and exit 0 when
+run bare without the command it requires (C7).~~ **Out of scope (C9):** moved to
+`issues/group-noargs-help.md`. A bare group, with or without that setting, behaves as it does in
+2.7.7, apart from R1 reporting any argument error it meets.
 
 ## Acceptance criteria (the contract)
 
@@ -72,7 +73,8 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
   WHEN `main` catches an `ArgumentError`, the replacement SHALL be called once with the error, as
   today, and cmdkit SHALL write nothing further to stderr, whether or not any handler stands behind
   the replacement (C2).
-- **R4** — WHEN an `ApplicationGroup` subclass with `ALLOW_NOARGS = True` runs with an empty
+- **R4** — **Out of scope (C9):** moved, with C7 and C8, to `issues/group-noargs-help.md`; kept
+  here as the record, and not graded in this cycle. WHEN an `ApplicationGroup` subclass with `ALLOW_NOARGS = True` runs with an empty
   effective command line (`main([])`, or `main(None)` with no arguments in `sys.argv`; C8), and the
   group's interface would reject that bare command line, as it does when the `command` positional is
   required (C7, C8), it SHALL print to stdout exactly what `main(['--help'])` prints for that group
@@ -80,22 +82,25 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
   positional is optional SHALL call `run` on a bare run exactly as in 2.7.7 (C7). Under the opt-in,
   `main(None)` SHALL parse `sys.argv[1:]` exactly as in 2.7.7, so arguments there dispatch or are
   reported as an argument error as in 2.7.7, and never show the help in their place (C8).
-- **R5** — WHEN an `ApplicationGroup` without `ALLOW_NOARGS = True` runs with an empty command line,
-  it SHALL print its usage and return `exit_status.usage` (1), as in 2.7.7
-  (`test_app_group_usage` keeps passing unchanged). A plain `Application`'s bare-run behaviour, with
-  and without `ALLOW_NOARGS`, SHALL be unchanged apart from R1 applying to any `ArgumentError` it
-  raises.
+- **R5** — WHEN an `ApplicationGroup` runs with an empty command line (`main([])`, or
+  `main(None)`, whatever `sys.argv` holds), with or without `ALLOW_NOARGS = True`, it SHALL behave
+  exactly as in 2.7.7 apart from R1 applying to any `ArgumentError` it raises (C9): without the
+  opt-in it prints its usage and returns `exit_status.usage` (1) (`test_app_group_usage` keeps
+  passing unchanged); with it, the command line is parsed, dispatched and handled as 2.7.7 does
+  (help and version options, the group's `exceptions` map, and `run` included). A plain
+  `Application`'s bare-run behaviour, with and without `ALLOW_NOARGS`, SHALL be unchanged apart
+  from R1 applying to any `ArgumentError` it raises.
 - **R6** — Each new behaviour SHALL land with a test pinning the default beside the test of the new
-  behaviour (`AGENTS.md` § Invariants 1): R4's test sits beside a test of R5, and R1's test beside
-  tests of R2 and R3.
+  behaviour (`AGENTS.md` § Invariants 1): R1's test sits beside tests of R2 and R3 (C9; R4's
+  test left with R4).
 - **R7** — The fix SHALL keep to `AGENTS.md` § Invariants 4 on import-time effects: importing cmdkit
   adds no process-wide effect it doesn't have today. Whether R1's message is written SHALL be
   decided when `main` catches the error, and no handler SHALL stay attached afterwards (C1).
 - **R8** — The docstrings of the touched members, and `docs/api/app.rst`, SHALL describe the
-  behaviour as shipped: `ALLOW_NOARGS` on a group (R4) and on a plain application, the default
-  reporting of argument errors (R1–R3) under `log_critical`. The `ALLOW_NOARGS` paragraph's stated
-  status for a bare run, `exit_status.success` today, SHALL be corrected to the status `main`
-  returns (`exit_status.usage`) (C4).
+  behaviour as shipped: `ALLOW_NOARGS` on a plain application, and the default reporting of
+  argument errors (R1–R3) under `log_critical`. The `ALLOW_NOARGS` paragraph's stated status for a
+  bare run, `exit_status.success` today, SHALL be corrected to the status `main` returns
+  (`exit_status.usage`) (C4). Nothing SHALL document a bare-group help (C9).
 - **R9** — `AGENTS.md` § Invariants 3's known-limitation line ("with no logging configured,
   `ArgumentError` messages are dropped") SHALL be removed in the same commit as the fix (C5).
 
@@ -108,7 +113,9 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
 2. R2 after `logging.basicConfig` (or with `caplog`): one `CRITICAL` record with the message, and
    no extra stderr output from cmdkit.
 3. R3 with a replaced `log_critical` that records its calls: one call, and stderr empty.
-4. R4 and R5 side by side: an `ALLOW_NOARGS` group's `main([])`, and its `main(None)` with no
+4. **Out of scope (C9), with R4; R5 is shown by a bare group's `main([])` and `main(None)`
+   matching 2.7.7's output and status in every case C9 names.** R4 and R5 side by side: an
+   `ALLOW_NOARGS` group's `main([])`, and its `main(None)` with no
    arguments in `sys.argv`, print its `--help` output and return 0; `test_app_group_usage` passes
    unchanged. With `sys.argv` carrying arguments (`['app', 'bogus']`), its `main(None)` reports the
    argument error with status 2, as in 2.7.7 (C8). An `ALLOW_NOARGS` group
@@ -124,8 +131,12 @@ handler other than the `NullHandler` cmdkit attaches at import would receive a r
   `sys.argv`; the documented call is `main(sys.argv[1:])`. Reading `sys.argv` by default would
   change a default, so it stays as it is. Under `ALLOW_NOARGS`, 2.7.7 already parses `sys.argv[1:]`
   for `None` (argparse's default), and that stays as it is too (C8).
-- **The exit statuses.** Every path keeps its `ExitStatus` value; only the opt-in in R4 returns a
-  different one, from a configuration that today exits 2 in silence.
+- **The exit statuses.** Every path keeps its `ExitStatus` value. (Before C9, the opt-in in R4 was
+  to return a different one, from a configuration that today exits 2 in silence.)
+- **A bare group's help (R4, C7, C8)** moves to its own cycle, `issues/group-noargs-help.md` (C9).
+- **The helper's fidelity to `Logger.handle` in contrived setups** (a filter that keeps state or
+  reads caller fields, filters on `logging.lastResort` itself): `issues/last-resort-filter-fidelity.md`
+  (C9).
 - **Suggestions for a mistyped command** (`did you mean …`): that is the next roadmap cycle,
   `issues/cli-command-suggestions.md`, which edits the same message after this one lands.
 - **Group exception-handler isolation** (`issues/app-exception-handlers.md`) and **argparse's
@@ -198,7 +209,8 @@ Raised at the PLAN/TECH sign-off, ruled 2026-11-10:
 
 Raised at review cycle 1 (finding F2), ruled 2026-11-11:
 
-- **C7 (2026-11-11, R4, F2) · Q:** In 2.7.7, a group whose `command` positional is optional
+- **C7 (2026-11-11, R4, F2) · Out of scope (C9),** with R4: kept as the record for
+  `issues/group-noargs-help.md`. **Q:** In 2.7.7, a group whose `command` positional is optional
   (`nargs='?'`) and that sets `ALLOW_NOARGS = True` calls its `run` on a bare run, as the docs
   describe ("proceed to its `run` method"). R4 as first worded shows the group's help instead. Which
   holds? — **A:** A bare run (`[]` or `None`) on a group with `ALLOW_NOARGS = True` shows its
@@ -209,7 +221,8 @@ Raised at review cycle 1 (finding F2), ruled 2026-11-11:
 
 Raised at the PLAN/TECH sign-off of the review cycle 1 revision, ruled 2026-11-11:
 
-- **C8 (2026-11-11, R4) · Q:** R4 called `main(None)` a command line `main` "already treats as
+- **C8 (2026-11-11, R4) · Out of scope (C9),** with R4: kept as the record for
+  `issues/group-noargs-help.md`. **Q:** R4 called `main(None)` a command line `main` "already treats as
   empty". Under `ALLOW_NOARGS`, 2.7.7 passes `None` to argparse, which parses `sys.argv[1:]`. Does
   R4 keep that, and what does "would otherwise fail on the missing command" (C7) mean in the code?
   — **A:** `main(None)` parses `sys.argv[1:]` exactly as in 2.7.7. R4's bare-run rule applies when
@@ -221,6 +234,30 @@ Raised at the PLAN/TECH sign-off of the review cycle 1 revision, ruled 2026-11-1
   required argument is `command`, the two readings are the same. A group whose `command` is
   optional but which requires some other argument shows its help on a bare run too, rather than
   that argument's error (resolved 2026-11-11; R4).
+
+Ruled at the escalation after review cycle 2, 2026-11-11:
+
+- **C9 (2026-11-11, R4, R5, R6, R8, C6, C7, C8) · Q:** Review cycle 2 did not converge. The bare-group
+  help kept breaking 2.7.7's handling of `main(None)` (help and version options and action
+  exceptions escaped `main`; arguments in `sys.argv` showed the help in place of their error), and
+  the report counted an application's own `NullHandler` on the `cmdkit` logger as cmdkit's. What
+  ships in this cycle? — **A:** The cycle is split.
+  - **Moved out:** R4, C7 and C8 leave this cycle for `issues/group-noargs-help.md`, a feature of
+    its own, designed around the effective command line. They stay above, marked out of scope, as
+    the record. `ApplicationGroup`'s bare-run behaviour is exactly 2.7.7's (R5, narrowed); R6 and
+    R8 keep only what remains: R1's test beside R2's and R3's, and the docs' `exit_status.usage`
+    correction for a plain application (C4), with no bare-group help documented.
+  - **Which `NullHandler` is cmdkit's (review cycle 2, F3):** cmdkit's own `NullHandler` is the one
+    `src/cmdkit/__init__.py` creates, recognised by a mark set on it there; no other `NullHandler`
+    counts as cmdkit's, whatever its type or logger. An application's own `NullHandler` on the
+    `cmdkit` logger, added programmatically or by the `dictConfig` recipe that routes `cmdkit` to a
+    `NullHandler` with `propagate: False`, is a handler of the application's: the line stays
+    silent, as in Python and in 2.7.7. Setting the mark adds no process-wide effect (R7, § Invariants
+    4).
+  - **Deferred (review cycle 2, F4):** the report's fidelity to `Logger.handle` in contrived setups
+    (its filter check runs on a record cmdkit builds, and `logging.lastResort`'s own filters are not
+    consulted) moves to `issues/last-resort-filter-fidelity.md`.
+  - The rest stands: R1–R3, R6–R9 and C1–C6 (resolved 2026-11-11; R4, R5, R6, R8, C6).
 
 ## Related materials
 
