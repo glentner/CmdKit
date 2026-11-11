@@ -112,3 +112,10 @@ clarifications C1–C6, ruled at the GOAL and PLAN gates before the build.
 ## Optional completeness sub-pass (separate reviewer; may see TECH.md)
 
 Not run.
+
+## Maintainer's rulings (2026-11-11)
+
+- **Human gate, F1:** the maintainer signed off. F1, F3, F4 and F5 are remediated as routed above.
+- **F2 triage: fix.** R4 is narrowed: a bare run on a group with `ALLOW_NOARGS` shows help only when
+  it would otherwise fail on the missing command. A group whose `command` is optional keeps calling
+  `run`. This is recorded as a GOAL clarification.
