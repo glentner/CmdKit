@@ -3,10 +3,10 @@ slug: uv-build-and-ci
 title: Build, lock, test and publish with uv
 kind: build
 appetite: big
-status: in_progress
+status: in_review
 branch: feature/uv-build-and-ci
 base: develop
-current_phase: P5
+current_phase: done
 last_updated: '2026-11-10'
 phases:
 - id: P1
@@ -66,7 +66,7 @@ phases:
   verify: sh spec/uv-build-and-ci/verify/gate.sh P4
 - id: P5
   name: Platform remediation, every job green, deferral ledger
-  status: in_progress
+  status: done
   satisfies:
   - R5
   - R10
@@ -286,16 +286,16 @@ Run A:
       Nothing under `src/` changes either way; the matrix keeps every job.
 - [x] Deferral ledger: walk every earlier phase body here for deferral phrases and confirm each has
       its `issues/` file and ROADMAP entry (`ledger.py` checks the same mechanically).
-- [ ] Commit, then `sh spec/uv-build-and-ci/verify/gate.sh P5pre` green on the commit.
-- [ ] If anything outside `spec/` changed since P4's evidence SHA, hand back for the operator's push
+- [x] Commit, then `sh spec/uv-build-and-ci/verify/gate.sh P5pre` green on the commit.
+- [x] If anything outside `spec/` changed since P4's evidence SHA, hand back for the operator's push
       and wait (Run B follows). If nothing did (P4's run was already all green), there is nothing to
       push: run `gate.sh P5` now against P4's SHA and close the phase in this run.
 
 Run B (after the run completes, when there was a push):
-- [ ] `git fetch origin feature/uv-build-and-ci`; `sh spec/uv-build-and-ci/verify/gate.sh P5`
+- [x] `git fetch origin feature/uv-build-and-ci`; `sh spec/uv-build-and-ci/verify/gate.sh P5`
       (every phase's checks, `ledger.py --seeds`, `ci_evidence.py --require all`, which writes
       `ci/P5.json`). Commit `ci/P5.json` with the state change.
-- [ ] Put `ledger.py --seeds`' two lists (seeds; changed test files) in the phase report: the PR
+- [x] Put `ledger.py --seeds`' two lists (seeds; changed test files) in the phase report: the PR
       body names each seed and each small fix (R11); publish writes the body and checks it with
       `ledger.py --pr-body`.
 - **Verify:** `sh spec/uv-build-and-ci/verify/gate.sh P5` (`P5phase` runs only the ledger and the
