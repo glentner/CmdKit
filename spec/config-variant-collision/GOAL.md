@@ -208,6 +208,24 @@ Raised during shaping, ruled by the maintainer (2026-11-11):
   line stating the rule take its place? — **A:** Yes: "`name`, `name_env` and `name_eval` are one
   key across layers: the highest layer that sets any of them decides" (resolved 2026-11-11; R8).
 
+Raised during planning, ruled at the plan sign-off (2026-11-11):
+
+- **C7 · Q:** A key such as `token_env` is a variant of `token` by its suffix and also a name with
+  variants of its own (`token_env_env`, `token_env_eval`). In a chain of layers `token` →
+  `token_env` → `token_env_eval` (low to high), R1 read for the name `token` keeps `token_env`, and
+  R1 read for the name `token_env` drops it. Which reading holds? — **A:** The literal one: the
+  highest layer that sets any key in the chain decides. Only `token_env_eval` survives, and
+  `cfg.token` raises "'token' not found". This is the suffix rule (C2) applied to degenerate names,
+  and it is accepted; `TestVariantCollision.test_double_suffix` pins it (resolved 2026-11-11; R1).
+- **C8 · Q:** `_` folds in-place changes (C3), so in two in-place sequences no source still shows
+  the variant that displaced a key: an in-place `a_env` over a layer's `a`, then an in-place
+  `a_env_eval`; and a variant displaced in place, then set again fresh in place, with a key the fresh
+  value lacks. There `which` names the layer that held the key while item access raises
+  `KeyError`. Must `which` agree with item access there? — **A:** No, not in this cycle. `which`
+  keeps today's answer in those two sequences: they are the same class as item assignment and `del`
+  bypassing `_` (a non-goal), and are recorded with a test that shows them in
+  `issues/config-local-layer-tracking.md` (resolved 2026-11-11; R3, R5).
+
 ## Related materials
 
 - Seed: `issues/config-variant-collision.md`; `ROADMAP.md` Part II, order 3.
