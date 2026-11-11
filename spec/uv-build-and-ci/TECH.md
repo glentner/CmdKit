@@ -52,7 +52,7 @@ phases:
   verify: sh spec/uv-build-and-ci/verify/gate.sh P3
 - id: P4
   name: Tests workflow on uv across the matrix, with AGENTS.md
-  status: pending
+  status: in_progress
   satisfies:
   - R5
   - R9
@@ -238,16 +238,16 @@ watches uv and Actions against `develop`.
 locked dependencies, and `AGENTS.md` § Factory and § Invariants 4 describe it. Two runs.
 
 Run A:
-- [ ] Rewrite `.github/workflows/tests.yml` as `PLAN.md` § 2.4 gives it: triggers unchanged; one
+- [x] Rewrite `.github/workflows/tests.yml` as `PLAN.md` § 2.4 gives it: triggers unchanged; one
       job named `${{ matrix.os }} / py${{ matrix.python }}`, `runs-on: ${{ matrix.os }}`,
       `fail-fast: false`, matrix `os: [ubuntu-latest]` × `python: 3.9 … 3.14` plus `include` for
       macOS and Windows on 3.9 and 3.14; `env: UV_PYTHON_PREFERENCE: only-managed`; steps
       `actions/checkout`, `astral-sh/setup-uv` with `python-version: ${{ matrix.python }}`, and
       `run: uv run --locked python -m pytest -v`.
-- [ ] `AGENTS.md` (same commit, § Conventions): the profile's `verify` row says it installs the
+- [x] `AGENTS.md` (same commit, § Conventions): the profile's `verify` row says it installs the
       tree through uv's build backend (the command is unchanged); the release recipe's `gate` keeps
       3.9–3.14, the Linux matrix; § Invariants 4 drops the line recording CI's 3.10–3.13 coverage.
-- [ ] Commit (phase stays `in_progress`), then `sh spec/uv-build-and-ci/verify/gate.sh P4pre`
+- [x] Commit (phase stays `in_progress`), then `sh spec/uv-build-and-ci/verify/gate.sh P4pre`
       green on the commit.
 - [ ] Hand back to the operator with the commit SHA for its outward steps: push
       `feature/uv-build-and-ci` to `origin`, open a **draft** PR into `develop` (the cycle's PR;
