@@ -26,10 +26,9 @@ phases:
   hill: uphill
   verify: sh spec/cli-defaults/verify/gate.sh P1
 - id: P2
-  name: A group with ALLOW_NOARGS shows its help when run bare
+  name: A group's bare run stays as in 2.7.7 (the bare-group help moved out)
   status: done
   satisfies:
-  - R4
   - R5
   - R6
   - R8
@@ -123,6 +122,20 @@ atomic code+state commit.
   reopened before P2 and its gate does not need P2's remediation (it sweeps only P1's mutants and
   skips `noargs`), so the two run in order and commit apart. Write `PLAN.md` § 2's code lines
   verbatim: `mutants` anchors on them, and an anchor it can't find is red.
+- **Review cycle 2 remediation (plan revised 2026-11-11, GOAL C9: the split).** Review cycle 2
+  escalated and the maintainer split the cycle (`REVIEW.md`, "Maintainer's ruling on the cycle-2
+  escalation"). The build's remediation run reopens two done phases with `set_phase.py`, per
+  code-build Step 1.3, and leaves the review fields to review cycle 3, the last allowed:
+  - **P1 reopens for cycle 2's F3** (R1, R2, R7): the mark on cmdkit's own `NullHandler`.
+  - **P2 reopens as the revert** (R5, R6, R8): `ApplicationGroup.main`, its tests and its docs go.
+    Its name and `satisfies` were retuned with `set_phase.py` in this revision.
+  - Cycle 2's F1, F2 and F5 leave with the bare-group help: `issues/group-noargs-help.md`.
+  - Cycle 2's F4, filed in this revision's plan commit: `issues/last-resort-filter-fidelity.md`.
+
+  The `verify:` strings are unchanged; `gate.sh P1` and `gate.sh P2` gained this revision's checks
+  (`PLAN.md` § 6) and `verify/` is frozen again at this plan commit. P1 runs first and its gate
+  does not need P2's work (it skips `noargs` and P2's static checks); the two commit apart. Write
+  `PLAN.md` § 2.0's lines verbatim: the static check and the mutant sweep anchor on them.
 - **Phase bodies are instructions, not reports.** Results go in the build report and the commit
   body, never in a phase body: the ledger reads phase bodies.
 
@@ -176,11 +189,31 @@ application silenced the record (a rejecting filter on `cmdkit.app`, and every C
       static check grades that).
 - [x] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 21 mutants on
       both Pythons.
-- **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
-- **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`, `AGENTS.md`.
 
-## Phase P2 — A group with ALLOW_NOARGS shows its help when run bare
-**Satisfies:** R4, R5, R6, R8 · **Depends on:** P1
+**Review cycle 2 remediation (cycle 2's F3; GOAL C9).** cmdkit's own `NullHandler` is the one
+`src/cmdkit/__init__.py` creates, recognised by a mark set there; an application's own
+`NullHandler` on the `cmdkit` logger, added or configured by `dictConfig`, keeps the line silent.
+
+- [ ] `src/cmdkit/__init__.py`: replace the `addHandler(NullHandler())` line with `PLAN.md` § 2.0's
+      four lines, verbatim, under the existing comment. Change nothing else in the file.
+- [ ] `src/cmdkit/app.py`: in `_hidden_by_null_handler`, the walk's test becomes § 2.0's mark test,
+      verbatim; the docstring says only the marked handler counts as cmdkit's.
+- [ ] `docs/api/app.rst` (`log_critical` paragraph) and `Application.main`'s docstring: an
+      application's own `NullHandler` on the `cmdkit` logger is a handler of the application's.
+- [ ] `tests/test_app.py`: the setups and the `dictConfig` test § 2.0 lists, named
+      `test_app_argument_error_*`; the setup that pinned an application's `NullHandler` on `cmdkit`
+      as printing now pins it silent. No test reads or pins the source text: the sweep's control
+      run fails on one.
+- [ ] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 25 mutants on both
+      Pythons.
+- **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
+- **Touches:** `src/cmdkit/app.py`, `src/cmdkit/__init__.py`, `tests/test_app.py`, `docs/api/app.rst`,
+  `AGENTS.md`.
+
+## Phase P2 — A group's bare run stays as in 2.7.7 (the bare-group help moved out)
+**Satisfies:** R5, R6, R8 (R4 left with GOAL C9) · **Depends on:** P1
+**Since review cycle 2:** this phase reverts the work its earlier items below did; they are the
+record.
 **Goal:** an `ApplicationGroup` with `ALLOW_NOARGS = True` run with an empty command line prints
 what its `--help` prints and returns `exit_status.success`; without the opt-in a bare group, and a
 plain application either way, behave as in 2.7.7.
@@ -218,6 +251,24 @@ calls `run` exactly as on 2.7.7.
       item has an `issues/` seed from the template and a `ROADMAP.md` entry, staged with this phase.
 - [x] Stage the work, then run the verify. Its `mutants P2` sweep must kill all 25 mutants on
       both Pythons.
+
+**Review cycle 2 remediation: the revert (GOAL C9).** The bare-group help leaves the cycle for
+`issues/group-noargs-help.md`. `ApplicationGroup`'s bare-run behaviour returns to 2.7.7's, apart
+from R1's report of any argument error it meets.
+
+- [ ] `src/cmdkit/app.py`: remove `ApplicationGroup.main` whole; the `ApplicationGroup` class is
+      then byte-identical to `b9efaca`'s.
+- [ ] `docs/api/app.rst`: remove the `ApplicationGroup` section's `ALLOW_NOARGS` entry and its
+      `.. automethod:: main`, and the `Application.ALLOW_NOARGS` sentence that points to a group's
+      help. Keep C4's `exit_status.usage` and the sentence on a missing required argument.
+- [ ] `tests/test_app.py`: remove the tests that assert a group's help on a bare run; keep, or put
+      in their place, the `test_app_group_*` tests `PLAN.md` § 2.0 lists, each pinning 2.7.7's
+      bare-group behaviour (an `ALLOW_NOARGS` group that requires its command reports it missing
+      with status 2).
+- [ ] Deferral ledger: walk P1's and this phase's review cycle 2 items; each item set aside has its
+      `issues/` seed and `ROADMAP.md` entry (both were filed with this plan revision).
+- [ ] Stage the work, then run the verify. Its `mutants P2` sweep must kill all 25 mutants on both
+      Pythons.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P2`.
 - **Touches:** `src/cmdkit/app.py`, `tests/test_app.py`, `docs/api/app.rst`.
 

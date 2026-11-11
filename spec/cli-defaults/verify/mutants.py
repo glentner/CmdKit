@@ -2,28 +2,34 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Mutant sweep: every decision in the argument-error report and the bare-group help, each mutant
-killed by tests/test_app.py alone (review cycle 1, finding F5).
+Mutant sweep: every decision in the argument-error report, each mutant killed by
+tests/test_app.py alone (review cycle 1, finding F5; review cycle 2, finding F3).
 
 Run with the Python whose environment has the export installed editable, from the export:
 
     python -I mutants.py EXPORT P1|P2
 
-P1 sweeps the report's decisions (the helper and its call site in Application.main); P2 adds
-the bare group's (ApplicationGroup.main), whose lines P1's tree does not hold yet. Each mutant is an exact text replacement in EXPORT/src/cmdkit/app.py. Its anchor must occur
-exactly once, or the sweep fails (a missing anchor is a red, never a skip): the anchors are the
-lines PLAN.md § 2 gives verbatim. For each mutant the file is rewritten, tests/test_app.py runs
-in a child interpreter with a fresh bytecode prefix (so no stale .pyc can stand in for the
-mutant), and the file is restored. A mutant is killed when pytest exits 1 (tests failed) and at
-least one failing test is one that pins its behaviour: a test named `test_app_argument_error_*`
-or `test_app_noargs_allowed_*` for the report's decisions, `test_app_group_*` for the bare
-group's (a failure only elsewhere, such as a test that reads the module's source, does not
-count). Exit 0 is a survivor, and anything else (a collection or usage error) a broken mutant:
-both red. The unmutated tree must pass first, and the file must be byte-identical to it at the
-end. (Adversarial review of the revised plan: the killer set, the probe record's contents, the
-replacement's identity, and the bare group's command line read from sys.argv.)
+P1 and P2 sweep the same mutants: the bare-group help left the cycle (GOAL C9), and with it the
+bare group's mutants. Each mutant is an exact text replacement in one file of EXPORT:
+src/cmdkit/app.py (the helper and its call site in Application.main) or src/cmdkit/__init__.py
+(the mark on cmdkit's own NullHandler). Its anchor must occur exactly once in that file, or the
+sweep fails (a missing anchor is a red, never a skip): the anchors are the lines PLAN.md § 2 gives
+verbatim. For each mutant the file is rewritten, tests/test_app.py runs in a child interpreter
+with a fresh bytecode prefix (passed as -X pycache_prefix and as PYTHONPYCACHEPREFIX, so the
+suite's own child interpreters see the mutant too, and no stale .pyc can stand in for it), and the
+file is restored. A mutant is killed when pytest exits 1 (tests failed) and at least one failing
+test is one that pins the report: a test named test_app_argument_error_* or
+test_app_noargs_allowed_* (a failure only elsewhere, such as a test that reads the module's
+source, does not count). Exit 0 is a survivor, and anything else (a collection or usage error) a
+broken mutant: both red. The unmutated tree must pass first, and both files must be
+byte-identical to it at the end.
 
-Footprint: one pytest child at a time, under 100 MB; about 1 s per mutant warm.
+Before the mutants, a control run appends a comment line to each target file: a test that fails on
+that is pinning the source text, not the behaviour, and the sweep is red (adversarial review of the
+C9 revision: a pin test would otherwise "kill" every mutant).
+
+Footprint: one pytest child at a time (and the suite's one short-lived child), under 100 MB;
+about 1 s per mutant warm.
 """
 
 # standard libs
@@ -58,22 +64,26 @@ HELPER = [
     ('lastResort level boundary moved (< to <=)',
      '    if logging.lastResort is None or level < logging.lastResort.level:\n',
      '    if logging.lastResort is None or level <= logging.lastResort.level:\n'),
+    ('only the last handler on each logger looked at',
+     '        for handler in current.handlers:\n', '        for handler in current.handlers[-1:]:\n'),
+    ('only the first handler on each logger looked at',
+     '        for handler in current.handlers:\n', '        for handler in current.handlers[:1]:\n'),
     ('propagate walk does not stop',
      '        if not current.propagate:\n            break\n', ''),
     ('handler levels counted (the overruled reading)',
      '        for handler in current.handlers:\n',
      '        for handler in current.handlers:\n            if level < handler.level:\n                continue\n'),
-    ('any NullHandler anywhere counts as cmdkit\'s',
-     "            if current.name != 'cmdkit' or type(handler) is not logging.NullHandler:\n",
+    ('the mark ignored: any plain NullHandler counts as cmdkit\'s (review cycle 2, F3)',
+     "            if getattr(handler, '_cmdkit_library_handler', False) is not True:\n",
      '            if type(handler) is not logging.NullHandler:\n'),
-    ('a NullHandler subclass counts as cmdkit\'s',
-     "            if current.name != 'cmdkit' or type(handler) is not logging.NullHandler:\n",
+    ('the mark ignored: any NullHandler on the cmdkit logger counts (review cycle 2, F3)',
+     "            if getattr(handler, '_cmdkit_library_handler', False) is not True:\n",
      "            if current.name != 'cmdkit' or not isinstance(handler, logging.NullHandler):\n"),
-    ('cmdkit\'s NullHandler looked for on cmdkit.app',
-     "            if current.name != 'cmdkit' or type(handler) is not logging.NullHandler:\n",
-     "            if current.name != 'cmdkit.app' or type(handler) is not logging.NullHandler:\n"),
-    ('cmdkit\'s NullHandler counted as the application\'s',
-     "            if current.name != 'cmdkit' or type(handler) is not logging.NullHandler:\n",
+    ('an unmarked handler counts as cmdkit\'s (the mark defaults to true)',
+     "            if getattr(handler, '_cmdkit_library_handler', False) is not True:\n",
+     "            if getattr(handler, '_cmdkit_library_handler', True) is not True:\n"),
+    ('cmdkit\'s marked NullHandler counted as the application\'s',
+     "            if getattr(handler, '_cmdkit_library_handler', False) is not True:\n",
      '            if True:\n'),
     ('no handler at all still writes (F1)',
      '    return found\n', '    return True\n'),
@@ -96,35 +106,28 @@ CALL_SITE = [
      '                print(error, file=sys.stderr)\n', '                print(error)\n'),
 ]
 
-BARE_GROUP = [
-    ('bare group: the parse check removed (help on every bare run)',
-     '            try:\n                cls.interface.parse_args(cmdline)\n            except ArgumentError:\n'
-     "                cmdline = ['--help', ]\n",
-     "            cmdline = ['--help', ]\n"),
-    ('bare group: help when the parse succeeds',
-     '            try:\n                cls.interface.parse_args(cmdline)\n            except ArgumentError:\n'
-     "                cmdline = ['--help', ]\n",
-     "            try:\n                cls.interface.parse_args(cmdline)\n                cmdline = ['--help', ]\n"
-     '            except ArgumentError:\n                pass\n'),
-    ('bare group: the probe parses [] in place of the command line (None ignores sys.argv)',
-     '                cls.interface.parse_args(cmdline)\n            except ArgumentError:\n',
-     '                cls.interface.parse_args([])\n            except ArgumentError:\n'),
-    ('bare group: the opt-in ignored',
-     '        if not cmdline and cls.ALLOW_NOARGS is True:\n            try:\n',
-     '        if not cmdline:\n            try:\n'),
+INIT = [
+    ('the mark not set where cmdkit attaches its NullHandler (review cycle 2, F3)',
+     '_null_handler._cmdkit_library_handler = True\n', ''),
+    ('the mark set to a truthy value other than True',
+     '_null_handler._cmdkit_library_handler = True\n', '_null_handler._cmdkit_library_handler = 1\n'),
 ]
 
-KILLERS = {'report': ('test_app_argument_error_', 'test_app_noargs_allowed_'), 'group': ('test_app_group_', )}
+KILLERS = ('test_app_argument_error_', 'test_app_noargs_allowed_')
 
-REPORT = [(name, anchor, new, 'report') for name, anchor, new in HELPER + CALL_SITE]
-GROUP = [(name, anchor, new, 'group') for name, anchor, new in BARE_GROUP]
-PHASES = {'P1': REPORT, 'P2': REPORT + GROUP}
+MUTANTS = ([('src/cmdkit/app.py', name, anchor, new) for name, anchor, new in HELPER + CALL_SITE]
+           + [('src/cmdkit/__init__.py', name, anchor, new) for name, anchor, new in INIT])
+PHASES = {'P1': MUTANTS, 'P2': MUTANTS}
+
+
+ENV = dict(os.environ)  # a saved copy; each child gets it with its own bytecode prefix
 
 
 def pytest(export: str, prefix: str) -> subprocess.CompletedProcess:
+    env = dict(ENV, PYTHONPYCACHEPREFIX=prefix)
     return subprocess.run([sys.executable, '-X', f'pycache_prefix={prefix}', '-m', 'pytest', '-q',
                            '-p', 'no:cacheprovider', '--hypothesis-seed=0', 'tests/test_app.py'],
-                          cwd=export, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
+                          cwd=export, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
 
 
 def failed_tests(output: str) -> list:
@@ -142,9 +145,10 @@ def main() -> int:
         return 2
     export, phase = sys.argv[1], sys.argv[2]
     mutants = PHASES[phase]
-    target = os.path.join(export, 'src', 'cmdkit', 'app.py')
-    with open(target, encoding='utf-8') as stream:
-        original = stream.read()
+    originals = {}
+    for rel in sorted({rel for rel, *_ in mutants}):
+        with open(os.path.join(export, rel), encoding='utf-8') as stream:
+            originals[rel] = stream.read()
     work = tempfile.mkdtemp(prefix='cli-defaults-mutants.', dir=os.environ.get('TMPDIR'))
     print(f'== mutants {phase} on Python {sys.version.split()[0]}: {len(mutants)} mutants, bytecode under {work}')
 
@@ -156,9 +160,26 @@ def main() -> int:
         return 1
     print('ok    baseline: tests/test_app.py passes unmutated')
 
+    for rel, original in originals.items():
+        target = os.path.join(export, rel)
+        with open(target, 'w', encoding='utf-8') as stream:
+            stream.write(original + '# control: a comment changes no behaviour\n')
+        try:
+            proc = pytest(export, os.path.join(work, 'control-' + rel.replace('/', '-')))
+        finally:
+            with open(target, 'w', encoding='utf-8') as stream:
+                stream.write(original)
+        if proc.returncode != 0:
+            print(f'FAIL  control: a comment added to {rel} fails tests that pin its text: '
+                  f'{failed_tests(proc.stdout.decode())}')
+            failures.append('control ' + rel)
+        else:
+            print(f'ok    control: a comment added to {rel} fails nothing')
+
     try:
-        for number, (name, anchor, replacement, family) in enumerate(mutants, start=1):
+        for number, (rel, name, anchor, replacement) in enumerate(mutants, start=1):
             label = f'M{number:02d} {name}'
+            target, original = os.path.join(export, rel), originals[rel]
             count = original.count(anchor)
             if count != 1:
                 print(f'FAIL  {label}: anchor found {count} times, expected once')
@@ -173,12 +194,12 @@ def main() -> int:
                     stream.write(original)
             output = proc.stdout.decode()
             failed = failed_tests(output)
-            pinned = sorted({t for t in failed if t.startswith(KILLERS[family])})
+            pinned = sorted({t for t in failed if t.startswith(KILLERS)})
             if proc.returncode == 1 and pinned:
                 more = f' (+{len(pinned) - 1} more)' if len(pinned) > 1 else ''
                 print(f'ok    {label}: killed by {pinned[0]}{more}')
             elif proc.returncode == 1:
-                print(f'FAIL  {label}: killed only by tests outside {KILLERS[family]}: {failed}')
+                print(f'FAIL  {label}: killed only by tests outside {KILLERS}: {failed}')
                 failures.append(label)
             elif proc.returncode == 0:
                 print(f'FAIL  {label}: survived')
@@ -188,10 +209,12 @@ def main() -> int:
                 print(output[-1500:])
                 failures.append(label)
     finally:
-        with open(target, encoding='utf-8') as stream:
-            restored = stream.read() == original
-    if not restored:
-        print('FAIL  src/cmdkit/app.py not restored')
+        restored = []
+        for rel, original in originals.items():
+            with open(os.path.join(export, rel), encoding='utf-8') as stream:
+                restored.append(stream.read() == original)
+    if not all(restored):
+        print('FAIL  a mutated file was not restored')
         failures.append('restore')
     if failures:
         print(f'FAIL: {len(failures)} mutant(s) not killed')

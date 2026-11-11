@@ -7,21 +7,30 @@
 #   frozen     verify/ is as the latest plan commit left it: no staged, unstaged or untracked
 #              change, and no commit since that plan commit touches it; and every plan commit
 #              touches only spec/cli-defaults/, issues/ and ROADMAP.md (a build commit can't
-#              carry the subject and re-freeze verify/ beside its code).
+#              carry the subject and re-freeze verify/ beside its code); and no plan commit
+#              follows a build commit without a review commit between them (a build can't add a
+#              plan commit of its own). With CLI_DEFAULTS_VERIFY_TREE set (recorded at the plan's
+#              sign-off, outside the branch: `git rev-parse <plan commit>:spec/cli-defaults/verify`), verify/ at
+#              HEAD must be exactly that tree.
 #   static P1  change_set.py P1, graded from the cycle's first plan commit (the tree the build
 #              started from, so a revised plan does not move it): the files changed; the § Invariants 3 line
 #              gone, and nothing else in AGENTS.md changed; docs/api/app.rst changed; no spec ids
-#              in added source or test lines; test_app_group_usage unchanged.
-#   static P2  change_set.py P2: all of P1's checks, plus the deferral ledger over TECH.md.
-#   errors     drive_main.py errors, on 3.9 and 3.14: argument errors in fresh interpreters.
-#   noargs     drive_main.py noargs, on 3.9 and 3.14: bare groups and bare applications.
+#              in added source or test lines; test_app_group_usage unchanged; no added test
+#              line reads the module source; src/cmdkit/__init__.py changed for the mark only.
+#   static P2  change_set.py P2: all of P1's checks, plus the deferral ledger over TECH.md, and
+#              (GOAL C9) no ApplicationGroup.main and no ApplicationGroup ALLOW_NOARGS docs.
+#   errors     drive_main.py errors, on 3.9 and 3.14: argument errors in fresh interpreters,
+#              review cycle 2's F3 (an application's own NullHandler on cmdkit) included.
+#   noargs     drive_main.py noargs, on 3.9 and 3.14: bare groups exactly as in 2.7.7 (GOAL C9),
+#              and bare applications.
 #   tests      tests/test_app.py on 3.9 and 3.14 (the profile's verify, narrowed to the slice),
 #              with --hypothesis-seed=0: unseeded, an existing test fails about 1 run in 40 on
 #              develop (issues/test-invalid-options-help-prefix.md); seed 0 does not hit it.
-#   mutants P1 mutants.py P1 on 3.9 and 3.14 (review cycle 1, finding F5): every decision in the
-#              argument-error report, each mutant killed by tests/test_app.py alone; the anchors
-#              are PLAN.md § 2's lines, and a missing one is red.
-#   mutants P2 mutants.py P2: P1's mutants and the bare group's decisions.
+#   mutants P1 mutants.py P1 on 3.9 and 3.14 (review cycle 1 F5, review cycle 2 F3): every
+#              decision in the argument-error report and the mark on cmdkit's NullHandler, each
+#              mutant killed by tests/test_app.py alone; the anchors are PLAN.md § 2's lines, and
+#              a missing one is red.
+#   mutants P2 mutants.py P2: the same mutants (the bare group's left with GOAL C9).
 #   P1         frozen, static P1, errors, tests, mutants P1: the phase's verify.
 #   P2         frozen, static P2, errors, noargs, tests, mutants P2: the phase's verify.
 #
@@ -37,7 +46,8 @@
 # P2 takes about 90 s warm.
 #
 # Dry runs only: CLI_DEFAULTS_GATE_DRYRUN=1 skips `frozen` (there is no plan commit yet) and grades
-# the change set from CLI_DEFAULTS_GATE_BASE instead of the first plan commit. A build never sets it.
+# the change set from CLI_DEFAULTS_GATE_BASE instead of the first plan commit. A build never sets it,
+# and the gate refuses it while CLI_DEFAULTS_VERIFY_TREE is set.
 
 set -eu
 
@@ -72,6 +82,9 @@ base() {
 }
 
 frozen() {
+    if [ "${CLI_DEFAULTS_GATE_DRYRUN:-}" = 1 ] && [ -n "${CLI_DEFAULTS_VERIFY_TREE:-}" ]; then
+        echo "FAIL: CLI_DEFAULTS_GATE_DRYRUN is for plan dry runs only, never with CLI_DEFAULTS_VERIFY_TREE"; exit 1
+    fi
     if [ "${CLI_DEFAULTS_GATE_DRYRUN:-}" = 1 ]; then
         say "frozen: SKIPPED (dry run, no plan commit)"
         return 0
@@ -84,6 +97,17 @@ frozen() {
     [ -z "$(git ls-files --others --exclude-standard -- "$rel")" ] || { echo "FAIL: untracked files in $rel"; exit 1; }
     [ -z "$(git log --format=%h "$plan..HEAD" -- "$rel")" ] || {
         echo "FAIL: a commit since the plan commit touches $rel"; exit 1; }
+    # oldest first: a plan commit after a build commit needs a review commit in between
+    late=$(git log --reverse --format='%H %s' HEAD | awk '
+        { h = $1; s = substr($0, length($1) + 2) }
+        index(s, "[fix] Build cli-defaults") == 1 { b = 1 }
+        index(s, "[fix] Review cli-defaults:") == 1 { b = 0 }
+        index(s, "[fix] Plan cli-defaults:") == 1 && b { print h; exit }')
+    [ -z "$late" ] || { echo "FAIL: plan commit $late follows a build commit with no review between"; exit 1; }
+    if [ -n "${CLI_DEFAULTS_VERIFY_TREE:-}" ]; then
+        [ "$(git rev-parse "HEAD:$rel")" = "$CLI_DEFAULTS_VERIFY_TREE" ] || {
+            echo "FAIL: $rel at HEAD is not the tree recorded at sign-off ($CLI_DEFAULTS_VERIFY_TREE)"; exit 1; }
+    fi
     for c in $(plan_commits); do
         stray=$(git show --name-only --format= "$c" | grep -v -e '^spec/cli-defaults/' -e '^issues/' -e '^ROADMAP\.md$' || true)
         [ -z "$stray" ] || { echo "FAIL: plan commit $c touches more than the plan's files: $stray"; exit 1; }

@@ -26,7 +26,76 @@ decision and a mutant sweep that grades them (§ 6), reopens P1 for F1, F3 and F
 (`TECH.md`), and corrects the deferral seed (F4). The sections below describe the design as
 revised; § 4 and § 6 keep the record of the first plan.
 
+**Revised after review cycle 2 (2026-11-11): the split (GOAL C9).** Review cycle 2 did not
+converge, and the maintainer split the cycle. The bare-group help (R4, C7, C8) leaves it for
+`issues/group-noargs-help.md`, and `ApplicationGroup` returns to 2.7.7's bare-run behaviour:
+**P2 reopens as the revert** of `ApplicationGroup.main`, its tests and its docs, keeping C4's
+`exit_status.usage` correction. Cycle 2's F1, F2 and F5 leave with it. The stderr report stays, with
+one fix: **P1 reopens for F3**. cmdkit's own `NullHandler` is the one `src/cmdkit/__init__.py`
+creates, recognised by a mark set on it there, so an application's own `NullHandler` on the
+`cmdkit` logger silences the line, as in Python and 2.7.7. F4 is deferred to
+`issues/last-resort-filter-fidelity.md`. § 2.0 below is the design as revised; where the older text
+of § 2 to § 6 differs from it, § 2.0 governs, and the older text stays as the record.
+
 ## 2. Design
+
+### 2.0 Review cycle 2 revision: the mark, and the revert (GOAL C9)
+
+**The mark (P1; review cycle 2, F3).** `src/cmdkit/__init__.py`'s last line,
+`Logger.with_name(__name__).addHandler(NullHandler())`, becomes exactly these four lines, under
+the existing `# null-handler for library interface` comment (the static check and the mutant sweep
+anchor on them):
+
+```python
+_null_handler = NullHandler()
+_null_handler._cmdkit_library_handler = True
+Logger.with_name(__name__).addHandler(_null_handler)
+del _null_handler
+```
+
+- No new process-wide effect (R7, § Invariants 4): the same one `NullHandler` on the same logger,
+  with one attribute of its own; `del` leaves the module's namespace as 2.7.7 has it; nothing is
+  registered by name (`Handler.set_name` would put it in `logging`'s handler registry, so it is
+  not used).
+- In `_hidden_by_null_handler`, the walk's test becomes, verbatim:
+
+  ```python
+          for handler in current.handlers:
+              if getattr(handler, '_cmdkit_library_handler', False) is not True:
+                  return False
+              found = True
+  ```
+
+  Only a handler carrying the mark, wherever it sits, counts as cmdkit's; every other handler,
+  an application's plain `NullHandler` on `cmdkit` included, is the application's: false. A
+  second import of the package (`importlib.reload(cmdkit)`) adds a second marked handler, which
+  counts as cmdkit's too, so the line still appears once. The rest of the helper and its call
+  site are unchanged; the docstring and the `log_critical` paragraph say that an application's own
+  `NullHandler` on the `cmdkit` logger is a handler of the application's.
+- Tests (`test_app_argument_error_*`): in the setups table, an application's plain `NullHandler`
+  added to `cmdkit` is `silent` (it was `once`, the setup review cycle 2 found contradicting C6),
+  and `cmdkit`'s handlers replaced by the application's `NullHandler` with `propagate = False` is
+  `silent`, and so is the application's `NullHandler` placed *before* cmdkit's (what configuring
+  logging before `import cmdkit` gives); a second marked `NullHandler` on `cmdkit` is `once`. One test runs the `dictConfig`
+  recipe (`handlers: {null: logging.NullHandler}`, `loggers: {cmdkit: {handlers: [null],
+  propagate: False}}`) in a child interpreter (`dictConfig` resets `logging`'s process-wide
+  handler registry, so not in the test process) and asserts status 2 with stdout and stderr empty.
+
+**The revert (P2; GOAL C9).** `ApplicationGroup.main` is removed whole, so `ApplicationGroup`
+inherits `Application.main` as in 2.7.7 and `src/cmdkit/app.py`'s `ApplicationGroup` class is
+byte-identical to `b9efaca`'s. In `docs/api/app.rst`, the `ApplicationGroup` section's
+`ALLOW_NOARGS` entry and its `.. automethod:: main` go, and so does the sentence in
+`Application.ALLOW_NOARGS` that points to a group's help; the paragraph keeps C4's
+`exit_status.usage` and the sentence that a missing required argument is an argument error. Tests:
+the tests that assert a group's help on a bare run go; tests that pin 2.7.7's bare-group behaviour
+stay or take their place (`test_app_group_*`): an `ALLOW_NOARGS` group that requires its command,
+run bare, reports the missing command per R1 with status 2; the optional-command group's `run`;
+`main(None)` with `sys.argv` patched to an unknown command (status 2); `Group.main(None)`'s usage.
+
+**What moved out.** The design below for `ApplicationGroup.main`, its deviation row (§ 3, row 3),
+its risks and its mutants are the record of R4, C7 and C8, now `issues/group-noargs-help.md`; that
+seed carries cycle 2's lesson (decide on the effective command line inside `main`'s handling,
+never a pre-parse; `--help`, `--version` and actions handled as 2.7.7 does; `shared` passed on).
 
 ### Argument errors (`src/cmdkit/app.py`, `Application.main`)
 
@@ -68,7 +137,7 @@ except ArgumentError as error:
       current = logger
       while current is not None:
           for handler in current.handlers:
-              if current.name != 'cmdkit' or type(handler) is not logging.NullHandler:
+              if getattr(handler, '_cmdkit_library_handler', False) is not True:
                   return False
               found = True
           if not current.propagate:
@@ -108,7 +177,7 @@ except ArgumentError as error:
   `NullHandler`. `app.py` gains `import sys` in its standard-libs group; there is no new import-time
   effect.
 
-### A bare group (`src/cmdkit/app.py`, `ApplicationGroup.main`)
+### A bare group (`src/cmdkit/app.py`, `ApplicationGroup.main`) — moved out (GOAL C9), the record only
 
 ```python
 @classmethod
@@ -221,17 +290,32 @@ high-blast-radius list, § Invariants 4), so the edits do not overlap.
 | R1   | `ArgumentError` branch of `Application.main`: `_hidden_by_null_handler` true (C6) and default `log_critical` → `print(error, file=sys.stderr)`; where no handler is found at all, Python's own line, and cmdkit's write is false (once, F1); status unchanged |
 | R2   | a handler found on the chain, a rejecting filter, or the logger or last resort silenced → `_hidden_by_null_handler` false → no write; `log_critical` called as today, so configured handlers get the same one record |
 | R3   | `cls.log_critical == log.critical` false → no write; the replacement called once, as today |
-| R4   | `ApplicationGroup.main` maps an empty command line to `['--help']` under `ALLOW_NOARGS is True` when the group's interface rejects an empty command line; an optional `command` passes it on to `run` (C7) |
-| R5   | the same condition false without the opt-in → `Application.main` unchanged; `Application` untouched |
-| R6   | tests placed side by side as listed under Tests; `test_app_group_usage` unchanged; every decision of the report and the bare group pinned by a suite test, graded by the mutant sweep (F5) |
-| R7   | decision computed per call by reading the handler chain; no handler added; import untouched |
-| R8   | docstrings of `Application.main` and `ApplicationGroup.main`; `docs/api/app.rst` paragraphs |
+| R4   | **Out of scope (C9).** Record: `ApplicationGroup.main` maps an empty command line to `['--help']` under `ALLOW_NOARGS is True` when the group's interface rejects an empty command line; an optional `command` passes it on to `run` (C7) |
+| R5   | (C9) no `ApplicationGroup.main`: a group inherits `Application.main` as in 2.7.7, so every bare run, with or without `ALLOW_NOARGS`, is 2.7.7's apart from R1's report |
+| R6   | tests placed side by side as listed under Tests; `test_app_group_usage` unchanged; every decision of the report, the mark included, pinned by a suite test, graded by the mutant sweep (F5; cycle 2 F3) |
+| R7   | decision computed per call by reading the handler chain; no handler added; at import, the one existing `NullHandler` carries an attribute, nothing more (§ 2.0) |
+| R8   | docstring of `Application.main`; `docs/api/app.rst`'s `log_critical` and `Application.ALLOW_NOARGS` paragraphs (C4); no bare-group help documented (C9) |
 | R9   | the § Invariants 3 bullet removed in P1, the phase that changes `Application.main` |
 
 ## 3. Invariant gate (AGENTS.md constitution check)
 
 Checked against `AGENTS.md` § Invariants before research and again after this design was drafted.
 The change touches `src/cmdkit/app.py`, on the high-blast-radius list; no other listed path.
+
+**Review cycle 2 revision (GOAL C9), walked again.** The change now also touches
+`src/cmdkit/__init__.py`, on the high-blast-radius list, for the mark only (§ 2.0), and the static
+check refuses any other edit there.
+- **§ 1:** an application's own `NullHandler` on `cmdkit` is silent again, as in 2.7.7 (cycle 2,
+  F3); with the revert, no bare-group default or opt-in changes at all.
+- **§ 3:** with `ApplicationGroup.main` gone, every group's `main` is `Application.main`, which
+  returns an int and handles help, version and the `exceptions` map as 2.7.7 does (cycle 2's F1
+  left with the code that caused it).
+- **§ 4:** importing cmdkit attaches the same one `NullHandler` to the same logger. It carries an
+  attribute; no name is added to the module (`del`) or to `logging`'s handler registry
+  (`set_name` is not used), and nothing else at import changes. The `errors` drive checks the
+  handler lists and the module's names after import and after `main`.
+
+The rest of this section is the first plan's walk, kept as the record.
 
 - **§ 1 Compatibility.** The dropped message is an outright failure, fixed by default, as the GOAL
   says; no test pinned the silence. Configured logging and a replaced `log_critical` see no change
@@ -257,8 +341,14 @@ The change touches `src/cmdkit/app.py`, on the high-blast-radius list; no other 
 |-----------|-----------|--------------------------------------|
 | **"No logging configured" is Python's last-resort rule (GOAL C6, ruled at the sign-off).** cmdkit writes exactly when `Logger.callHandlers` would hand this `CRITICAL` record to `logging.lastResort` were cmdkit's `NullHandler` not there: the logger enabled for `CRITICAL` (not disabled, not under `logging.disable`), `lastResort` present and at or below `CRITICAL`, and no handler found on the `propagate` chain, whatever its level. `dictConfig`'s default `disable_existing_loggers`, `logging.disable(CRITICAL)`, handlers levelled above `CRITICAL`, a `cmdkit.app` level above `CRITICAL` and `lastResort = None` stay silent, as in 2.7.7; `propagate = False` on `cmdkit` with no handler of the application's there prints, as Python would ([research/01](research/01-call-time-decision.md), probed). The `lastResort` presence and level test is the part of that same rule C6 doesn't spell out. Revised after review cycle 1: where the walk finds no handler at all, Python's last resort has printed the record, so cmdkit writes nothing (F1); a filter on `cmdkit.app` that rejects the record keeps it silent, as `Logger.handle` would (F3). Both are the same rule read to its end: the line appears exactly when cmdkit's `NullHandler` is the only reason Python did not print it. | C6 replaces the literal "would receive" reading of the definition above R1, which wrote the bare line in setups applications use to silence logging. | The literal reading (count only handlers whose level the record meets; write for a disabled logger) is what C6 overruled: it adds output for applications that silenced cmdkit, a changed default under § Invariants 1. Leaving out the `lastResort` test would write where Python, with `lastResort = None` or levelled above `CRITICAL`, prints nothing. |
 | **The filter is asked about a record cmdkit builds (review F3).** The decision calls `cmdkit.app`'s `filter` with a record from `makeRecord` (`msg` the error, no arguments, no caller information) after `log_critical` has logged its own, so a logger filter sees two records per caught error where it saw one. | Python's own decision (`Logger.handle`) runs the filters on the record before `callHandlers`, and cmdkit has no hook inside that call without attaching something. | Reading the outcome of the real call needs a handler or a filter of cmdkit's on the logger for the duration of the call: the process-wide mutation [research/01](research/01-call-time-decision.md) rejected (option 2: other threads logging to `cmdkit` meet it). Calling the filter before `log_critical` instead changes only which of the two calls comes first. A filter that keeps state (a rate limit, a counter) can count the extra record; one that rejects only the second sees cmdkit stay silent. Both are filters the application wrote for its own records; § 5 records it. |
-| **A bare group "would fail on the missing command" is read as: its interface rejects the bare command line (GOAL C7, review F2).** `ApplicationGroup.main` parses the given `cmdline` (`[]`, or `None`, read from `sys.argv` as 2.7.7 does under the opt-in) with the group's own interface and shows the help only when that raises `ArgumentError`. GOAL R4's parenthetical, that `main` already treats `None` as empty, holds without the opt-in only; with it, 2.7.7 parses `sys.argv`, and C7's "exactly as on 2.7.7" keeps that. | C7 names the missing command; the parse is how cmdkit asks argparse whether a bare run fails, without reading argparse's private action list or its message text. | Testing the `command` action's `required` flag reads a private attribute (`_actions`) whose meaning for `nargs='*'` changed across Python versions; matching the error message breaks under translation. The reading differs from C7's words only for a group whose `command` is optional but which requires another argument: it shows the help where C7 read literally would report that other argument's error and exit 2. No group in the docs, tests or known users is built so; a bare run there was an `ArgumentError` exiting 2 in silence on 2.7.7, so the opt-in still changes only a configuration that failed. Flagged for the sign-off. |
-| **cmdkit's `NullHandler` is identified by exact type and place:** any `logging.NullHandler` (not a subclass) on the `cmdkit` logger is treated as cmdkit's. A `NullHandler` the application adds anywhere else, root included, counts as a configured handler and keeps cmdkit silent. | The GOAL names "the `NullHandler` cmdkit attaches at import". cmdkit keeps no reference to it, and a re-import of the package adds a second one. | Holding a reference in `__init__.py` and comparing by identity touches a second high-blast-radius path and would count a re-import's second `NullHandler` as the application's, silencing R1. The only setup the type test misreads is an application that adds its own plain `NullHandler` to the `cmdkit` logger and nothing else; it then sees the bare line. |
+| **Moved out with R4 (GOAL C9); the record only, and C8 records its reading for the seed.** **A bare group "would fail on the missing command" is read as: its interface rejects the bare command line (GOAL C7, review F2).** `ApplicationGroup.main` parses the given `cmdline` (`[]`, or `None`, read from `sys.argv` as 2.7.7 does under the opt-in) with the group's own interface and shows the help only when that raises `ArgumentError`. GOAL R4's parenthetical, that `main` already treats `None` as empty, holds without the opt-in only; with it, 2.7.7 parses `sys.argv`, and C7's "exactly as on 2.7.7" keeps that. | C7 names the missing command; the parse is how cmdkit asks argparse whether a bare run fails, without reading argparse's private action list or its message text. | Testing the `command` action's `required` flag reads a private attribute (`_actions`) whose meaning for `nargs='*'` changed across Python versions; matching the error message breaks under translation. The reading differs from C7's words only for a group whose `command` is optional but which requires another argument: it shows the help where C7 read literally would report that other argument's error and exit 2. No group in the docs, tests or known users is built so; a bare run there was an `ArgumentError` exiting 2 in silence on 2.7.7, so the opt-in still changes only a configuration that failed. Flagged for the sign-off. |
+| **Superseded by review cycle 2, F3 (GOAL C9): cmdkit's `NullHandler` is now recognised by the mark `__init__.py` sets (§ 2.0); the record follows.** **cmdkit's `NullHandler` is identified by exact type and place:** any `logging.NullHandler` (not a subclass) on the `cmdkit` logger is treated as cmdkit's. A `NullHandler` the application adds anywhere else, root included, counts as a configured handler and keeps cmdkit silent. | The GOAL names "the `NullHandler` cmdkit attaches at import". cmdkit keeps no reference to it, and a re-import of the package adds a second one. | Holding a reference in `__init__.py` and comparing by identity touches a second high-blast-radius path and would count a re-import's second `NullHandler` as the application's, silencing R1. The only setup the type test misreads is an application that adds its own plain `NullHandler` to the `cmdkit` logger and nothing else; it then sees the bare line. |
+
+Review cycle 2 revision: rows 1 and 2 stand; row 3 left with R4 (C9); row 4 is superseded by the
+mark, read against R1, R2, R3 and R7 as C6 and C9 word them: the line is written only while every
+handler on the walk is cmdkit's marked one, so any handler of the application's, its own
+`NullHandler` on `cmdkit` included, keeps R2 exact, and the mark adds no handler and no registry
+entry (R7). The record of the earlier reading follows.
 
 Each row read against R1, R2, R3 and R7 as C6 words them: row 1 is C6's own reading; it and the
 last row keep R2 and R3 exact (any handler found on the chain suppresses the write, so configured
@@ -304,6 +394,31 @@ the reading and C7's words part is named in the row.
   Its setups the rule does not model are in § 5.
 
 ## 5. Risks & open questions
+
+**Review cycle 2 revision (GOAL C9).**
+- **The adversarial review of this revision** (one pass, trigger 3) confirmed six holes, all
+  folded: a test pinning the source by a route the static regex missed made the sweep green (the
+  control run, and a wider regex); `main([])` cases ran with an empty `sys.argv`, so a change that
+  read it passed, and nothing compared `ApplicationGroup` with 2.7.7's (junk `sys.argv`, the
+  module-AST check); truthy `ALLOW_NOARGS` and `shared` passed on were unpinned (two drive cases);
+  configuring logging before `import cmdkit` puts the application's handler first, and a walk that
+  looked only at the last handler passed (setups in the suite and the drive, two mutants); a
+  decorator on an existing test escaped the unchanged-test check (decorators and every top-level
+  definition compared); a build could add a plan commit of its own and re-freeze `verify/` (the
+  ordering rule and the tree recorded at sign-off). A test that pins the text by a route neither the
+  regex nor the comment control catches is still possible; the review reads added tests.
+- **The mark is an attribute anyone can set.** An application that sets
+  `_cmdkit_library_handler = True` on a handler of its own makes cmdkit treat it as its own. It is a
+  private name; no default setup reaches it.
+- **The bare-group expectations are written out, not computed.** `drive_main.py noargs` states
+  2.7.7's output for each case by hand (from the derivation in § 6). Run on `b9efaca` itself, it
+  fails only the 22 error cases, each with status 2, stdout empty and stderr empty: 2.7.7's silence
+  that R1 replaces. So the expectations are 2.7.7's plus R1's line, and nothing else.
+- **What left the cycle** is in `issues/group-noargs-help.md` (the bare-group help, with cycle 2's
+  F1, F2 and F5) and `issues/last-resort-filter-fidelity.md` (cycle 2's F4, and the § 5 items on
+  filters below).
+- The items below are the record of the earlier revisions; those about `ApplicationGroup.main`
+  left with it.
 
 - **A replaced `lastResort` is not modelled.** An application that replaced `logging.lastResort`
   with a handler of its own gets cmdkit's bare line where Python, without cmdkit's `NullHandler`,
@@ -418,6 +533,50 @@ gates keep every check above and add:
   commits); `frozen` checks `verify/` against the latest plan commit, and that every plan commit
   touches only `spec/cli-defaults/`, `issues/` and `ROADMAP.md`.
 
+**Revised after review cycle 2 (GOAL C9).** `verify/` is frozen again at this revision's plan
+commit. Every earlier check of the report stays; the bare-group checks are replaced:
+
+- `drive_main.py errors`, cycle 2's F3: an application's `NullHandler` added to `cmdkit` is silent;
+  the `dictConfig` recipe routing `cmdkit` to a `NullHandler` is silent with `propagate: False`
+  and with it left true, for an error at the top level and inside a command; a reload of `cmdkit`
+  (a second marked handler) prints the line once. The footprint check also asserts no `_null*`
+  name in the module after import and after `main`.
+- `drive_main.py noargs`, rewritten to pin every bare-group case to 2.7.7 (C9), with R1's line on
+  stderr wherever 2.7.7 exits 2 in silence. Groups: one that requires its command and one with an
+  optional command, each with and without `ALLOW_NOARGS`, one with `ALLOW_PARSE`, one whose action
+  raises an exception its `exceptions` map handles, and both nested in another group. Calls:
+  `main([])`, `main()`, and `main(None)` with `sys.argv[1:]` empty, `['bogus']`, `['--help']`,
+  `['--version']`, `['cmd', 'x']`, `['--bogus']`, `['cmd']` and `['--boom']`: cycle 2's F1 and F2
+  cases among them. Without the opt-in every one prints usage with status 1; with it, a required
+  command missing is an argument error (status 2), help and version print with status 0, the
+  mapped exception returns its status, and a named command dispatches. Plus: `ApplicationGroup`
+  defines no `main` of its own. Each argparse message is derived from the same Python's parser.
+- `mutants.py`: the bare group's 4 mutants go; the 4 that attacked the old exact-type test become
+  4 on the mark test (the mark ignored for any plain `NullHandler`; any `NullHandler` on `cmdkit`
+  counted; the mark defaulting to true; cmdkit's marked handler counted as the application's); 2
+  look at only the last or only the first handler on each logger; and 2 attack `__init__.py` (the
+  mark not set; set to `1`). 25 in all, the same for P1 and P2. Each child gets the bytecode prefix
+  as `PYTHONPYCACHEPREFIX` too, for the suite's own child interpreter. Kills count only from
+  `test_app_argument_error_*` and `test_app_noargs_allowed_*`, and a control run first appends a
+  comment to each target file: any test that fails on it pins the text, and the sweep is red.
+- `change_set.py`: `src/cmdkit/__init__.py` is allowed and required, and its diff must be exactly
+  the one `addHandler` line removed and § 2.0's four lines added. Added test lines may not read the
+  module's source by any route the check knows (`inspect`, `__file__`, `__spec__`, `__loader__`,
+  `importlib`, `open(`, a `.py` path, hashes) nor set `pytestmark`; every top-level def, class and
+  constant of the base test module is unchanged, decorators included. P2 adds: `ApplicationGroup`
+  defines no `main`; the `ApplicationGroup` docs section names no `ALLOW_NOARGS`; and the staged
+  `app.py`, docstrings aside, equals `b9efaca`'s AST once `import sys`, the helper and the report's
+  `if` are taken out, so `ApplicationGroup` and the rest of `Application.main` are 2.7.7's.
+- `drive_main.py noargs` runs every `main([])` case with junk in `sys.argv`, so a `main([])` that
+  read `sys.argv` would show; it adds a group whose `ALLOW_NOARGS` is `1` (usage, as 2.7.7's `is
+  True` test gives) and a bare optional sub-group under an `ALLOW_PARSE` parent that prints the
+  `shared` options it receives. `errors` adds the application's `NullHandler` and the `dictConfig`
+  recipe configured *before* `import cmdkit`.
+- `gate.sh frozen` also fails when a plan commit follows a build commit with no review commit in
+  between, and, with `CLI_DEFAULTS_VERIFY_TREE` set, when `verify/` at HEAD is not that tree: the
+  tree id `git rev-parse <plan commit>:spec/cli-defaults/verify` is recorded at the sign-off,
+  outside the branch, and set for the build. The dry-run switch is refused while it is set.
+
 **Dry run** on a detached prototype at `origin/develop` (`b9efaca`), cut to each phase's tree,
 after the C6 revision (the record of the first plan):
 
@@ -473,3 +632,33 @@ first-plan-commit base ran for real:
   118 passed on each of 3.9 and 3.14.
 - Where it stops: the gates name no test build writes beyond § 2's lines and the test families,
   so they ran end to end.
+
+**Dry run after review cycle 2** (2026-11-11), with this revision's adversarial review folded, on
+a detached prototype at `915102c` (the maintainer's ruling) and on a throwaway clone carrying this
+revision as a `[fix] Plan cli-defaults:` commit on top of the C9 commit, so `frozen` and the
+first-plan-commit base ran for real:
+
+- **2.7.7 itself** (`b9efaca`), `drive_main.py noargs` on 3.9 and 3.14: 40 checks pass and 22
+  fail, each with status 2, stdout empty and stderr empty, which is 2.7.7's silence that R1
+  replaces. The expectations are 2.7.7's plus R1's line, nothing else.
+- **The head before this fix (`915102c`), red where it should be:** `static P2` fails 5 checks:
+  `__init__.py` unchanged, `app.py` not 2.7.7's outside the report, `ApplicationGroup.main` present,
+  and the group's `ALLOW_NOARGS` docs. `errors` fails the 8 F3 checks: the application's
+  `NullHandler` added, and the `dictConfig` recipe, before or after import, with `propagate` false
+  or true. `noargs` fails 27: every opt-in group's bare run (help in place of the missing-command
+  error), `--help`, `--version` and the raising action under `main(None)` (cycle 2's F1),
+  `['cmd', 'x']` and `['--bogus']` (cycle 2's F2), the nested bare group, and the `main` override.
+  `mutants P2` is red: 6 anchors missing, and "only the last handler looked at" survives the
+  cycle-2 suite. `tests` passes, as the cycle-2 suite pinned the old reading.
+- **P1's tree** (the mark, its helper line, docs and tests; `ApplicationGroup.main` as cycle 2 left
+  it): `gate.sh P1` green on 3.9 and 3.14, `frozen` included; 78 tests; the control runs fail
+  nothing; `mutants P1` 25 of 25 killed on each. `noargs` is red on it (27), as it should be
+  before P2.
+- **P2's tree** (the split): `gate.sh P2` green on 3.9 and 3.14 in 87 s; 78 tests; `mutants P2` 25
+  of 25 killed on each, every kill from its family.
+- **The guards:** a test that `crc32`s `cmdkit.app.__spec__.origin`, and a `skip` decorator on
+  `test_app_group_usage`, each turn `static P2` red. A plan commit made after a build commit with no
+  review between turns `frozen` red, and so does a `CLI_DEFAULTS_VERIFY_TREE` that isn't HEAD's
+  `verify/` tree.
+- **Full suite once** on P2's tree, with the profile's `verify` (sandbox off, `--hypothesis-seed=0`):
+  125 passed on each of 3.9 and 3.14.

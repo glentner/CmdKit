@@ -21,15 +21,19 @@ Modes:
              is found at all, Python's last resort prints the line and cmdkit adds nothing
              (finding F1, every error target); a filter on cmdkit.app that rejects the record
              keeps it silent (finding F3), and the filter sees the record's message, level and
-             logger name (adversarial review of the revised plan).
-    noargs   a bare group with and without ALLOW_NOARGS; a bare plain application. Review
-             cycle 1: a group whose command is optional calls run on a bare run, opt-in or not
-             as 2.7.7 does (finding F2, GOAL C7); a group that requires it shows its help, and
-             main(None) with arguments in sys.argv parses them, as 2.7.7 does, rather than
-             showing help (adversarial review of the revised plan).
+             logger name (adversarial review of the revised plan). Review cycle 2, F3: only the
+             NullHandler cmdkit's __init__ marks counts as cmdkit's; an application's own
+             NullHandler on the cmdkit logger, added or configured by dictConfig, keeps it
+             silent; a second marked one (a reload) does not.
+    noargs   a bare group behaves exactly as in 2.7.7, apart from R1 reporting its argument
+             errors (GOAL C9): groups that require or take an optional command, with and without
+             ALLOW_NOARGS, with ALLOW_PARSE, with an exceptions map, nested; main([]), main() and
+             main(None) with sys.argv empty, an unknown command, an unknown flag, extra
+             arguments, a command, --help, --version and an action that raises (review cycle 2,
+             F1 and F2, pinned to 2.7.7). A bare plain application, as before.
     all      both.
 
-Footprint: one child at a time, each a short-lived interpreter under 40 MB; about 90 children.
+Footprint: one child at a time, each a short-lived interpreter under 40 MB; about 150 children.
 """
 
 # standard libs
@@ -61,6 +65,7 @@ class Group(ApplicationGroup):
                           disable_colors=True)
     command: str = None
     interface.add_argument('command')
+    interface.add_argument('-v', '--version', action='version', version='9.9.9')
     commands = {'cmd': Cmd}
 
 class AllowGroup(Group):
@@ -75,6 +80,7 @@ class OptGroup(ApplicationGroup):
                           disable_colors=True)
     command: str = None
     interface.add_argument('command', nargs='?', default=None)
+    interface.add_argument('-v', '--version', action='version', version='9.9.9')
     commands = {'cmd': Cmd}
     def run(self):
         if self.command is None:
@@ -84,6 +90,43 @@ class OptGroup(ApplicationGroup):
 
 class AllowOptGroup(OptGroup):
     ALLOW_NOARGS = True
+
+import argparse
+
+class Boom(Exception):
+    pass
+
+class BoomAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        raise Boom('boom')
+
+class BoomGroup(ApplicationGroup):
+    interface = Interface('boom', 'usage: boom <command>', 'usage: boom <command>\n\nBOOM-HELP',
+                          disable_colors=True)
+    command: str = None
+    interface.add_argument('command')
+    interface.add_argument('--boom', nargs=0, action=BoomAction)
+    commands = {'cmd': Cmd}
+    ALLOW_NOARGS = True
+    exceptions = {**ApplicationGroup.exceptions, Boom: (lambda error: 7)}
+
+class TruthyGroup(Group):
+    ALLOW_NOARGS = 1
+
+class SharedOpt(OptGroup):
+    ALLOW_NOARGS = True
+    def run(self):
+        print('shared', None if self.shared is None else dict(self.shared))
+
+class ParseOuter(ApplicationGroup):
+    interface = Interface('pouter', 'usage: pouter <command>', 'usage: pouter <command>\n\nPOUTER-HELP',
+                          disable_colors=True)
+    command: str = None
+    interface.add_argument('command')
+    gflag: bool = False
+    interface.add_argument('-g', dest='gflag', action='store_true')
+    commands = {'opt': SharedOpt}
+    ALLOW_PARSE = True
 
 class Outer(ApplicationGroup):
     interface = Interface('outer', 'usage: outer <command>', 'usage: outer <command>\n\nOUTER-HELP',
@@ -144,6 +187,21 @@ def expect(app: str, argv: list) -> str:
     proc = child(f'''
 try:
     {app}.from_cmdline({argv!r})
+except ArgumentError as error:
+    sys.stdout.write(json.dumps(str(error)))
+else:
+    sys.stdout.write(json.dumps(None))
+''')
+    if proc.returncode != 0:
+        return None
+    return json.loads(proc.stdout.decode())
+
+
+def parse_error(app: str, argv: list) -> str:
+    """The ArgumentError message `app.interface.parse_args(argv)` raises, from its own child."""
+    proc = child(f'''
+try:
+    {app}.interface.parse_args({argv!r})
 except ArgumentError as error:
     sys.stdout.write(json.dumps(str(error)))
 else:
@@ -231,6 +289,33 @@ logging.getLogger('cmdkit').addHandler(Keep())
           proc.returncode == 2 and proc.stderr == b''
           and json.loads(proc.stdout.decode() or 'null') == [['CRITICAL', 'cmdkit.app', 'unrecognized command: bogus']],
           show(proc))
+
+    # Review cycle 2, F3: cmdkit's own NullHandler is the one its __init__ marks. An application's
+    # own NullHandler on the cmdkit logger is the application's: silent, as in Python and 2.7.7.
+    proc = run_main("Group.main(['bogus'])", body_pre="logging.getLogger('cmdkit').addHandler(logging.NullHandler())")
+    check("application NullHandler added on the cmdkit logger: cmdkit stays silent",
+          proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+    proc = run_main("Group.main(['bogus'])",
+                    pre="import logging; logging.getLogger('cmdkit').addHandler(logging.NullHandler())")
+    check("application NullHandler added on the cmdkit logger before cmdkit is imported: silent",
+          proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+    recipe = ("import logging.config; logging.config.dictConfig({'version': 1, "
+              "'handlers': {'null': {'class': 'logging.NullHandler'}}, "
+              "'loggers': {'cmdkit': {'handlers': ['null']%s}}})")
+    for name, extra in (('propagate False', ", 'propagate': False"), ('propagate left True', '')):
+        proc = run_main("Group.main(['bogus'])", pre=recipe % extra)
+        check(f'dictConfig routes cmdkit to a NullHandler before cmdkit is imported, {name}: silent',
+              proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+        proc = run_main("Group.main(['bogus'])", body_pre=recipe % extra)
+        check(f'dictConfig routes cmdkit to a NullHandler, {name}: cmdkit stays silent',
+              proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+        proc = run_main("Group.main(['cmd', 'x', '--bogus'])", body_pre=recipe % extra)
+        check(f'dictConfig routes cmdkit to a NullHandler, {name}: silent for an error inside a command',
+              proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+    proc = run_main("Group.main(['bogus'])", body_pre='import importlib, cmdkit; importlib.reload(cmdkit)')
+    check("cmdkit reloaded (a second marked NullHandler): the bare line once",
+          proc.returncode == 2 and proc.stdout == b''
+          and proc.stderr == b'unrecognized command: bogus\n', show(proc))
 
     # A NullHandler the application puts on the root logger is a handler other than cmdkit's.
     proc = run_main("Group.main(['bogus'])", body_pre='logging.getLogger().addHandler(logging.NullHandler())')
@@ -357,6 +442,8 @@ def snap():
         out[name or 'root'] = [[type(h).__module__, type(h).__name__, id(h)] for h in logger.handlers]
     out['lastResort'] = [type(logging.lastResort).__name__, id(logging.lastResort)]
     out['stderr'] = sys.stderr is sys.__stderr__
+    import cmdkit
+    out['module'] = sorted(name for name in vars(cmdkit) if not name.startswith('__'))
     return out
 before = snap()
 Group.main(['bogus'])
@@ -368,7 +455,8 @@ sys.stdout.write(json.dumps([before, after]))
         before, after = json.loads(proc.stdout.decode())
         shape = {k: [h[:2] for h in v] for k, v in before.items() if k in ('cmdkit', 'cmdkit.app', 'root')}
         ok = (shape == {'cmdkit': [['logging', 'NullHandler']], 'cmdkit.app': [], 'root': []}
-              and before == after and before['stderr'] is True)
+              and before == after and before['stderr'] is True
+              and not [name for name in before['module'] if name.startswith('_null')])
         detail = f'before={before} after={after}'
     except ValueError:
         ok, detail = False, show(proc)
@@ -376,53 +464,66 @@ sys.stdout.write(json.dumps([before, after]))
 
 
 def noargs() -> None:
-    """A bare group, with and without ALLOW_NOARGS, and a bare plain application."""
-    helped = run_main("AllowGroup.main(['--help'])")
-    check('reference: the group\'s --help', helped.returncode == 0 and b'GROUP-HELP' in helped.stdout
-          and helped.stderr == b'', show(helped))
-    for call in ('AllowGroup.main([])', 'AllowGroup.main(None)', 'AllowGroup.main()'):
-        proc = run_main(call)
-        check(f'opt-in: {call} prints --help and returns 0',
-              proc.returncode == 0 and proc.stdout == helped.stdout and proc.stderr == b'', show(proc))
-    helped_parse = run_main("AllowParseGroup.main(['--help'])")
-    proc = run_main('AllowParseGroup.main([])')
-    check('opt-in with ALLOW_PARSE: main([]) prints --help and returns 0',
-          proc.returncode == 0 and proc.stdout == helped_parse.stdout and b'GROUP-HELP' in proc.stdout
-          and proc.stderr == b'', show(proc))
-    proc = run_main("Outer.main(['sub'])")
-    check('opt-in as a nested command: bare sub-group prints its --help and returns 0',
-          proc.returncode == 0 and proc.stdout == helped.stdout and proc.stderr == b'', show(proc))
+    """A bare group exactly as in 2.7.7, apart from R1 (GOAL C9); a bare plain application."""
+    usage = {'Group': b'usage: app <command>\n', 'OptGroup': b'usage: opt [<command>]\n'}
+    helps = {'Group': b'usage: app <command>\n\nGROUP-HELP\n', 'OptGroup': b'usage: opt [<command>]\n\nOPT-HELP\n',
+             'BoomGroup': b'usage: boom <command>\n\nBOOM-HELP\n'}
+    cmd_usage = b'usage: app cmd ARG [-d]\n'
 
-    # Review cycle 1, F2 (GOAL C7): a group whose command is optional calls run on a bare run,
-    # as 2.7.7 does; only a run that would fail on the missing command shows the help.
-    for call in ('AllowOptGroup.main([])', 'AllowOptGroup.main(None)', 'AllowOptGroup.main()'):
-        proc = run_main(call)
-        check(f'optional command, opt-in: {call} calls run and returns 0',
-              proc.returncode == 0 and proc.stdout == b'default action\n' and proc.stderr == b'', show(proc))
-    proc = run_main("Outer.main(['opt'])")
-    check('optional command, opt-in, nested as a command: the bare sub-group calls run',
-          proc.returncode == 0 and proc.stdout == b'default action\n' and proc.stderr == b'', show(proc))
-    proc = run_main("AllowOptGroup.main(['cmd', 'x'])")
-    check('optional command, opt-in: a named command still runs',
-          proc.returncode == 0 and proc.stdout == b'ran cmd x\n' and proc.stderr == b'', show(proc))
-    # main(None) with the opt-in parses sys.argv (argparse's default), as 2.7.7 does: arguments
-    # there are not a bare run, and an error among them is reported, not replaced by the help.
-    proc = run_main('AllowGroup.main(None)', body_pre="sys.argv = ['app', 'bogus']")
-    check("opt-in: main(None) with sys.argv ['app', 'bogus'] reports the error, status 2",
-          proc.returncode == 2 and proc.stdout == b''
-          and proc.stderr == b'unrecognized command: bogus\n', show(proc))
-    proc = run_main('AllowGroup.main(None)', body_pre="sys.argv = ['app', 'cmd']")
-    check("opt-in: main(None) with sys.argv ['app', 'cmd'] dispatches to cmd, as 2.7.7 does",
-          proc.returncode == 1 and proc.stdout == b'usage: app cmd ARG [-d]\n' and proc.stderr == b'', show(proc))
-    proc = run_main('OptGroup.main([])')
-    check('optional command, default: OptGroup.main([]) prints usage and returns 1',
-          proc.returncode == 1 and proc.stdout == b'usage: opt [<command>]\n' and proc.stderr == b'', show(proc))
+    def ok(name: str, proc: subprocess.CompletedProcess, status: int, out: bytes, err: bytes) -> None:
+        check(name, proc.returncode == status and proc.stdout == out and proc.stderr == err, show(proc))
 
-    usage = b'usage: app <command>\n'
-    for call in ('Group.main([])', 'Group.main(None)', "Outer.main(['plain'])"):
-        proc = run_main(call)
-        check(f'default: {call} prints usage and returns 1',
-              proc.returncode == 1 and proc.stdout == usage and proc.stderr == b'', show(proc))
+    def error(message) -> tuple:
+        return (2, b'', (message + '\n').encode()) if message else (None, None, None)
+
+    # main([]) never reads sys.argv: every main([]) case runs with junk there (adversarial review).
+    junk = "sys.argv = ['app', 'bogus', 'x']"
+
+    # Without ALLOW_NOARGS (or with a value that is not True): every bare run prints the usage and
+    # returns 1, whatever sys.argv holds.
+    for group, base in (('Group', 'Group'), ('OptGroup', 'OptGroup'), ('TruthyGroup', 'Group')):
+        ok(f'{group}.main([]): usage, 1', run_main(f'{group}.main([])', body_pre=junk), 1, usage[base], b'')
+        for argv in ([], ['bogus'], ['--help'], ['--version'], ['cmd', 'x']):
+            ok(f'{group}.main(None), sys.argv {argv}: usage, 1',
+               run_main(f'{group}.main(None)', body_pre=f'sys.argv = {["app"] + argv!r}'), 1, usage[base], b'')
+    ok("Outer.main(['plain']): the bare sub-group's usage, 1", run_main("Outer.main(['plain'])"), 1, usage['Group'], b'')
+
+    # With ALLOW_NOARGS: the command line is parsed ([] as given, None from sys.argv) and handled as
+    # 2.7.7 handles it. A group that requires its command reports it missing (R1), never its help.
+    required = [('AllowGroup', 'Group'), ('AllowParseGroup', 'Group'), ('BoomGroup', 'BoomGroup')]
+    optional = [('AllowOptGroup', 'OptGroup')]
+    for group, base in required + optional:
+        is_optional = (group, base) in optional
+        bare = (0, b'default action\n', b'') if is_optional else error(parse_error(group, []))
+        for call, body in (('main([])', junk), ('main()', "sys.argv = ['app']"),
+                           ('main(None)', "sys.argv = ['app']")):
+            ok(f'{group}.{call}, bare: as 2.7.7 ({"run" if is_optional else "the missing command reported"})',
+               run_main(f'{group}.{call}', body_pre=body), *bare)
+        cases = [
+            (['bogus'], error('unrecognized command: bogus')),
+            (['--help'], (0, helps[base], b'')),
+            (['cmd', 'x'], error(parse_error(group, ['cmd', 'x']))),
+            (['--bogus'], error(parse_error(group, ['--bogus']))),
+            (['cmd'], (1, cmd_usage, b'')),
+        ]
+        if base != 'BoomGroup':
+            cases.append((['--version'], (0, b'9.9.9\n', b'')))
+        else:
+            cases.append((['--boom'], (7, b'', b'')))
+        for argv, expected in cases:
+            ok(f'{group}.main(None), sys.argv {argv}: as 2.7.7',
+               run_main(f'{group}.main(None)', body_pre=f'sys.argv = {["app"] + argv!r}'), *expected)
+    ok("Outer.main(['sub']): the bare required sub-group reports the missing command once, 2",
+       run_main("Outer.main(['sub'])", body_pre=junk), *error(parse_error('AllowGroup', [])))
+    ok("Outer.main(['opt']): the bare optional sub-group runs, 0",
+       run_main("Outer.main(['opt'])", body_pre=junk), 0, b'default action\n', b'')
+    ok("ParseOuter.main(['-g', 'opt']): the bare sub-group gets the parent's shared options",
+       run_main("ParseOuter.main(['-g', 'opt'])", body_pre=junk), 0, b"shared {'gflag': True}\n", b'')
+    ok("AllowOptGroup.main(['cmd', 'x']): a named command runs", run_main("AllowOptGroup.main(['cmd', 'x'])"),
+       0, b'ran cmd x\n', b'')
+    proc = child("sys.exit(0 if 'main' not in vars(ApplicationGroup) else 1)")
+    check('ApplicationGroup defines no main of its own, as in 2.7.7', proc.returncode == 0, show(proc))
+
     proc = run_main('App.main([])')
     check('plain application, default: usage and 1',
           proc.returncode == 1 and proc.stdout == b'usage: solo ARG [-d]\n' and proc.stderr == b'', show(proc))

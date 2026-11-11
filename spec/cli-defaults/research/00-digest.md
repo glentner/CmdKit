@@ -20,3 +20,8 @@ Two briefs, no contradictions between them.
   `['--help']` when `ALLOW_NOARGS is True`, so the output is `--help`'s by construction.
 
 No question from the research blocks the design.
+
+## Review cycle 2 (2026-11-11)
+
+- [03](03-library-handler-mark.md): cmdkit's own `NullHandler` carries an attribute set where
+  `__init__.py` creates it (GOAL C9); no name, registry entry or type changes at import.

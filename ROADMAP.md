@@ -162,6 +162,25 @@ usage and exit 1 stay the default.
 
 *Order: 11 · Waits on: nothing · Refs: —*
 **Seed:** [`issues/cli-defaults.md`](issues/cli-defaults.md)
+- 2026-11-11: the bare-group help moved out of this cycle to its own entry below
+  (`group-noargs-help`); this cycle ships the stderr report.
+
+## A group with `ALLOW_NOARGS` can show its help when run bare
+
+Moved out of `cli-defaults`. A bare run of a group that requires its command shows its help and
+exits 0 under the opt-in; every other run, `main(None)` with arguments in `sys.argv` among them,
+stays exactly as in 2.7.7. Decide on the effective command line, inside `main`'s handling.
+
+*Order: unset (filed during the cli-defaults cycle) · Waits on: `cli-defaults` · Refs: —*
+**Seed:** [`issues/group-noargs-help.md`](issues/group-noargs-help.md)
+
+## The argument-error report follows `Logger.handle` when filters keep state
+
+The report asks `cmdkit.app`'s filters about a record it builds, and never asks `lastResort`'s, so a
+filter that keeps state, reads caller fields or lowers the level can make it differ from Python.
+
+*Order: unset (filed during the cli-defaults cycle) · Waits on: `cli-defaults` · Refs: —*
+**Seed:** [`issues/last-resort-filter-fidelity.md`](issues/last-resort-filter-fidelity.md)
 
 ## An unknown command suggests the closest ones
 
