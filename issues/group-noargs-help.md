@@ -14,8 +14,8 @@ appetite: small
 Run with no arguments, an `ApplicationGroup` prints its usage and exits 1, and a group author has no
 way to ask for the full help instead. Setting `ALLOW_NOARGS = True`, the switch a plain
 `Application` uses to run with no arguments, parses the empty command line: a group that requires
-its `command` then fails with an argument error and exits 2 (in 2.7.7 in silence; once the
-`cli-defaults` change lands, with the message on stderr). A group whose `command` is optional
+its `command` then fails with an argument error and exits 2 (in 2.7.7 in silence; since the
+`cli-defaults` change, #33, with the message on stderr). A group whose `command` is optional
 (`nargs='?'`) proceeds to its `run`, which handles `command is None`.
 
 ## Why it was deferred

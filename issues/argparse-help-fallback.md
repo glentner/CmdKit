@@ -57,5 +57,6 @@ text contains `--count` and `how many`. With `NO_COLOR=1`, the text contains no 
 
 ## Notes
 
-- Waits on `import-side-effects` (`cli.py`) and `cli-defaults` (the help path in `app.py`).
+- Waits on `import-side-effects` (`cli.py`). It also waited on `cli-defaults` (the help path in
+  `app.py`), which landed in #33.
 - Found by: maintainer request, 2026-11-10.
