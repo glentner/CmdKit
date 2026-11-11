@@ -3,15 +3,15 @@ slug: tests-use-tmp-path
 title: Tests write only to pytest's temporary directories
 kind: fix
 appetite: small
-status: in_progress
+status: in_review
 branch: fix/tests-use-tmp-path
 base: develop
-current_phase: P1
+current_phase: done
 last_updated: '2026-11-10'
 phases:
 - id: P1
   name: Move the configuration tests' files to tmp_path, with the verify row
-  status: pending
+  status: done
   satisfies:
   - R1
   - R2
@@ -125,28 +125,28 @@ code+state commit.
 pytest gives each of them; the module creates nothing when imported; the profile's `verify` row
 loses its `/tmp` note in the same commit; every test asserts what it asserted at `b9efaca`.
 
-- [ ] Host precondition for R2: `/tmp/cmdkit` must not exist on the build host. An older run of
+- [x] Host precondition for R2: `/tmp/cmdkit` must not exist on the build host. An older run of
       the suite leaves it behind; if it is there, stop and ask the operator to move it aside. The
       builder never removes it itself.
-- [ ] `tests/test_config.py`: delete the comment `# ensure temporary directory exists`, the
+- [x] `tests/test_config.py`: delete the comment `# ensure temporary directory exists`, the
       `TMPDIR = '/tmp/cmdkit/config'` line, the `os.makedirs(TMPDIR, exist_ok=True)` line and the
       blank line above them. Add `from pathlib import Path` to the `# standard libs` group, between
       `from io import StringIO` and `from string import ascii_letters`.
-- [ ] Give `TestNamespace.test_factories`, `TestNamespace.test_from_local`,
+- [x] Give `TestNamespace.test_factories`, `TestNamespace.test_from_local`,
       `TestNamespace.test_to_local` and `TestConfiguration.test_from_local` a last parameter
       `tmp_path: Path`, and write `{tmp_path}` for `{TMPDIR}` in each of their f-strings. Change
       nothing else in them: the call sequence stays, including the loop at the top of
       `TestNamespace.test_from_local` that removes files a fresh directory doesn't have.
-- [ ] `AGENTS.md` § Factory, the Profile table's `verify` row: delete its last sentence, from
+- [x] `AGENTS.md` § Factory, the Profile table's `verify` row: delete its last sentence, from
       `Until` through `allow that path`, and keep the rest of the row as it is (the backticked
       command unchanged, one space before the closing `|`). No other line of `AGENTS.md` changes.
-- [ ] Commit `tests/test_config.py`, `AGENTS.md` and the `TECH.md` state change together: R6 asks
+- [x] Commit `tests/test_config.py`, `AGENTS.md` and the `TECH.md` state change together: R6 asks
       for one commit, and the gate finds the first commit in which each loses `/tmp`.
-- [ ] After the commit, `sh spec/tests-use-tmp-path/verify/gate.sh P1` with the sandbox off (the
+- [x] After the commit, `sh spec/tests-use-tmp-path/verify/gate.sh P1` with the sandbox off (the
       verify below).
-- [ ] R3 in its native form, and R4 under it: `sh spec/tests-use-tmp-path/verify/gate.sh tmpdenied`
+- [x] R3 in its native form, and R4 under it: `sh spec/tests-use-tmp-path/verify/gate.sh tmpdenied`
       with the sandbox on; put its last lines in the build report.
-- [ ] Deferral ledger: walk this phase body for deferral phrases and confirm each names an
+- [x] Deferral ledger: walk this phase body for deferral phrases and confirm each names an
       `issues/` seed with its `ROADMAP.md` entry (`change_set.py` checks the same mechanically).
 - **Verify:** `sh spec/tests-use-tmp-path/verify/gate.sh P1`: `static` (`change_set.py`,
   `same_behaviour.py ast`), `selftest` (the hook against its canary suite on 3.9 and 3.14),

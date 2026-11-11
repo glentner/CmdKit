@@ -7,6 +7,7 @@
 # standard libs
 import os
 from io import StringIO
+from pathlib import Path
 from string import ascii_letters
 
 # external libs
@@ -15,10 +16,6 @@ import pytest
 # internal libs
 from cmdkit.config import Configuration
 from cmdkit.namespace import Namespace, Environ
-
-# ensure temporary directory exists
-TMPDIR = '/tmp/cmdkit/config'
-os.makedirs(TMPDIR, exist_ok=True)
 
 
 # dummy data for testing namespace behavior
@@ -173,89 +170,89 @@ class TestNamespace:
         ns.a.x = 3
         assert ns.a.x == 3
 
-    def test_factories(self) -> None:
+    def test_factories(self, tmp_path: Path) -> None:
         """Test all implemented factory equivalents."""
 
         # write all test data to local files
         for ftype, data in FACTORIES.items():
-            with open(f'{TMPDIR}/{ftype}.{ftype}', mode='w') as output:
+            with open(f'{tmp_path}/{ftype}.{ftype}', mode='w') as output:
                 output.write(data)
 
         # test both file-like object and file path modes of construction
         assert (Namespace(TEST_DICT) ==
-                Namespace.from_toml(StringIO(TEST_TOML)) == Namespace.from_toml(f'{TMPDIR}/toml.toml') ==
-                Namespace.from_yaml(StringIO(TEST_YAML)) == Namespace.from_yaml(f'{TMPDIR}/yaml.yaml') ==
-                Namespace.from_json(StringIO(TEST_JSON)) == Namespace.from_json(f'{TMPDIR}/json.json'))
+                Namespace.from_toml(StringIO(TEST_TOML)) == Namespace.from_toml(f'{tmp_path}/toml.toml') ==
+                Namespace.from_yaml(StringIO(TEST_YAML)) == Namespace.from_yaml(f'{tmp_path}/yaml.yaml') ==
+                Namespace.from_json(StringIO(TEST_JSON)) == Namespace.from_json(f'{tmp_path}/json.json'))
 
-    def test_from_local(self) -> None:
+    def test_from_local(self, tmp_path: Path) -> None:
         """Test automatic file type deduction and allow for missing files."""
 
         # clear existing files
         for ftype in FACTORIES:
-            filepath = f'{TMPDIR}/{ftype}.{ftype}'
+            filepath = f'{tmp_path}/{ftype}.{ftype}'
             if os.path.exists(filepath):
                 os.remove(filepath)
-            filepath = f'{TMPDIR}/{ftype}.conf'
+            filepath = f'{tmp_path}/{ftype}.conf'
             if os.path.exists(filepath):
                 os.remove(filepath)
 
         with pytest.raises(FileNotFoundError):
-            Namespace.from_local(f'{TMPDIR}/toml.toml')
+            Namespace.from_local(f'{tmp_path}/toml.toml')
         with pytest.raises(FileNotFoundError):
-            Namespace.from_local(f'{TMPDIR}/toml.conf', ftype='toml')
+            Namespace.from_local(f'{tmp_path}/toml.conf', ftype='toml')
         with pytest.raises(FileNotFoundError):
-            Namespace.from_local(f'{TMPDIR}/yaml.yaml')
+            Namespace.from_local(f'{tmp_path}/yaml.yaml')
         with pytest.raises(FileNotFoundError):
-            Namespace.from_local(f'{TMPDIR}/yaml.conf', ftype='yaml')
+            Namespace.from_local(f'{tmp_path}/yaml.conf', ftype='yaml')
         with pytest.raises(FileNotFoundError):
-            Namespace.from_local(f'{TMPDIR}/json.json')
+            Namespace.from_local(f'{tmp_path}/json.json')
         with pytest.raises(FileNotFoundError):
-            Namespace.from_local(f'{TMPDIR}/json.conf', ftype='json')
+            Namespace.from_local(f'{tmp_path}/json.conf', ftype='json')
 
         assert (Namespace() ==
-                Namespace.from_local(f'{TMPDIR}/toml.toml', ignore_if_missing=True) ==
-                Namespace.from_local(f'{TMPDIR}/toml.conf', ftype='toml', ignore_if_missing=True) ==
-                Namespace.from_local(f'{TMPDIR}/yaml.yaml', ignore_if_missing=True) ==
-                Namespace.from_local(f'{TMPDIR}/yaml.conf', ftype='yaml', ignore_if_missing=True) ==
-                Namespace.from_local(f'{TMPDIR}/json.json', ignore_if_missing=True) ==
-                Namespace.from_local(f'{TMPDIR}/json.conf', ftype='json', ignore_if_missing=True))
+                Namespace.from_local(f'{tmp_path}/toml.toml', ignore_if_missing=True) ==
+                Namespace.from_local(f'{tmp_path}/toml.conf', ftype='toml', ignore_if_missing=True) ==
+                Namespace.from_local(f'{tmp_path}/yaml.yaml', ignore_if_missing=True) ==
+                Namespace.from_local(f'{tmp_path}/yaml.conf', ftype='yaml', ignore_if_missing=True) ==
+                Namespace.from_local(f'{tmp_path}/json.json', ignore_if_missing=True) ==
+                Namespace.from_local(f'{tmp_path}/json.conf', ftype='json', ignore_if_missing=True))
 
         with pytest.raises(NotImplementedError):
-            Namespace.from_local(f'{TMPDIR}/config.special')
+            Namespace.from_local(f'{tmp_path}/config.special')
 
         # write all test data to local files
         for ftype, data in FACTORIES.items():
-            with open(f'{TMPDIR}/{ftype}.{ftype}', mode='w') as output:
+            with open(f'{tmp_path}/{ftype}.{ftype}', mode='w') as output:
                 output.write(data)
-            with open(f'{TMPDIR}/{ftype}.conf', mode='w') as output:
+            with open(f'{tmp_path}/{ftype}.conf', mode='w') as output:
                 output.write(data)
 
         assert (Namespace(TEST_DICT) ==
-                Namespace.from_local(f'{TMPDIR}/toml.toml') ==
-                Namespace.from_local(f'{TMPDIR}/tml.tml') ==
-                Namespace.from_local(f'{TMPDIR}/toml.conf', ftype='toml') ==
-                Namespace.from_local(f'{TMPDIR}/yaml.yaml') ==
-                Namespace.from_local(f'{TMPDIR}/yml.yml') ==
-                Namespace.from_local(f'{TMPDIR}/yaml.conf', ftype='yaml') ==
-                Namespace.from_local(f'{TMPDIR}/json.json') ==
-                Namespace.from_local(f'{TMPDIR}/json.conf', ftype='json'))
+                Namespace.from_local(f'{tmp_path}/toml.toml') ==
+                Namespace.from_local(f'{tmp_path}/tml.tml') ==
+                Namespace.from_local(f'{tmp_path}/toml.conf', ftype='toml') ==
+                Namespace.from_local(f'{tmp_path}/yaml.yaml') ==
+                Namespace.from_local(f'{tmp_path}/yml.yml') ==
+                Namespace.from_local(f'{tmp_path}/yaml.conf', ftype='yaml') ==
+                Namespace.from_local(f'{tmp_path}/json.json') ==
+                Namespace.from_local(f'{tmp_path}/json.conf', ftype='json'))
 
-    def test_to_local(self) -> None:
+    def test_to_local(self, tmp_path: Path) -> None:
         """Test Namespace.to_local dispatch method."""
 
         # test round trip
         for ftype in FACTORIES:
             ns = Namespace(TEST_DICT)
-            ns.to_local(f'{TMPDIR}/{ftype}.{ftype}')
-            ns.to_local(f'{TMPDIR}/{ftype}.conf', ftype=ftype)
+            ns.to_local(f'{tmp_path}/{ftype}.{ftype}')
+            ns.to_local(f'{tmp_path}/{ftype}.conf', ftype=ftype)
             assert (ns ==
-                    Namespace.from_local(f'{TMPDIR}/{ftype}.{ftype}') ==
-                    Namespace.from_local(f'{TMPDIR}/{ftype}.conf', ftype=ftype))
+                    Namespace.from_local(f'{tmp_path}/{ftype}.{ftype}') ==
+                    Namespace.from_local(f'{tmp_path}/{ftype}.conf', ftype=ftype))
 
         # test not implemented
         with pytest.raises(NotImplementedError):
             ns = Namespace(TEST_DICT)
-            ns.to_local(f'{TMPDIR}/config.special')
+            ns.to_local(f'{tmp_path}/config.special')
 
     def test_attribute(self) -> None:
         """Test attribute access is the same as getitem."""
@@ -530,12 +527,12 @@ class TestConfiguration:
             assert cfg.nested.test == 'foo'
         assert exc_info.match('\'test\' has more than one variant')
 
-    def test_from_local(self) -> None:
+    def test_from_local(self, tmp_path: Path) -> None:
         """Test Configuration.from_local factory method."""
 
         # initial local files
         for label, data in CONFIG_SOURCES.items():
-            with open(f'{TMPDIR}/{label}.toml', mode='w') as output:
+            with open(f'{tmp_path}/{label}.toml', mode='w') as output:
                 output.write(data)
 
         # clean environment of any existing variables with the item
@@ -552,9 +549,9 @@ class TestConfiguration:
         # build configuration
         default = Namespace.from_toml(StringIO(CONFIG_DEFAULT))
         cfg = Configuration.from_local(default=default, env=True, prefix=prefix,
-                                       system=f'{TMPDIR}/system.toml',
-                                       user=f'{TMPDIR}/user.toml',
-                                       local=f'{TMPDIR}/local.toml')
+                                       system=f'{tmp_path}/system.toml',
+                                       user=f'{tmp_path}/user.toml',
+                                       local=f'{tmp_path}/local.toml')
 
         # verify namespace isolation
         assert cfg.namespaces['default'] == Namespace.from_toml(StringIO(CONFIG_DEFAULT))
