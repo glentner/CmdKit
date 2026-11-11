@@ -184,3 +184,15 @@ whole spec-excluded diff, graded against GOAL C1–C8. It saw neither the cycle-
 - F1, F2 and F3 are CONFIRMED in `src/cmdkit/app.py`, a high-blast-radius path, and F1 violates a
   `[human gate]` section (§ Invariants 3).
 - This is the second review cycle without convergence, so the cycle escalates to the maintainer.
+
+## Maintainer's ruling on the cycle-2 escalation (2026-11-11)
+
+**The cycle is split.**
+- **Kept:** the stderr report (R1–R3, R6–R9; C1–C6) ships in this cycle, with these fixes:
+  - F3 is fixed by marking cmdkit's own `NullHandler` where `__init__.py` creates it, and
+    recognising it by that mark.
+  - F4 is deferred to a seed.
+- **Moved out:** the bare-group help (R4, C7, C8) leaves this cycle. `ApplicationGroup`'s bare-run
+  behaviour returns to 2.7.7's, and the feature moves to a new seed for its own cycle, designed
+  around the effective command line rather than a pre-parse. Cycle 2's F1, F2 and F5 leave with it.
+- **The next review is cycle 3, the last one allowed.**
