@@ -65,6 +65,15 @@ cycle edits `tests/test_config.py`, so this goes first.
 *Order: 2 · Waits on: nothing · Refs: —*
 **Seed:** [`issues/tests-use-tmp-path.md`](issues/tests-use-tmp-path.md)
 
+## `test_app_invalid_options` stops generating prefixes of `--help`
+
+The test draws random long options and expects each to be an argument error, but argparse takes
+`--he` as `--help`, so the suite fails now and then with no change to the code. Skip the prefixes
+of the defined long options.
+
+*Order: unset (filed during the cli-defaults cycle) · Waits on: nothing · Refs: —*
+**Seed:** [`issues/test-invalid-options-help-prefix.md`](issues/test-invalid-options-help-prefix.md)
+
 ---
 
 # Part II — Configuration: outright failures, fixed by default
