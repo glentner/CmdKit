@@ -166,6 +166,26 @@ Raised during shaping, ruled 2026-11-10:
   human-gated section? — **A:** Yes. Removing a recorded known limitation once its fix lands is how
   § Invariants evolves, and sign-off of this GOAL covers it (resolved 2026-11-10; R9).
 
+Raised at the PLAN/TECH sign-off, ruled 2026-11-10:
+
+- **C6 · Q:** "No logging configured" is defined above R1 as no handler other than cmdkit's
+  `NullHandler` *would receive* the record. Read literally, that writes the bare line in setups an
+  application uses to silence logging: `logging.config.dictConfig` with its default
+  `disable_existing_loggers` (which disables the `cmdkit.app` logger when cmdkit was imported
+  first), `logging.disable(logging.CRITICAL)`, and handlers whose levels sit above `CRITICAL`. Is
+  that intended? — **A:** No. "No logging configured" means Python's own last-resort handler would
+  have printed this `CRITICAL` record if cmdkit's own `NullHandler` were not there. All of these
+  must hold: logging isn't disabled at `CRITICAL` (`logging.disable`); the `cmdkit.app` logger is
+  enabled for `CRITICAL`, and not disabled (by `dictConfig` or otherwise); and the walk up the
+  `propagate` chain finds no handler other than cmdkit's own `NullHandler`, counting handlers the
+  way `Logger.callHandlers` counts them for its last-resort decision, whatever each handler's
+  level. So the three setups above stay silent, as in 2.7.7, while `propagate = False` on the
+  `cmdkit` logger with no handler of the application's on it prints, exactly as Python would. The
+  replacement rule (C2) is unchanged. Rationale: cmdkit's `NullHandler` suppresses the last
+  resort, and this fix restores what Python would have done without it; anything an application
+  did to silence cmdkit stays silent, so no default a consumer relies on changes (§ Invariants 1)
+  (resolved 2026-11-10; R1, R2, R3).
+
 ## Related materials
 
 - Seed: `issues/cli-defaults.md`; `ROADMAP.md` Part IV, order 11.
