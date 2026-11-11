@@ -10,6 +10,7 @@ from typing import List, Dict, Callable, NamedTuple, Type, TypeVar
 
 # standard libs
 import abc
+import sys
 import logging
 
 # internal libs
@@ -25,6 +26,41 @@ TAppGrp = TypeVar('TAppGrp', bound='ApplicationGroup')
 
 
 log = logging.getLogger(__name__)
+
+
+def _hidden_by_null_handler(logger: logging.Logger, level: int, msg: object) -> bool:
+    """
+    True if the :class:`logging.NullHandler` cmdkit attaches to its logger at import is the only
+    reason Python's last-resort handler did not print a record with `msg` at `level` from `logger`.
+
+    This follows :meth:`logging.Logger.handle` and :meth:`logging.Logger.callHandlers` in order,
+    and is false wherever Python would print nothing anyway: the logger is not enabled for `level`
+    (a disabled logger, a logger level above `level`, or :func:`logging.disable`), the logger's
+    own filters reject the record, or :data:`logging.lastResort` is unset or above `level`.
+    Otherwise the logger and its ancestors are searched for as long as they propagate. Any handler
+    found, whatever its level, other than cmdkit's own (recognised by the mark set on it where the
+    package attaches it) means the application has configured logging: false. That includes a
+    :class:`logging.NullHandler` the application adds to the `cmdkit` logger itself to silence it.
+    If no handler is found at all, Python's last resort has already printed the record: also
+    false, so the message appears only once.
+    """
+    if not logger.isEnabledFor(level):
+        return False
+    if not logger.filter(logger.makeRecord(logger.name, level, '(unknown file)', 0, msg, (), None)):
+        return False
+    if logging.lastResort is None or level < logging.lastResort.level:
+        return False
+    found = False
+    current = logger
+    while current is not None:
+        for handler in current.handlers:
+            if getattr(handler, '_cmdkit_library_handler', False) is not True:
+                return False
+            found = True
+        if not current.propagate:
+            break
+        current = current.parent
+    return found
 
 
 # NOTE: In next major release this will be made into an Enum
@@ -96,8 +132,22 @@ class Application(abc.ABC):
         Entry-point for application.
         This is a try-except block that handles standard scenarios.
 
+        An :class:`~cmdkit.cli.ArgumentError` is passed to :data:`~Application.log_critical`
+        and ``exit_status.bad_argument`` is returned. If ``log_critical`` is the default and the
+        :class:`~logging.NullHandler` cmdkit attaches to its own logger is the only reason
+        Python's last-resort handler did not print the record (no handler of the application's
+        is found, and the ``cmdkit.app`` logger is neither silenced nor filtering the record
+        out), the message is also written as is to ``sys.stderr``, followed by a newline.
+        Where no handler is found at all, Python's last resort prints the record itself, and
+        that line stands alone. A :class:`~logging.NullHandler` the application adds to the
+        ``cmdkit`` logger is a handler of the application's, and keeps the message silent.
+        Without a ``sys.stderr`` (it is ``None``) the message is skipped, and a failure to
+        write it (a closed stream or a broken pipe) is ignored, so ``main`` still returns
+        ``exit_status.bad_argument``.
+
         See Also:
             :data:`~Application.exceptions`
+            :data:`~Application.log_critical`
         """
         try:
             if not cmdline:
@@ -124,6 +174,12 @@ class Application(abc.ABC):
 
         except ArgumentError as error:
             cls.log_critical(error)
+            if cls.log_critical == log.critical and _hidden_by_null_handler(log, logging.CRITICAL, error):
+                if sys.stderr is not None:
+                    try:
+                        print(error, file=sys.stderr)
+                    except (OSError, ValueError):
+                        pass
             return exit_status.bad_argument
 
         except KeyboardInterrupt:

@@ -30,4 +30,7 @@ __all__ = [
 __version__ = get_version('cmdkit')
 
 # null-handler for library interface
-Logger.with_name(__name__).addHandler(NullHandler())
+_null_handler = NullHandler()
+_null_handler._cmdkit_library_handler = True
+Logger.with_name(__name__).addHandler(_null_handler)
+del _null_handler

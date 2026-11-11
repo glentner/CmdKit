@@ -1,0 +1,18 @@
+# Written only by the factory's metrics tool. Observation, never state: nothing routes on it.
+slug: tests-use-tmp-path
+escaped_from: null
+planned: {date: '2026-11-10', phases: 1}
+landed: {date: '2026-11-10', phases: 1, failed_verifies: 0}
+open: null
+runs:
+- {step: feature, start: '2026-11-10T22:39:56-05:00', stop: '2026-11-10T22:44:29-05:00', seconds: 273, end: gate, agent: claude-opus-5-5}
+- {step: plan, start: '2026-11-10T22:44:30-05:00', stop: '2026-11-10T23:28:04-05:00', seconds: 2614, end: gate, agent: claude-opus-5-5}
+- {step: 'build:P1', start: '2026-11-10T23:28:04-05:00', stop: '2026-11-10T23:33:07-05:00', seconds: 303, end: gate, agent: claude-opus-5-5}
+- {step: review, start: '2026-11-10T23:33:07-05:00', stop: '2026-11-10T23:43:14-05:00', seconds: 607, end: gate, agent: claude-opus-5-5}
+- {step: publish, start: '2026-11-10T23:43:14-05:00', stop: '2026-11-10T23:44:20-05:00', seconds: 66, end: done, agent: claude-opus-5-5}
+reviews:
+- cycle: 1
+  date: '2026-11-10'
+  verdict: approved
+  confirmed: {critical: 0, high: 0, medium: 0, low: 0}
+  plausible: 0

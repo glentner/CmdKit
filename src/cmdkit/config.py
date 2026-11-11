@@ -10,7 +10,7 @@ local files and your environment.
 
 # type annotations
 from __future__ import annotations
-from typing import Tuple, List, Dict, TypeVar, Callable, Union, Any
+from typing import Tuple, List, Dict, TypeVar, Callable, Union, Any, Mapping
 
 # standard libs
 from collections import Counter
@@ -31,6 +31,85 @@ T = TypeVar('T')
 
 class ConfigurationError(Exception):
     """Exception specific to configuration errors."""
+
+
+_MISSING = object()
+
+
+def _variant_siblings(key: Any) -> List[str]:
+    """The other keys that are a variant of a name `key` is a variant of."""
+    if not isinstance(key, str):
+        return []
+    names = [key]
+    if key.endswith('_env'):
+        names.append(key[:-4])
+    if key.endswith('_eval'):
+        names.append(key[:-5])
+    return [other for name in names for other in (name, f'{name}_env', f'{name}_eval') if other != key]
+
+
+def _drop_displaced_variants(target: dict, new: Mapping) -> None:
+    """
+    Remove from `target` every variant of a name that `new` sets a different variant of,
+    at every level where the depth-first update will descend.
+    """
+    for key, value in new.items():
+        for other in _variant_siblings(key):
+            if other in target and other not in new:
+                del target[other]
+        if isinstance(value, dict) and isinstance(target.get(key), dict):
+            _drop_displaced_variants(target[key], value)
+
+
+def _apply_layer(target: NSCoreMixin, new: Mapping) -> None:
+    """Depth-first update of `target` with `new`, where the variants `new` sets displace the others."""
+    _drop_displaced_variants(target, new)
+    NSCoreMixin.update(target, new)
+
+
+def _value_at(mapping: Any, path: Tuple[Any, ...]) -> Any:
+    """The value at `path` through nested mappings, or `_MISSING`."""
+    for key in path:
+        if not isinstance(mapping, dict) or key not in mapping:
+            return _MISSING
+        mapping = mapping[key]
+    return mapping
+
+
+def _lacks(mapping: Any, path: Tuple[Any, ...]) -> bool:
+    """Whether item access along `path` raises `KeyError`: a mapping on the way lacks the next key."""
+    for key in path:
+        if not isinstance(mapping, dict):
+            return False
+        if key not in mapping:
+            return True
+        mapping = mapping[key]
+    return False
+
+
+def _depth_held(mapping: Any, path: Tuple[Any, ...]) -> int:
+    """How many leading keys of `path` are held through nested mappings."""
+    for depth, key in enumerate(path):
+        if not isinstance(mapping, dict) or key not in mapping:
+            return depth
+        mapping = mapping[key]
+    return len(path)
+
+
+def _displaced(sources: List[Mapping], path: Tuple[Any, ...]) -> bool:
+    """
+    Whether a source sets another variant of a key on `path` in that key's place,
+    and not the key itself, above a source that holds `path` down to that key.
+    """
+    held = set()
+    for source in sources:
+        for depth, key in enumerate(path):
+            parent = _value_at(source, path[:depth])
+            if depth in held and isinstance(parent, dict) and key not in parent \
+                    and any(other in parent for other in _variant_siblings(key)):
+                return True
+        held.update(range(_depth_held(source, path)))
+    return False
 
 
 class Configuration(NSCoreMixin):
@@ -54,6 +133,24 @@ class Configuration(NSCoreMixin):
 
         >>> conf.namespaces.one.x
         1
+
+    A parameter `name` and its `name_env` and `name_eval` variants are one key across
+    the layers: the highest layer that sets any of them decides, and only the variants
+    it sets remain in the merged view. Within a single layer, two variants of one name
+    are still ambiguous.
+
+    Example:
+        >>> conf = Configuration(one=Namespace({'db': {'password': 'secret'}}),
+        ...                      two=Namespace({'db': {'password_eval': 'echo other'}}))
+
+        >>> dict(conf)
+        {'db': Namespace({'password_eval': 'echo other'})}
+
+        >>> conf.db.password
+        'other'
+
+        >>> conf.which('db', 'password_eval')
+        'two'
     """
 
     local: Namespace  # NOTE: used to track changes to the 'self'
@@ -89,7 +186,7 @@ class Configuration(NSCoreMixin):
         for name, mapping in others.items():
             if name != '_':
                 self.namespaces[name] = Namespace(mapping)
-                super().update(self.namespaces[name])
+                _apply_layer(self, self.namespaces[name])
             else:
                 self.local.update(mapping)
 
@@ -180,6 +277,8 @@ class Configuration(NSCoreMixin):
             Namespace({'x': 1, 'y': 3})
         """
         namespaces = Namespace({**self.namespaces, '_': self.local})
+        if _lacks(self, path) and _displaced(list(namespaces.values()), path):
+            raise KeyError(f'Not found: {path}')
         for label in reversed(list(namespaces.keys())):
             try:
                 sub = namespaces[label]
@@ -231,7 +330,7 @@ class Configuration(NSCoreMixin):
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Intercept parameter assignment."""
-        if name in self:
+        if name in self or any(other in self for other in _variant_siblings(name)):
             self.update({name: value})
         else:
             super().__setattr__(name, value)
@@ -247,6 +346,9 @@ class Configuration(NSCoreMixin):
             Instead, overrides have been implemented to capture these changes in a `local` namespace.
             If you ask :func:`which` namespace a parameter has come from, and it was an in-place change,
             it will be considered a member of the "_" namespace.
+            An in-place change follows the same rule as the layers for `_env` and `_eval`
+            variants: setting one variant of a name replaces any other variant of that name,
+            both in the "_" namespace and in the merged view.
 
         Example:
             >>> conf = Configuration(a=Namespace(x=1))
@@ -268,8 +370,8 @@ class Configuration(NSCoreMixin):
             >>> dict(conf)
             {'x': 2, 'y': 3}
         """
-        self.local.update(*args, **kwargs)
-        super().update(*args, **kwargs)
+        _apply_layer(self.local, dict(*args, **kwargs))
+        _apply_layer(self, dict(*args, **kwargs))
 
     def pop(self, *args, **kwargs) -> Any:
         """
