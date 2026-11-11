@@ -3,7 +3,7 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: in_review
+status: done
 branch: fix/cli-defaults
 base: develop
 current_phase: done
@@ -39,10 +39,10 @@ phases:
   hill: uphill
   verify: sh spec/cli-defaults/verify/gate.sh P2
 review:
-  last_reviewed_commit: 0f5644235fcd0645b82dd25d030c885721e8c039
+  last_reviewed_commit: f7a5bacede11b0d37a994c5e9ba930d60d03d259
   verdict: approved
   blocked_reason: ''
-  cycle: 5
+  cycle: 6
 ---
 
 # TECH.md — Argument errors reach stderr, and a group can show its help when run bare

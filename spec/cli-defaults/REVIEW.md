@@ -323,3 +323,22 @@ interpreter's shutdown flush, as Python's own last resort does. `main` returns 2
 ### Human-gate status
 - Every human-gate trigger from cycles 1–4 has the maintainer's ruling recorded above.
 - Cycle 4's sole CONFIRMED item (R4-F1) is remediated and verified here.
+
+## Review cycle 6 (scoped to the Windows CI fix) — approved (2026-11-11)
+
+**Reviewed commit:** f7a5bacede11b0d37a994c5e9ba930d60d03d259. CI on the PR failed one test on
+Windows: a child's stderr ended in `\r\n` where the test expected `\n`. The fix is test-only.
+
+### Verification run
+- **The diff is test-only:** `tests/test_app.py` alone. A helper normalises `\r\n` to `\n` in four
+  child-output comparisons. No expected literal contains `\r`, and the `returncode` assertions are
+  untouched.
+- **Planted mutants:** 9, covering wrong text, the wrong stream, an extra newline and a CRLF where
+  `b''` is expected. Each is killed for the intended reason.
+- **Windows emulation** (`reconfigure(newline='\r\n')` in the children), on 3.9 and 3.14: the new
+  tests pass. The old tests fail exactly as CI did.
+- **No missed comparisons:** no other test compares subprocess output.
+- **The profile's `verify`,** sandboxed: 130 passed on 3.9 and 130 on 3.14.
+
+### Findings
+None.
