@@ -23,12 +23,13 @@ R2, R3, R7; C1, C2)?
 
 1. **Inspect the handler chain at call time** (chosen). In the `ArgumentError` branch, after
    calling `cls.log_critical(error)` as today: if `cls.log_critical == log.critical` (not
-   replaced, C2) and no handler would receive a `CRITICAL` record from `cmdkit.app`, write
-   `str(error)` and a newline to `sys.stderr` (looked up at call time). "Would receive" mirrors
-   `callHandlers`: the logger must be enabled for `CRITICAL` (`isEnabledFor`, which also covers
-   `logger.disabled` and `logging.disable`), then walk the chain while `propagate`, counting each
-   handler whose level is at most `CRITICAL`, except a `logging.NullHandler` (exact type) on the
-   `cmdkit` logger itself. Nothing is attached, so R7 holds by construction.
+   replaced, C2) and Python's last resort would print a `CRITICAL` record from `cmdkit.app` were
+   cmdkit's `NullHandler` not there (C6), write `str(error)` and a newline to `sys.stderr` (looked
+   up at call time). That mirrors `callHandlers`' last-resort decision: the logger must be enabled
+   for `CRITICAL` (`isEnabledFor`, which also covers `logger.disabled` and `logging.disable`),
+   `logging.lastResort` must be set and at or below `CRITICAL`, and the walk along `propagate`
+   must find no handler, whatever its level, other than a `logging.NullHandler` (exact type) on
+   the `cmdkit` logger itself. Nothing is attached, so R7 holds by construction.
 2. **Temporarily attach a stderr handler** around the log call and remove it after. Rejected:
    it is a process-wide mutation during the call (other threads logging to `cmdkit` would see
    it), it needs its own formatter to print the bare message, and it still needs the same "is
@@ -43,21 +44,22 @@ R2, R3, R7; C1, C2)?
 
 ## Probed edge cases (prototype, 3.12; status 2 in every case)
 
-| Setup before `main(['bogus'])` | develop stderr | design stderr |
-|---|---|---|
-| none | empty | `unrecognized command: bogus` |
-| `logging.basicConfig(...)` | one formatted line | the same line, nothing else |
-| `dictConfig`, `disable_existing_loggers` left `True` (cmdkit imported first) | empty | bare line |
-| `dictConfig`, `disable_existing_loggers=False` | one formatted line | the same line |
-| `logging.disable(logging.CRITICAL)` | empty | bare line |
-| root handler at level 100 | empty | bare line |
-| `cmdkit` logger `propagate = False`, root configured | empty | bare line |
-| `NullHandler` on root, added by the application | empty | empty |
+| Setup before `main(['bogus'])` | develop stderr | literal "would receive" reading | C6 (chosen) |
+|---|---|---|---|
+| none | empty | bare line | bare line |
+| `logging.basicConfig(...)` | one formatted line | the same line | the same line |
+| `dictConfig`, `disable_existing_loggers` left `True` (cmdkit imported first) | empty | bare line | empty |
+| `dictConfig`, `disable_existing_loggers=False` | one formatted line | the same line | the same line |
+| `logging.disable(logging.CRITICAL)` | empty | bare line | empty |
+| root handler at level 100 | empty | bare line | empty |
+| `cmdkit` logger `propagate = False`, root configured | empty | bare line | bare line |
+| `NullHandler` on root, added by the application | empty | empty | empty |
 
-The four "bare line" rows below the first follow from GOAL's definition of "no logging configured"
-(no handler other than cmdkit's `NullHandler` *would receive* the record): in each, none would. They
-differ from what Python's own last-resort rule would do (it prints nothing for a disabled logger
-and counts a handler whatever its level). PLAN records this as a reading for sign-off.
+The first draft took the GOAL's definition literally (no handler other than cmdkit's `NullHandler`
+*would receive* the record), which wrote in the three middle setups applications use to silence
+logging. The sign-off ruled C6: write exactly where Python's last resort would have printed
+without cmdkit's `NullHandler`. Under that rule only `propagate = False` (which stops the walk
+before root, so Python itself would fall back to the last resort) differs from develop.
 
 ## Replacement detection (R3, C2)
 

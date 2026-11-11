@@ -15,12 +15,13 @@ compared byte for byte.
 
 Modes:
     errors   argument errors: reported on stderr when no logging is configured, left to the
-             configured handlers or the replaced log_critical otherwise; the decision is taken
-             per call; importing and calling leave the logging handlers as they were.
+             configured handlers or the replaced log_critical otherwise, and silent wherever
+             Python's last resort would be; the decision is taken per call; importing and
+             calling leave the logging handlers as they were.
     noargs   a bare group with and without ALLOW_NOARGS; a bare plain application.
     all      both.
 
-Footprint: one child at a time, each a short-lived interpreter under 40 MB; about 40 children.
+Footprint: one child at a time, each a short-lived interpreter under 40 MB; about 50 children.
 """
 
 # standard libs
@@ -199,6 +200,40 @@ logging.getLogger('cmdkit').addHandler(Keep())
     proc = run_main("Group.main(['bogus'])", body_pre='logging.getLogger().addHandler(logging.NullHandler())')
     check('application NullHandler on root: cmdkit stays silent',
           proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+
+    # The last-resort rule: cmdkit writes exactly when Python's last-resort handler would print
+    # the record were cmdkit's NullHandler not there. Whatever silences it stays silent.
+    dict_config = ("import logging.config; logging.config.dictConfig({'version': 1, %s"
+                   "'formatters': {'f': {'format': 'H|%%(message)s'}}, "
+                   "'handlers': {'h': {'class': 'logging.StreamHandler', 'formatter': 'f'}}, "
+                   "'root': {'handlers': ['h']}})")
+    silent = [
+        ('dictConfig after import, disable_existing_loggers left True', dict_config % ''),
+        ('logging.disable(CRITICAL)', 'logging.disable(logging.CRITICAL)'),
+        ('only a root handler with a level above CRITICAL',
+         'h = logging.StreamHandler(); h.setLevel(logging.CRITICAL + 1); logging.getLogger().addHandler(h)'),
+        ('cmdkit.app logger level above CRITICAL', "logging.getLogger('cmdkit.app').setLevel(logging.CRITICAL + 1)"),
+        ('logging.lastResort set to None', 'logging.lastResort = None'),
+        ('logging.lastResort level above CRITICAL', 'logging.lastResort.setLevel(logging.CRITICAL + 1)'),
+    ]
+    for name, setup in silent:
+        proc = run_main("Group.main(['bogus'])", body_pre=setup)
+        check(f'last resort silenced, cmdkit silent: {name}',
+              proc.returncode == 2 and proc.stdout == b'' and proc.stderr == b'', show(proc))
+    proc = run_main("Group.main(['bogus'])", body_pre=(
+        "logging.getLogger('cmdkit.app').setLevel(logging.ERROR); logging.lastResort.setLevel(logging.ERROR)"))
+    check('cmdkit.app and the last resort at ERROR: a CRITICAL record still prints, bare',
+          proc.returncode == 2 and proc.stdout == b''
+          and proc.stderr == b'unrecognized command: bogus\n', show(proc))
+    proc = run_main("Group.main(['bogus'])", body_pre=dict_config % "'disable_existing_loggers': False, ")
+    check('dictConfig with disable_existing_loggers False: its one formatted line, nothing bare',
+          proc.returncode == 2 and proc.stdout == b''
+          and proc.stderr == b'H|unrecognized command: bogus\n', show(proc))
+    proc = run_main("Group.main(['bogus'])", body_pre=(
+        "logging.basicConfig(format='%(levelname)s|%(message)s'); logging.getLogger('cmdkit').propagate = False"))
+    check('cmdkit.propagate False, root configured: the bare line once, as Python would',
+          proc.returncode == 2 and proc.stdout == b''
+          and proc.stderr == b'unrecognized command: bogus\n', show(proc))
 
     # log_critical replaced: on the class, on Application, and by another logger's method.
     proc = run_main("Group.main(['bogus'])", body_pre='Group.log_critical = staticmethod(recorder)',

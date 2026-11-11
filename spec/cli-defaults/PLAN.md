@@ -9,8 +9,9 @@
 
 Two small changes to `src/cmdkit/app.py`. In `Application.main`'s `ArgumentError` branch, after
 calling `log_critical` as today, cmdkit writes the bare message to `sys.stderr` when
-`log_critical` is still the default and no logging handler would receive the record; the decision
-is a walk of the handler chain at the moment of the error, and nothing is attached. And
+`log_critical` is still the default and Python's own last-resort handler would have printed the
+record were cmdkit's `NullHandler` not there (GOAL C6); the decision is a walk of the handler chain
+at the moment of the error, and nothing is attached. And
 `ApplicationGroup` gains a `main` that turns an empty command line into `['--help']` when the group
 sets `ALLOW_NOARGS = True`, so a bare group prints exactly its `--help` output and returns 0. Two
 phases, one per behaviour, each with its tests and docs; the `AGENTS.md` line goes with the first.
@@ -24,7 +25,7 @@ The `except ArgumentError` branch becomes:
 ```python
 except ArgumentError as error:
     cls.log_critical(error)
-    if cls.log_critical == log.critical and not _is_handled(log, logging.CRITICAL):
+    if cls.log_critical == log.critical and _last_resort_would_print(log, logging.CRITICAL):
         print(error, file=sys.stderr)
     return exit_status.bad_argument
 ```
@@ -35,12 +36,21 @@ except ArgumentError as error:
   `staticmethod` on the class, a function assigned to `Application.log_critical`, or another
   logger's `critical` all compare unequal, and then cmdkit writes nothing, whether or not a handler
   stands behind the replacement.
-- **Handler test (R1, R2), a new private module function** `_is_handled(logger, level) -> bool`:
-  `False` if `not logger.isEnabledFor(level)` (which covers `logger.disabled` and
-  `logging.disable`); otherwise walk `logger` and its ancestors while `propagate` holds, and return
-  `True` at the first handler whose `level <= level`, skipping any handler whose exact type is
-  `logging.NullHandler` on the logger named `cmdkit`. It mirrors `Logger.callHandlers`, so it
-  answers GOAL's question: would a handler other than cmdkit's `NullHandler` receive the record.
+- **Last-resort test (R1, R2; C6), a new private module function**
+  `_last_resort_would_print(logger, level) -> bool`, following `Logger.callHandlers`'s last-resort
+  decision with cmdkit's `NullHandler` taken out:
+  1. `False` if `not logger.isEnabledFor(level)`: that covers `logging.disable`, a logger level
+     above `level`, and `logger.disabled` (what `dictConfig` sets on loggers it disables); Python
+     never builds the record then.
+  2. `False` if `logging.lastResort` is `None` or its level is above `level`: Python would not
+     print through it either.
+  3. Walk `logger` and its ancestors while `propagate` holds; return `False` at the first handler
+     found, whatever its level, except one whose exact type is `logging.NullHandler` on the logger
+     named `cmdkit`. Return `True` when the walk finds none.
+
+  So an application that silenced cmdkit (`dictConfig`'s default, `logging.disable`, handlers
+  levelled above `CRITICAL`, `lastResort = None`) stays silent, and `propagate = False` on `cmdkit`
+  with no handler of the application's there prints, as Python would.
   ([research/01](research/01-call-time-decision.md))
 - **The write (C1).** `print(error, file=sys.stderr)`: `str(error)` and a newline, the form
   Python's last-resort handler uses, with `sys.stderr` looked up at call time (so `capsys` and any
@@ -75,7 +85,8 @@ condition is false and `Application.main` runs unchanged: usage, `exit_status.us
 - `Application.main`'s docstring says how an argument error is reported; `ApplicationGroup.main`
   gets a docstring of its own (R8).
 - The `log_critical` / `log_exception` paragraph says the default also writes the bare message to
-  stderr when no handler would receive it, and that an override alone handles the message.
+  stderr when Python's last resort would have printed it (no handler of the application's, and
+  nothing silencing the logger), and that an override alone handles the message.
 - The `ALLOW_NOARGS` paragraph's bare-run status becomes `exit_status.usage` (C4) and it says what
   the attribute does on a group; `ApplicationGroup`'s section gains an `ALLOW_NOARGS` entry.
 
@@ -97,6 +108,8 @@ high-blast-radius list, § Invariants 4), so the edits do not overlap.
 - R2 beside it: with `caplog`, one `CRITICAL` record from `cmdkit.app`, stdout and stderr empty.
 - R3 beside it: `log_critical` replaced on the group class, and on `Application`, by a recorder:
   one call, stderr empty, with no handler behind it.
+- C6 beside them: with `logging.disable(logging.CRITICAL)` in force (and no handler), stderr stays
+  empty; the remaining C6 setups are pinned by the gate's fresh-interpreter drive.
 - R7: the handler lists of `cmdkit`, `cmdkit.app` and root are the same before and after a call
   that reports on stderr.
 - R4 beside R5: an `ALLOW_NOARGS` group's `main([])` and `main(None)` print what its
@@ -109,8 +122,8 @@ high-blast-radius list, § Invariants 4), so the edits do not overlap.
 
 | R-ID | Design element(s) that satisfy it |
 |------|-----------------------------------|
-| R1   | `ArgumentError` branch of `Application.main`: `_is_handled` false and default `log_critical` → `print(error, file=sys.stderr)`; status unchanged |
-| R2   | `_is_handled` true → no write; `log_critical` called as today, so configured handlers get the same one record |
+| R1   | `ArgumentError` branch of `Application.main`: `_last_resort_would_print` true (C6) and default `log_critical` → `print(error, file=sys.stderr)`; status unchanged |
+| R2   | a handler found on the chain, or the logger or last resort silenced → `_last_resort_would_print` false → no write; `log_critical` called as today, so configured handlers get the same one record |
 | R3   | `cls.log_critical == log.critical` false → no write; the replacement called once, as today |
 | R4   | `ApplicationGroup.main` maps an empty command line to `['--help']` under `ALLOW_NOARGS is True` |
 | R5   | the same condition false without the opt-in → `Application.main` unchanged; `Application` untouched |
@@ -126,7 +139,8 @@ The change touches `src/cmdkit/app.py`, on the high-blast-radius list; no other 
 
 - **§ 1 Compatibility.** The dropped message is an outright failure, fixed by default, as the GOAL
   says; no test pinned the silence. Configured logging and a replaced `log_critical` see no change
-  (R2, R3). The bare group's help is an opt-in through an existing attribute whose only effect on a
+  (R2, R3), and neither does any setup that silences Python's last resort (C6), so the write
+  appears only where Python itself would have printed the record without cmdkit's `NullHandler`. The bare group's help is an opt-in through an existing attribute whose only effect on a
   group today is a silent exit 2; without it a bare group is byte for byte 2.7.7's, and its test
   sits beside the opt-in's. Every `ExitStatus` value is unchanged; no name leaves `__all__`.
 - **§ 3 Command line.** `Interface` still never exits or prints. `main` still returns an
@@ -143,16 +157,18 @@ The change touches `src/cmdkit/app.py`, on the high-blast-radius list; no other 
 
 | Deviation | Why needed | Simpler alternative rejected because |
 |-----------|-----------|--------------------------------------|
-| **Reading for sign-off: "no handler would receive" is taken literally.** When `cmdkit.app` is disabled (the default of `logging.config.dictConfig` for loggers that exist before it runs), `logging.disable(CRITICAL)` is in force, every handler's level is above `CRITICAL`, or the `cmdkit` logger has `propagate = False` with no handler of its own, no handler would receive the record, so cmdkit writes the bare line where 2.7.7 printed nothing ([research/01](research/01-call-time-decision.md), probed). | GOAL's definition of "no logging configured" (above R1) is whether a handler other than cmdkit's `NullHandler` *would receive* the record; in these setups none would, so R1 applies and requires the write. | Python's own last-resort rule (silent when the logger is disabled or not enabled for the level; any handler found counts, whatever its level) would keep these setups silent, closer to the Outcome's "sees exactly what it sees today", but it leaves R1's message dropped in setups the definition calls unconfigured, so it bends R1. If the maintainer wants those setups silent, that is a clarification to R1's definition; the design change is two lines in `_is_handled`. |
+| **"No logging configured" is Python's last-resort rule (GOAL C6, ruled at the sign-off).** cmdkit writes exactly when `Logger.callHandlers` would hand this `CRITICAL` record to `logging.lastResort` were cmdkit's `NullHandler` not there: the logger enabled for `CRITICAL` (not disabled, not under `logging.disable`), `lastResort` present and at or below `CRITICAL`, and no handler found on the `propagate` chain, whatever its level. `dictConfig`'s default `disable_existing_loggers`, `logging.disable(CRITICAL)`, handlers levelled above `CRITICAL`, a `cmdkit.app` level above `CRITICAL` and `lastResort = None` stay silent, as in 2.7.7; `propagate = False` on `cmdkit` with no handler of the application's there prints, as Python would ([research/01](research/01-call-time-decision.md), probed). The `lastResort` presence and level test is the part of that same rule C6 doesn't spell out. | C6 replaces the literal "would receive" reading of the definition above R1, which wrote the bare line in setups applications use to silence logging. | The literal reading (count only handlers whose level the record meets; write for a disabled logger) is what C6 overruled: it adds output for applications that silenced cmdkit, a changed default under § Invariants 1. Leaving out the `lastResort` test would write where Python, with `lastResort = None` or levelled above `CRITICAL`, prints nothing. |
 | **cmdkit's `NullHandler` is identified by exact type and place:** any `logging.NullHandler` (not a subclass) on the `cmdkit` logger is treated as cmdkit's. A `NullHandler` the application adds anywhere else, root included, counts as a configured handler and keeps cmdkit silent. | The GOAL names "the `NullHandler` cmdkit attaches at import". cmdkit keeps no reference to it, and a re-import of the package adds a second one. | Holding a reference in `__init__.py` and comparing by identity touches a second high-blast-radius path and would count a re-import's second `NullHandler` as the application's, silencing R1. The only setup the type test misreads is an application that adds its own plain `NullHandler` to the `cmdkit` logger and nothing else; it then sees the bare line. |
 
-Each row read against R1, R2, R3 and R7: both keep R2 and R3 exact (any handler that does receive
-the record suppresses the write; any replacement suppresses it), and neither attaches anything.
+Each row read against R1, R2, R3 and R7 as C6 words them: row 1 is C6's own reading; both keep R2
+and R3 exact (any handler found on the chain suppresses the write, so configured handlers get only
+their own record; any replacement suppresses it), and neither attaches anything. Row 2 still
+holds under C6, which names "cmdkit's own `NullHandler`" the same way.
 
 ## 4. Rabbit holes (resolved)
 
 - **Deciding "unconfigured" without a lasting handler** → a call-time walk mirroring
-  `Logger.callHandlers`; a temporary handler, removing the `NullHandler`, and an identity reference
+  `Logger.callHandlers`'s last-resort decision (C6); a temporary handler, removing the `NullHandler`, and an identity reference
   were each rejected ([research/01](research/01-call-time-decision.md)).
 - **pytest's root handlers** → four handlers on root in every phase; hiding them works only inside
   the test body, in place; a fixture or a list swap leaks or misses
@@ -169,11 +185,11 @@ the record suppresses the write; any replacement suppresses it), and neither att
 
 ## 5. Risks & open questions
 
-- **The literal reading (deviation row 1) is the one visible behaviour change for applications
-  that configured logging.** An application configured through `dictConfig` with the default
-  `disable_existing_loggers`, after importing cmdkit, now gets a bare, unformatted line on stderr
-  for an argument error, where it got nothing. That is R1 as defined; the sign-off confirms it or
-  narrows the definition.
+- **Filters and a replaced `lastResort` are not modelled.** A filter on the `cmdkit.app` logger
+  that rejects the record (Python then prints nothing) is not consulted, and an application that
+  replaced `logging.lastResort` with a handler of its own gets cmdkit's bare line rather than that
+  handler's output. Both are rare; reading a logger filter needs a built record, more than this
+  appetite carries. Neither is pinned by a gate.
 - **Sphinx is not in any gate.** The new `.. autoattribute:: ALLOW_NOARGS` under
   `ApplicationGroup` documents an inherited attribute; Read the Docs builds it after the merge. The
   review reads the rst; a local `sphinx-build` is optional.
@@ -209,7 +225,12 @@ will hold:
   an application `NullHandler` on root (silent); `log_critical` replaced on the class, on
   `Application`, and by another logger's `critical` (Python's own one line, nothing from cmdkit);
   unconfigured → configured → unconfigured in one process (bare, formatted, bare); the
-  `KeyboardInterrupt` path unchanged (status 4, silent); and the handler lists of `cmdkit`,
+  `KeyboardInterrupt` path unchanged (status 4, silent); the C6 setups on both sides (silent:
+  `dictConfig` after import with its default, `logging.disable(CRITICAL)`, a root handler levelled
+  above `CRITICAL`, `cmdkit.app` levelled above `CRITICAL`, `lastResort = None`, `lastResort`
+  levelled above `CRITICAL`; printing: `propagate = False` on `cmdkit` with root configured, and
+  `cmdkit.app` and `lastResort` at `ERROR`; `dictConfig` keeping existing loggers: its own line
+  only); and the handler lists of `cmdkit`,
   `cmdkit.app` and root after import and after reported errors equal 2.7.7's
   (`cmdkit: [NullHandler]`, the others empty, measured at `b9efaca`).
 - `verify/drive_main.py noargs`: an `ALLOW_NOARGS` group's `main([])`, `main(None)` and `main()`,
@@ -221,25 +242,31 @@ will hold:
   unchanged (`test_app_group_usage` among them) and tests were added. P2 adds the `ALLOW_NOARGS`
   docs correction, that the `AGENTS.md` commit also changes `app.py`, and the deferral ledger.
 
-**Dry run** on a detached prototype at `origin/develop` (`b9efaca`), cut to each phase's tree:
+**Dry run** on a detached prototype at `origin/develop` (`b9efaca`), cut to each phase's tree,
+after the C6 revision:
 
 - P1 tree (fix, P1 tests, `log_critical` docs, the `AGENTS.md` bullet): `gate.sh P1` green on 3.9
-  and 3.14 in about 5 s warm; `drive_main.py noargs` red on it (5 opt-in checks), as it should be
-  before P2. On `b9efaca` itself, `errors` is red on the 7 unconfigured cases and the per-call case,
-  and green on the 2.7.7-preserving checks.
-- Mutants, each staged on the P1 tree and each killed: no write; an unconditional write;
-  replacement ignored; handlers ignored; every `NullHandler` excluded; cmdkit's `NullHandler`
-  counted; the write to stdout; a prefixed message; `sys.stderr` bound at import (killed by the
-  in-process tests only, which is why the gate runs both); a stderr handler left attached; an
-  extra `AGENTS.md` edit; `test_app_group_usage` edited; a spec id in a source line.
-- P2 tree (everything): `gate.sh P2` green on 3.9 and 3.14, about 6 s warm (42 tests in
-  `tests/test_app.py`). P2 mutants, each killed: the opt-in ignored (every bare group shows help);
-  usage printed instead of help; help printed with status 1; the docs' bare-run status left at
-  `exit_status.success`; an unseeded deferral line in a phase body.
+  and 3.14 in about 5 s warm (38 tests); `drive_main.py noargs` red on it (5 opt-in checks), as it
+  should be before P2. On `b9efaca` itself, `errors` is red on the 7 unconfigured cases, the
+  per-call case, and the two C6 printing cases, and green on the checks that keep 2.7.7's
+  behaviour, the six C6 silent setups among them.
+- Mutants, each staged on its phase's tree and each killed: no write; an unconditional write;
+  replacement ignored; handlers ignored; handlers counted only when their level admits the record
+  (the overruled reading); the enabled check removed; `logger.disabled` alone in place of
+  `isEnabledFor`; the `lastResort` test removed; `propagate` ignored; the level argument changed to
+  `WARNING`; every `NullHandler` excluded; cmdkit's `NullHandler` counted; the write to stdout; a
+  prefixed message; `sys.stderr` bound at import (killed by the in-process tests only, which is
+  why the gate runs both); a stderr handler left attached; an extra `AGENTS.md` edit;
+  `test_app_group_usage` edited; a spec id in a source line.
+- P2 tree (everything): `gate.sh P2` green on 3.9 and 3.14, about 6 s warm (43 tests in
+  `tests/test_app.py`). P2 mutants, each killed (P2's code is unchanged by C6): the opt-in ignored
+  (every bare group shows help); usage printed instead of help; help printed with status 1; the
+  docs' bare-run status left at `exit_status.success`; an unseeded deferral line in a phase body.
 - Full suite, once, with the profile's `verify` on the P2 tree (sandbox off for `/tmp/cmdkit`):
-  88 passed and 1 failed on each of 3.9 and 3.14, the failure being the pre-existing
-  `test_app_invalid_options` flake above (`opt='he'`), reproduced on `b9efaca` with the same
-  example.
+  89 passed and 1 failed on each of 3.9 and 3.14 in the prototype checkout, the failure being the
+  pre-existing `test_app_invalid_options` flake above, replayed from that checkout's
+  `.hypothesis/` (`opt='he'`, reproduced on `b9efaca` with the same example); from a fresh export
+  of the same tree with `--hypothesis-seed=0`, 90 passed on each.
 - Where the dry run stops: the gates name no test or mutant build writes, so they ran end to end
   on the prototype; only `frozen` was skipped (no plan commit there), and the change set was graded
   from `b9efaca` in place of the plan commit (`CLI_DEFAULTS_GATE_DRYRUN`, never set by a build).
