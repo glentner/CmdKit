@@ -66,7 +66,7 @@ phases:
   verify: sh spec/uv-build-and-ci/verify/gate.sh P4
 - id: P5
   name: Platform remediation, every job green, deferral ledger
-  status: pending
+  status: in_progress
   satisfies:
   - R5
   - R10
@@ -271,7 +271,7 @@ Run B (after the run completes):
 failure is fixed in the tests or traced to a new seed, exactly as R11 allows.
 
 Run A:
-- [ ] Read `ci/P4.json`. For each failed macOS or Windows job, find the cause in its log
+- [x] Read `ci/P4.json`. For each failed macOS or Windows job, find the cause in its log
       (`gh run view --job <id> --log`, read only) and confirm it predates the cycle (the same tests
       on `origin/develop`'s code, not this cycle's build changes). Then, per R11:
       - a small fix confined to `tests/` that does not branch on the platform (a platform
@@ -284,7 +284,7 @@ Run A:
         commit the failure was confirmed on.
       A failure caused by this cycle's changes is a bug to fix in the build files, not an R11 case.
       Nothing under `src/` changes either way; the matrix keeps every job.
-- [ ] Deferral ledger: walk every earlier phase body here for deferral phrases and confirm each has
+- [x] Deferral ledger: walk every earlier phase body here for deferral phrases and confirm each has
       its `issues/` file and ROADMAP entry (`ledger.py` checks the same mechanically).
 - [ ] Commit, then `sh spec/uv-build-and-ci/verify/gate.sh P5pre` green on the commit.
 - [ ] If anything outside `spec/` changed since P4's evidence SHA, hand back for the operator's push
