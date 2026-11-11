@@ -844,6 +844,15 @@ def test_app_argument_error_closed_stderr(capsys) -> None:
     assert captured.out == ''
 
 
+ROOT_AFTER_IMPORT_CHILD = """
+import sys
+import logging
+import cmdkit
+sys.stdout.write(repr([type(handler).__name__ for handler in logging.getLogger().handlers]))
+logging.getLogger('application').warning('an application warning')
+"""
+
+
 def test_app_library_handler_on_cmdkit_logger(capsys) -> None:
     """The library's one NullHandler sits on the cmdkit logger and quiets every cmdkit.* logger."""
     assert [type(handler) for handler in logging.getLogger('cmdkit').handlers] == [logging.NullHandler]
@@ -853,6 +862,13 @@ def test_app_library_handler_on_cmdkit_logger(capsys) -> None:
     captured = capsys.readouterr()
     assert captured.out == ''
     assert captured.err == ''
+    # In a fresh interpreter, importing cmdkit leaves the root logger with no handler at all,
+    # so an application's own warning still reaches Python's last resort.
+    proc = subprocess.run([sys.executable, '-I', '-c', ROOT_AFTER_IMPORT_CHILD],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+    assert proc.returncode == 0
+    assert proc.stdout == b'[]'
+    assert proc.stderr == b'an application warning\n'
 
 
 def test_app_argument_error_silent_when_logging_disabled(capsys) -> None:

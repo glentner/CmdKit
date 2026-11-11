@@ -3,7 +3,7 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: blocked
+status: in_review
 branch: fix/cli-defaults
 base: develop
 current_phase: done
@@ -227,9 +227,23 @@ returns 2 and writes nothing to stdout.
       `importlib.reload(cmdkit)` setup § 2.00 describes; the tests no longer name the private mark.
 - [x] Stage the work, then run the verify. Its `mutants P1` sweep must kill all 30 mutants on both
       Pythons; its `noargs` drive must stay green (P2's revert stands).
+
+**Review cycle 4 remediation (amendment 2026-11-11; the maintainer's ruling on review cycle 4,
+not in `PLAN.md`).** Wording and a test only; no code line changes.
+
+- [x] R4-F1: `docs/api/app.rst` (`log_critical` paragraph) and `Application.main`'s docstring stop
+      claiming parity with Python's last resort for a closed stream (its `handleError` catches
+      only `OSError`); they state cmdkit's own behaviour: skipped without a stderr, a failed
+      write ignored, `main` returns 2.
+- [x] R4-F2: `test_app_library_handler_on_cmdkit_logger` also checks, in a fresh `-I` child, that
+      importing cmdkit leaves the root logger with no handler and that an application's own
+      warning still reaches Python's last resort.
+- [x] R4-F3, the import-time crash without a stderr (pre-existing in 2.7.7), seeded:
+      `issues/import-without-stderr.md` and its `ROADMAP.md` entry, staged with this phase.
+- [x] Stage the work, then run the verify.
 - **Verify:** `sh spec/cli-defaults/verify/gate.sh P1`.
 - **Touches:** `src/cmdkit/app.py`, `src/cmdkit/__init__.py`, `tests/test_app.py`, `docs/api/app.rst`,
-  `AGENTS.md`.
+  `AGENTS.md`, `issues/import-without-stderr.md`, `ROADMAP.md`.
 
 ## Phase P2 — A group's bare run stays as in 2.7.7 (the bare-group help moved out)
 **Satisfies:** R5, R6, R8 (R4 left with GOAL C9) · **Depends on:** P1

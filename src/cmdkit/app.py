@@ -141,9 +141,9 @@ class Application(abc.ABC):
         Where no handler is found at all, Python's last resort prints the record itself, and
         that line stands alone. A :class:`~logging.NullHandler` the application adds to the
         ``cmdkit`` logger is a handler of the application's, and keeps the message silent.
-        As with Python's last resort, the message is skipped when ``sys.stderr`` is ``None``,
-        and a failure to write it (a closed stream or a broken pipe) is ignored, so ``main``
-        still returns ``exit_status.bad_argument``.
+        Without a ``sys.stderr`` (it is ``None``) the message is skipped, and a failure to
+        write it (a closed stream or a broken pipe) is ignored, so ``main`` still returns
+        ``exit_status.bad_argument``.
 
         See Also:
             :data:`~Application.exceptions`

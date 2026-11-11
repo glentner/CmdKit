@@ -182,6 +182,15 @@ filter that keeps state, reads caller fields or lowers the level can make it dif
 *Order: unset (filed during the cli-defaults cycle) · Waits on: `cli-defaults` · Refs: —*
 **Seed:** [`issues/last-resort-filter-fidelity.md`](issues/last-resort-filter-fidelity.md)
 
+## `import cmdkit` works when the process has no stderr or stdout
+
+`ansi.py` calls `isatty()` on `sys.stdout` and `sys.stderr` at import, so when either is `None` (a
+closed descriptor at startup, `pythonw`) importing cmdkit raises `AttributeError`. Pre-existing in
+2.7.7.
+
+*Order: unset (filed during the cli-defaults cycle) · Waits on: nothing · Refs: —*
+**Seed:** [`issues/import-without-stderr.md`](issues/import-without-stderr.md)
+
 ## An unknown command suggests the closest ones
 
 `unrecognized command: 'confg' (did you mean 'config'?)` on every supported Python.

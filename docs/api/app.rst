@@ -108,10 +108,9 @@ Reference
         default ``disable_existing_loggers`` of :func:`logging.config.dictConfig`, or a
         :class:`~logging.NullHandler` of the application's own on the ``cmdkit`` logger (such as
         routing ``cmdkit`` to a ``NullHandler`` with ``propagate: False`` in a ``dictConfig``),
-        keeps it silent. As with Python's last resort, the message is skipped when
-        ``sys.stderr`` is ``None``, and a failure to write it (a closed stream or a broken pipe)
-        is ignored: :func:`~main` still returns ``exit_status.bad_argument`` and writes nothing
-        to ``sys.stdout``. An override of ``log_critical`` alone handles the message: *cmdkit*
+        keeps it silent. Without a ``sys.stderr`` (it is ``None``) the message is skipped, and
+        a failure to write it (a closed stream or a broken pipe) is ignored: :func:`~main` still
+        returns ``exit_status.bad_argument`` and writes nothing to ``sys.stdout``. An override of ``log_critical`` alone handles the message: *cmdkit*
         writes nothing further.
 
     |
