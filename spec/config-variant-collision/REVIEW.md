@@ -128,3 +128,33 @@ records.
 - F2, F3, F4 and F6 are fixed in the docs.
 - F5 gets a pinning test.
 - A short scoped verification follows, then the PR.
+
+## Review cycle 3 (scoped to the cycle-2 remediation) — approved (2026-11-11)
+
+**Reviewed commit:** 4516241d207705a4783273a42fc3ecb1aafeec32.
+
+### Verification run
+- **No code changed:** `git diff 46e3f87..HEAD -- src/` is empty.
+- **The new test** `test_which_scalar_below_fresh_variant` passes on HEAD, matches `cmdkit==2.7.7`
+  line for line, and is the only test that kills the mutant `depth in held` → `held` (1 failed,
+  155 passed).
+- **C8's four shapes** reproduce exactly as GOAL and the seed note state, and the seed's corrected
+  line citations are right.
+- **Release note and API-page wording:** each changed sentence holds when executed. That covers the
+  "higher" caveat (three variations) and the "few rare sequences" sentence. The Project bullet is
+  gone, and the top note is non-specific.
+- **The profile's `verify`:** 156 passed on 3.9 and 156 on 3.14, after the seeded
+  `test_app_invalid_options` flake fired once (`opt='he'`) and its saved example was moved aside.
+- **The docs:** `sphinx-build -E -W` passes, and every changed sentence renders.
+
+### Findings
+None CONFIRMED.
+
+- **[LOW/PLAUSIBLE] "Its dependencies and supported Python versions are unchanged"** (release note,
+  line 13). The 2.8.0 metadata adds the 3.14 classifier.
+  - **Triage (foreman): drop.** The same note states that CI covers 3.9 to 3.14, and its
+    Compatibility section ties support to `Requires-Python`, which is unchanged. The sentence isn't
+    misleading in context, and it describes no R-ID.
+
+### Human-gate status
+Each trigger from cycles 1 and 2 has the maintainer's ruling recorded above.
