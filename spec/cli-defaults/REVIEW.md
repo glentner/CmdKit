@@ -237,3 +237,14 @@ whole spec-excluded diff, graded against GOAL C1–C9. It saw no earlier review 
 ### Human-gate triggers
 - CR-F1 is CONFIRMED in `src/cmdkit/app.py`, a high-blast-radius path, and it violates § Invariants 3.
 - This is review cycle 3, the bound. The cycle escalates to the maintainer.
+
+## Maintainer's ruling on the cycle-3 escalation (2026-11-11)
+
+**A scoped fourth cycle, overriding the three-cycle bound once.** The remediation of CR-F1:
+- write only when `sys.stderr` is not `None`;
+- swallow `OSError`/`ValueError` from the write, as Python's last resort does, so `main` still
+  returns 2;
+- pin which logger carries cmdkit's `NullHandler` (I6);
+- drive the re-import case through `importlib.reload` rather than the private mark.
+
+Review cycle 4 is scoped to verifying this remediation.
