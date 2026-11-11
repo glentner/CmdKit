@@ -248,3 +248,40 @@ whole spec-excluded diff, graded against GOAL C1–C9. It saw no earlier review 
 - drive the re-import case through `importlib.reload` rather than the private mark.
 
 Review cycle 4 is scoped to verifying this remediation.
+
+## Review cycle 4 (scoped to CR-F1, I6 and the reload case) — changes-requested (2026-11-11)
+
+**Reviewed commit:** 31ad66490189705264fd6f7cd02467c06b86d5c2. A blind pass, scoped by the
+maintainer's ruling to verifying the cycle-3 remediation and anything next to it.
+
+### Verification run
+- **The profile's `verify`,** with the sandbox off: 130 passed on Python 3.9.25 and 130 on 3.14.6.
+- **CR-F1,** in fresh `-I` children on 3.9 and 3.14, against HEAD, the previous head and base:
+  - a dead stderr pipe, a `None` stderr, a closed stderr and `os.close(2)` all return 2 with
+    stdout empty. Remediated;
+  - the R1 report still prints once to a working stderr;
+  - configured and replaced cases are unchanged.
+- **Mutants** m1–m5 (the guard and I6) are each killed. The reload case does real work (m7 is
+  killed only by it) and restores logging state.
+- **The tests** pass in reverse and in three shuffled orders.
+- **R5:** 104 cases per Python equal 2.7.7's, apart from R1's line on status-2 returns.
+
+### Findings
+
+#### [LOW/CONFIRMED] R4-F1 · The docs claim parity with Python's last resort for a closed stream
+- **Where:** `docs/api/app.rst:111-113`, `src/cmdkit/app.py:144-146`.
+- **Failure scenario:** "As with Python's last resort, … a closed stream or a broken pipe is
+  ignored." Python's last resort raises `ValueError` on a closed `sys.stderr`; its `handleError`
+  catches only `OSError`. cmdkit's behaviour is correct as documented. Only the comparison is wrong.
+- **Evidence:** `lastresort_closed.py` on 3.9 and 3.14.
+
+#### Coverage observation (LOW, not graded as a finding) · R4-F2 · The I6 test doesn't assert the root logger
+- A marked handler added to root as well as `cmdkit` passes the suite, and it would silence an
+  application's own warnings. HEAD itself is correct.
+
+#### Out of Scope · R4-F3 · `import cmdkit` fails when there is no stderr at startup
+- `ansi.py:31,33` call `isatty()` at import. This is pre-existing, on base and on PyPI 2.7.7.
+  Candidate for a seed.
+
+### Remediation status
+CR-F1, I6 and the reload case are remediated. R4-F1 (wording) is the only CONFIRMED item.

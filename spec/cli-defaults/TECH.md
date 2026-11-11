@@ -3,7 +3,7 @@ slug: cli-defaults
 title: Argument errors reach stderr, and a group can show its help when run bare
 kind: fix
 appetite: small
-status: in_review
+status: blocked
 branch: fix/cli-defaults
 base: develop
 current_phase: done
@@ -39,10 +39,10 @@ phases:
   hill: uphill
   verify: sh spec/cli-defaults/verify/gate.sh P2
 review:
-  last_reviewed_commit: e146bc27ebf8c141305cb35d3017e3eaec814e58
+  last_reviewed_commit: 31ad66490189705264fd6f7cd02467c06b86d5c2
   verdict: changes-requested
-  blocked_reason: 'review cycle 3 (bound): CR-F1 unguarded stderr write; escalated'
-  cycle: 3
+  blocked_reason: 'review cycle 4: CR-F1 remediated; R4-F1 docs wording (LOW)'
+  cycle: 4
 ---
 
 # TECH.md — Argument errors reach stderr, and a group can show its help when run bare
