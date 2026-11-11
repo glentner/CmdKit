@@ -294,3 +294,32 @@ CR-F1, I6 and the reload case are remediated. R4-F1 (wording) is the only CONFIR
 - R4-F2: add a root-logger assertion to the I6 test.
 - A short review cycle 5, scoped to those two, then publish.
 - R4-F3, the import-time crash with no stderr, is seeded separately.
+
+## Review cycle 5 (scoped to R4-F1, R4-F2 and the R4-F3 seed) — approved (2026-11-11)
+
+**Reviewed commit:** 0f5644235fcd0645b82dd25d030c885721e8c039.
+
+### Verification run
+- **The profile's `verify`,** with the sandbox off: 130 passed on 3.9 and 130 on 3.14. The first run
+  on 3.14 hit the seeded `test_app_invalid_options` flake (`opt='he'`). The saved Hypothesis example
+  was moved aside, and the second run passed 130 on each.
+- **R4-F1:**
+  - `app.py` at `31ad664` and at HEAD are identical as ASTs with docstrings stripped, with a planted
+    control detected.
+  - The false comparison is gone.
+  - Each new sentence matches fresh `-I` probes: a working stderr, a `None` stderr, a closed stderr,
+    `os.close(2)` and a dead pipe all return 2 with stdout empty.
+- **R4-F2:** the mutants `root-marked`, `root-level` and `lastresort-none` each fail the extended
+  test on 3.9 and 3.14. It passes clean, with no order dependence or state leak.
+- **The R4-F3 seed** reproduces on 3.9 and 3.14 and names the whole cause.
+- **Regression spot check:** five argument errors behave as R1–R2 require.
+
+### Findings
+None.
+
+**Noted, out of Scope:** with a dead stderr, `sys.exit(main(...))` exits 120 because of the
+interpreter's shutdown flush, as Python's own last resort does. `main` returns 2 as C10 requires.
+
+### Human-gate status
+- Every human-gate trigger from cycles 1–4 has the maintainer's ruling recorded above.
+- Cycle 4's sole CONFIRMED item (R4-F1) is remediated and verified here.

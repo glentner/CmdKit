@@ -39,10 +39,10 @@ phases:
   hill: uphill
   verify: sh spec/cli-defaults/verify/gate.sh P2
 review:
-  last_reviewed_commit: 31ad66490189705264fd6f7cd02467c06b86d5c2
-  verdict: changes-requested
-  blocked_reason: 'review cycle 4: CR-F1 remediated; R4-F1 docs wording (LOW)'
-  cycle: 4
+  last_reviewed_commit: 0f5644235fcd0645b82dd25d030c885721e8c039
+  verdict: approved
+  blocked_reason: ''
+  cycle: 5
 ---
 
 # TECH.md — Argument errors reach stderr, and a group can show its help when run bare
