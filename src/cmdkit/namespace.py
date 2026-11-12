@@ -36,6 +36,11 @@ def _as_namespace(ns: T) -> Union[T, Namespace]:
     return ns if not isinstance(ns, Mapping) else Namespace({k: _as_namespace(v) for k, v in dict(ns).items()})
 
 
+def _name_the_file(error: ValueError, path: Union[str, os.PathLike]) -> None:
+    """Put the path of the file that failed to decode at the head of the decode error's message."""
+    error.args = (f'{os.fspath(path)}: {error}', )
+
+
 def _as_dict(ns: NSCoreMixin) -> dict:
     """If `ns` is a mappable, coerce to dict, recursively, otherwise pass."""
     return {k: v if not isinstance(v, Mapping) else _as_dict(v) for k, v in dict(ns).items()}
@@ -182,6 +187,8 @@ class Namespace(NSCoreMixin):
         Load a namespace from a TOML file.
 
         The path may be a `str` or an `os.PathLike`; a handle may be text or binary.
+        A file given by path that fails to decode raises `TOMLDecodeError`
+        with the file named in its message.
         """
         if sys.version_info >= (3, 11):
             import tomllib as toml
@@ -189,18 +196,34 @@ class Namespace(NSCoreMixin):
             import tomli as toml
         if isinstance(path_or_file, (str, os.PathLike)):
             with open(path_or_file, mode='rb', **options) as source:
-                return cls(toml.load(source))
+                try:
+                    data = toml.load(source)
+                except toml.TOMLDecodeError as error:
+                    _name_the_file(error, path_or_file)
+                    raise
+            return cls(data)
         else:
             data = path_or_file.read()
             return cls(toml.loads(data.decode() if isinstance(data, bytes) else data))
 
     @classmethod
     def from_json(cls, path_or_file: Union[str, os.PathLike, IO], **options) -> Namespace:
-        """Load a namespace from a JSON file. The path may be a `str` or an `os.PathLike`."""
+        """
+        Load a namespace from a JSON file.
+
+        The path may be a `str` or an `os.PathLike`.
+        A file given by path that fails to decode raises `json.JSONDecodeError`
+        with the file named in its message.
+        """
         import json
         if isinstance(path_or_file, (str, os.PathLike)):
             with open(path_or_file, mode='r', **options) as source:
-                return cls(json.load(source))
+                try:
+                    data = json.load(source)
+                except json.JSONDecodeError as error:
+                    _name_the_file(error, path_or_file)
+                    raise
+            return cls(data)
         else:
             return cls(json.load(path_or_file))
 

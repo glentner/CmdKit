@@ -3,10 +3,10 @@ slug: namespace-file-loading
 title: File loading accepts paths and handles, and its errors name the file
 kind: fix
 appetite: small
-status: in_progress
+status: in_review
 branch: fix/namespace-file-loading
 base: develop
-current_phase: P2
+current_phase: done
 last_updated: '2026-11-11'
 phases:
 - id: P1
@@ -27,7 +27,7 @@ phases:
   verify: sh spec/namespace-file-loading/verify/gate.sh P1
 - id: P2
   name: Decode errors name the file
-  status: pending
+  status: done
   satisfies:
   - R1
   - R7
@@ -199,15 +199,15 @@ handles and `to_toml` writes text handles; the docstrings say so in the same com
 the decoder's own error with the path at the head of its message and its `lineno` and `colno`
 kept; handle errors and every other error are unchanged; the two docstrings say so.
 
-- [ ] `src/cmdkit/namespace.py`, `PLAN.md` § 2.4: the helper `_name_the_file` after
+- [x] `src/cmdkit/namespace.py`, `PLAN.md` § 2.4: the helper `_name_the_file` after
       `_as_namespace`, with a one-line docstring and annotations, setting a one-tuple `args`; the
       path branches of `from_toml` and `from_json` catch exactly the decoder's error class, call the
       helper and re-raise with a bare `raise`; the `return cls(data)` after the `with`. The handle
       branches stay as P1 left them.
-- [ ] Docstrings, `PLAN.md` § 2.5: `from_toml` names `TOMLDecodeError` and `from_json` names
+- [x] Docstrings, `PLAN.md` § 2.5: `from_toml` names `TOMLDecodeError` and `from_json` names
       `JSONDecodeError`, each saying a file given by path that fails to decode raises it with the
       file named in its message.
-- [ ] `tests/test_config.py`, in `TestFileLoading`:
+- [x] `tests/test_config.py`, in `TestFileLoading`:
       - `test_decode_error_names_file`, parametrized over `toml` and `json` and over `str` and
         `Path`: `[a]\nx = \n` and `{"a": }` through the direct loader, `from_local` by extension and
         by `ftype`; the error is the decoder's type (import `TOMLDecodeError` from `tomllib` or
@@ -222,10 +222,10 @@ kept; handle errors and every other error are unchanged; the two docstrings say 
         a `UnicodeDecodeError` whose `args` and `str()` equal those of decoding the same bytes
         directly (`bytes.decode()` for TOML, a text-mode `read()` for JSON); a missing file raises
         `FileNotFoundError`.
-- [ ] Deferral ledger: walk P1's and P2's bodies for deferral phrases and confirm each names an
+- [x] Deferral ledger: walk P1's and P2's bodies for deferral phrases and confirm each names an
       `issues/` seed with its `ROADMAP.md` entry (`change_set.py` checks the same at P2). This plan
       defers nothing: GOAL's non-goals need no seed, and `environ-without-prefix` is seeded already.
-- [ ] Stage everything, run the verify, then commit code, tests, docstrings and the `TECH.md` state
+- [x] Stage everything, run the verify, then commit code, tests, docstrings and the `TECH.md` state
       change together.
 - **Verify:** `sh spec/namespace-file-loading/verify/gate.sh P2`: `static P2` (with the ledger),
   `suite P2`, `drive P2`, `mutants`.

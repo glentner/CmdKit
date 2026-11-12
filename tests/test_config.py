@@ -7,12 +7,18 @@
 # standard libs
 import io
 import os
+import sys
+import json
 from io import StringIO
 from pathlib import Path
 from string import ascii_letters
 
 # external libs
 import pytest
+if sys.version_info >= (3, 11):
+    from tomllib import TOMLDecodeError, loads as toml_loads
+else:
+    from tomli import TOMLDecodeError, loads as toml_loads
 
 # internal libs
 from cmdkit.config import Configuration
@@ -1245,3 +1251,87 @@ class TestFileLoading:
         assert text.getvalue().encode() == binary.getvalue() == handle.read_bytes() == expected
         assert Namespace.from_toml(io.StringIO(text.getvalue())) == ns
         assert Namespace.from_toml(handle) == ns
+
+    @pytest.mark.parametrize('make', [str, Path], ids=['str', 'path'])
+    @pytest.mark.parametrize('ext, text', [('toml', '[a]\nx = \n'), ('json', '{"a": }')], ids=['toml', 'json'])
+    def test_decode_error_names_file(self, tmp_path: Path, ext: str, text: str, make: type) -> None:
+        """A file given by path that fails to decode raises the decoder's own error, naming the file."""
+        error_type, decode = {'toml': (TOMLDecodeError, toml_loads), 'json': (json.JSONDecodeError, json.loads)}[ext]
+        with pytest.raises(error_type) as info:
+            decode(text)
+        reference = info.value
+        assert reference.args == (str(reference), )
+        by_ext, by_ftype = tmp_path / f'bad.{ext}', tmp_path / 'bad.conf'
+        by_ext.write_text(text)
+        by_ftype.write_text(text)
+        attempts = [(getattr(Namespace, f'from_{ext}'), by_ext, {}),
+                    (Namespace.from_local, by_ext, {}),
+                    (Namespace.from_local, by_ftype, {'ftype': ext})]
+        for load, path, options in attempts:
+            with pytest.raises(error_type) as info:
+                load(make(path), **options)
+            error = info.value
+            assert type(error) is type(reference)
+            assert isinstance(error, ValueError)
+            assert error.args == (f'{path}: {reference}', )
+            assert str(error) == f'{path}: {reference}'
+            for name in ('msg', 'doc', 'pos', 'lineno', 'colno'):
+                if hasattr(reference, name):
+                    assert getattr(error, name) == getattr(reference, name)
+
+    def test_decode_error_configuration(self, tmp_path: Path) -> None:
+        """Configuration.from_local names the layer's file that fails to decode."""
+        good = tmp_path / 'system.toml'
+        good.write_text('[a]\nx = 1\n')
+        for ext, text, error_type in [('toml', '[a]\nx = \n', TOMLDecodeError),
+                                      ('json', '{"a": }', json.JSONDecodeError)]:
+            bad = tmp_path / f'user.{ext}'
+            bad.write_text(text)
+            for given in (str(bad), bad):
+                with pytest.raises(error_type) as info:
+                    Configuration.from_local(system=good, user=given)
+                assert isinstance(info.value, ValueError)
+                assert str(info.value).startswith(f'{bad}: ')
+                assert str(good) not in str(info.value)
+
+    def test_decode_error_handle_unchanged(self) -> None:
+        """A decode error read from a handle keeps the decoder's own message."""
+        cases = [(Namespace.from_toml, io.StringIO('[a]\nx = \n'), toml_loads, '[a]\nx = \n'),
+                 (Namespace.from_toml, io.BytesIO(b'[a]\nx = \n'), toml_loads, '[a]\nx = \n'),
+                 (Namespace.from_json, io.StringIO('{"a": }'), json.loads, '{"a": }')]
+        for load, handle, decode, text in cases:
+            with pytest.raises(ValueError) as reference:
+                decode(text)
+            with pytest.raises(type(reference.value)) as info:
+                load(handle)
+            assert type(info.value) is type(reference.value)
+            assert info.value.args == reference.value.args
+            assert str(info.value) == str(reference.value)
+
+    def test_other_errors_unchanged(self, tmp_path: Path) -> None:
+        """Undecodable bytes and a missing file raise as they would without the file named."""
+        toml_path, json_path = tmp_path / 'c.toml', tmp_path / 'c.json'
+        toml_path.write_bytes(b'a = "\xff"\n')
+        json_path.write_bytes(b'{"a": "\xff"}')
+        with pytest.raises(UnicodeDecodeError) as info:
+            toml_path.read_bytes().decode()
+        toml_reference = info.value
+        with pytest.raises(UnicodeDecodeError) as info:
+            with open(json_path) as stream:
+                stream.read()
+        json_reference = info.value
+        for given in (str, Path):
+            for load, path, reference in [(Namespace.from_toml, toml_path, toml_reference),
+                                          (Namespace.from_local, toml_path, toml_reference),
+                                          (Namespace.from_json, json_path, json_reference),
+                                          (Namespace.from_local, json_path, json_reference)]:
+                with pytest.raises(UnicodeDecodeError) as info:
+                    load(given(path))
+                assert info.value.args == reference.args
+                assert str(info.value) == str(reference)
+                assert str(path) not in str(info.value)
+        for ext in ('toml', 'json'):
+            missing = tmp_path / f'missing.{ext}'
+            for load in (getattr(Namespace, f'from_{ext}'), Namespace.from_local):
+                with pytest.raises(FileNotFoundError):
+                    load(missing)
