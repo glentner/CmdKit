@@ -59,6 +59,15 @@ of the defined long options.
 *Order: unset (filed during the cli-defaults cycle) · Waits on: nothing · Refs: —*
 **Seed:** [`issues/test-invalid-options-help-prefix.md`](issues/test-invalid-options-help-prefix.md)
 
+## The decode-error tests cover a bare `os.PathLike`
+
+A decode error names the file by `os.fspath`, but the tests use only `str` and `pathlib.Path`, so
+spelling the path with `str` instead would pass them. Add a bare `os.PathLike` to the tests.
+
+*Order: unset (filed during the namespace-file-loading review) · Waits on: `namespace-file-loading`
+(the tests it extends land with it) · Refs: —*
+**Seed:** [`issues/decode-error-pathlike-test.md`](issues/decode-error-pathlike-test.md)
+
 ---
 
 # Part II — Configuration: outright failures, fixed by default

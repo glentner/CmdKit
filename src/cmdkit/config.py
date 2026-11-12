@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Tuple, List, Dict, TypeVar, Callable, Union, Any, Mapping
 
 # standard libs
+import os
 from collections import Counter
 
 # internal libs
@@ -192,9 +193,11 @@ class Configuration(NSCoreMixin):
 
     @classmethod
     def from_local(cls, *, env: bool = False, prefix: str = None,
-                   default: dict = None, **files: str) -> Configuration:
+                   default: dict = None, **files: Union[str, os.PathLike]) -> Configuration:
         """
         Create configuration from a cascade of `files`. Optionally include `env`.
+
+        Each file path may be a `str` or an `os.PathLike` (such as a `pathlib.Path`).
 
         Example:
             >>> import os
