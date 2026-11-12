@@ -151,6 +151,21 @@ Raised during shaping, ruled at GOAL sign-off (2026-11-11):
   R1 covers files given by path (`str` or `os.PathLike`); a handle's decode errors are unchanged,
   since a handle need not have a name (resolved 2026-11-11; R1, Non-goals).
 
+Raised by the plan, ruled at PLAN/TECH sign-off (2026-11-11; `PLAN.md` § 3):
+
+- **C3 · Q:** Are `dict`, `env` and `local` extensions "with no loader or writer"? Their
+  `from_<ext>` / `to_<ext>` are methods other than file loaders and writers (`x.env` silently loads
+  `os.environ`, `x.local` recurses). — **A:** Yes. `from_local` and `to_local` raise R4's
+  `NotImplementedError` for them: each is an outright failure in the dispatch R4 rewrites (resolved
+  2026-11-11; R4, R7).
+- **C4 · Q:** Does R4's "(or `ftype`)" make an unknown `ftype` raise? — **A:** No. An `ftype`
+  outside `toml`, `tml`, `yaml`, `yml` and `json` is ignored and the extension decides, as today;
+  raising would break working calls such as `ftype='TOML'` (§ Invariants 1). R4 applies wherever an
+  `ftype` chooses the format (resolved 2026-11-11; R4, R7).
+- **C5 · Q:** Does R4 apply to a missing file with `ignore_if_missing=True`? — **A:** No. The
+  existence check stays first, so such a file returns an empty namespace whatever its extension, as
+  today; `Configuration.from_local` always passes `True` (resolved 2026-11-11; R4, R7).
+
 ## Related materials
 
 - Seed: `issues/namespace-file-loading.md`
