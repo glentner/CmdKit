@@ -154,3 +154,128 @@ CONFIRMED findings auto-loop to `code-build`.
 ## Optional completeness sub-pass (separate reviewer; may see TECH.md)
 
 - Not run: not requested for this cycle.
+
+## Review cycle 2 — approved (2026-11-11)
+
+- **Graded commit:** cc704bd27d3935174eeb5bd66ed9b5956c3390c0 (the remediation of F1 and F2)  ·
+  **Reviewed commit (re-pinned):** d0c374a99120a3f8ab0b555c5f160cd70cada2c3, which adds only the
+  coverage seed below  ·  **Base:** develop (`386a09a`)
+- **Verdict:** approved
+- **Cycle:** 2 of ≤3. Mirrors `review.cycle` in `TECH.md`.
+- **Mode:** the default, a fresh blind pass over the full spec-excluded diff. It was not scoped to
+  the remediation. A new reviewer ran it, not cycle 1's. Its inputs were `GOAL.md`, the review
+  rubric, `AGENTS.md`, the runnable worktree, and the diff and log against `origin/develop` with
+  `spec/` excluded. It did not see this file. The sequential fallback did not run, and there was no
+  `debate`. No R-ID is met by a committed `spec/` artifact, so the reviewer graded all eight. Its
+  probes and logs are in `.local/review2/`; the orchestrator's are in `.local/review2-orch/`.
+
+**Contract history.** Unchanged since cycle 1. `GOAL.md`'s only post-shape commit is `072a36f`
+(C3–C5, ruled at plan sign-off, before any build commit). It is sanctioned, and `GOAL.md` was graded
+at HEAD. The F1 remediation was signed off to be fixed as cycle 1 routed it, so R6 was graded as
+written, with no deviation.
+
+### Verification run
+
+- **The profile's `verify`:** 176 passed on Python 3.9.25 (tomli 2.5.0) and 176 passed on 3.14.6
+  (tomllib), and the same again on a final re-run (`verify-head.log`, `verify-head-final.log`).
+- **R7, base tests against HEAD's source:** the 156 tests collected from `tests/` at `386a09a` pass on
+  3.9 and 3.14 (`base-tests-vs-head.log`). `tests/` changes by 319 additions and 0 deletions.
+- **Beyond the profile:**
+  - The full suite on 3.10–3.13: 176 passed on each (`head-3.10-3.13.log`).
+  - CI's own `uv run --locked python -m pytest`, run with the environment outside the tree: 176
+    passed on 3.9 and 3.14 (`ci-locked-emulation.log`).
+- **GOAL probe:** 201 of 201 checks pass on 3.9 and 3.14 (`probe_goal.py`, `probe-head.log`).
+  - R1–R6 with `str`, `pathlib.Path` and a bare `os.PathLike`.
+  - Odd path characters, and handle errors unchanged (C2).
+  - R3 and R4 on `Namespace`, a bare subclass and `BuilderNamespace`; C4 and C5.
+  - R7's `**options`, YAML errors, return types, and no `_eval` run on load or on `to_local`
+    (§ Invariants 2).
+  - The same probe against base source fails R1–R6 as the GOAL describes (`probe-base-control.log`).
+- **Discrimination:** the 20 new tests all fail against base source (`headtests-vs-base.log`). 12 of
+  13 hand-planted mutants, run on an out-of-tree copy, are killed on both Pythons (`mutants.log`).
+  The survivor is the coverage observation below.
+- **Spec-ID grep** over `src/`, `tests/` and the diff's added lines: none (`spec-id-grep.log`).
+- **The docs:**
+  - `uv run --locked --group docs sphinx-build -W -b html docs <out>` on Python 3.12, with the
+    environment outside the tree, prints "build succeeded" (`.local/review2-orch/sphinx.log`).
+  - The rendered text was read (`docs_text.log`). After stripping tags, `os.PathLike` appears 8
+    times in `api/namespace.html`, once in each docstring R2 names, and once in `api/config.html`.
+    The new `from_toml`/`to_toml` text about handles renders as written.
+  - That check was written for this review. `AGENTS.md` documents no reading, presence or counting
+    form for the docs, so cycle 1's raw-HTML count of 2 for `config.html` is not comparable.
+- **Not observed:**
+  - GitHub Actions on this branch: this step has no CI access.
+  - A real Windows host or Linux runner. Windows was emulated only: CRLF decode attributes
+    (`probe-crlf-emulation.log`) and the Windows text layer (below).
+  - `test_app_invalid_options` failed once in the reviewer's out-of-tree mutant copy, and on
+    unmutated HEAD there. This is the pre-existing Hypothesis flake filed as
+    `issues/test-invalid-options-help-prefix.md`. `tests/test_app.py` is untouched by this diff, and
+    the flake never fired in the worktree's own runs.
+
+### Cycle 1 findings
+
+| Finding | Status | Verified how |
+|---------|--------|--------------|
+| F1 `to_toml` rejects text handles outside `io.TextIOBase` | **fixed** | Cycle 1's own probe re-run on HEAD (`.local/review2-orch/f1_probe_handles.log`): 0 errors on 3.9 and 3.14 where cycle 1 logged 8. `to_toml` now writes text to `open(p, 'w')`, `StringIO`, `NamedTemporaryFile('w')`, `SpooledTemporaryFile('w+')` and `codecs.open`, and bytes to `BytesIO` and `NamedTemporaryFile('wb')`. The blind pass independently found R6 met. |
+| F2 two new tests assume POSIX text I/O | **fixed, under emulation** | Cycle 1's Windows text-layer emulation re-run on HEAD: 176 passed on 3.9 and 3.14 (`f2_winsim.log`). As a control, cycle 1's version of `tests/test_config.py` under the same emulation still fails exactly the two tests (`f2_winsim_control.log`). A real `windows-latest` run is not observed: the PR's CI is the platform check. |
+
+**Accepted error-path changes (R7).** The remediation changes two error paths, and both were
+accepted at the remediation sign-off as within R7. No working call changes.
+
+1. A value TOML cannot hold now leaves a binary handle empty. Before, the handle received partial
+   chunks. The exception's type and message are unchanged.
+2. An unknown keyword passed with a handle now raises the `tomli_w.dumps()` message, as a path
+   always did.
+
+The blind pass found both on its own. It listed them as unmapped, and judged neither an R7
+regression.
+
+### Requirement → evidence matrix
+
+The blind reviewer verified every row. The R8 docs render is the orchestrator's.
+
+| R-ID | Implemented by (file/commit) | Verified how | Status |
+|------|------------------------------|--------------|--------|
+| R1 | `namespace.py` `_name_the_file`, the decode `try`/`except` in `from_toml` and `from_json` (`c4340c4`) | `probe_goal.py` on 3.9 and 3.14, and the suite on 3.10–3.13: `str`, `Path` and bare `os.PathLike`; direct loaders, aliases, `from_local` by extension and by `ftype`, `Configuration.from_local` | ✅ (tests pin `str` and `Path` only: coverage observation) |
+| R2 | `(str, os.PathLike)` checks in every loader and writer; the `Configuration.from_local` annotation (`d474800`) | probe round trips for all five extensions, with and without `ftype`: byte-identical writes, equal loads, `ignore_if_missing` | ✅ |
+| R3 | the `try`/`except AttributeError` removed from `from_local` and `to_local` (`d474800`) | probe: `AttributeError`, `NotImplementedError`, `KeyError` and `TypeError` come out as the same object; mutant M12 killed | ✅ |
+| R4 | class-level lookup with its exclusion list, `cls.__name__` (`d474800`) | probe: `ini`, `cfg`, `dict`, `env`, `local` and no extension, on three classes; C4 and C5 hold; mutants M1–M3 and M13 killed | ✅ |
+| R5 | `from_toml` decodes a bytes read (`d474800`) | probe: `open(p, 'rb')` and `open(p)` load equal, CRLF included; mutant M6 killed | ✅ |
+| R6 | `to_toml` serializes first, writes bytes, and writes the `str` when the handle refuses bytes (`d474800`, reworked in `cc704bd`) | probe: `StringIO` and `BytesIO` write the same TOML, and `open(p, 'w', newline='')` and `open(p, 'wb')` the same bytes; mutants M7 and M8 killed; cycle 1's handle probe all green | ✅ |
+| R7 | (no change) | base `tests/` against HEAD, 156 passed on each Python; `**options`, YAML errors, return types and no expansion on load, by probe | ✅ |
+| R8 | docstrings on every method R2 names and on `Configuration.from_local`, in the commit with the R2 code (`d474800`) | read at HEAD; `docs/api/*.rst` are `automethod` only and state no argument type; the `sphinx-build -W` render was read (orchestrator) | ✅ |
+
+**Unmapped changes:** none beyond the two accepted error paths. `issues/namespace-file-loading.md`
+moves to `adopted:namespace-file-loading`, and its `ROADMAP.md` entry points at a file that exists.
+
+### Findings
+
+None CONFIRMED and none PLAUSIBLE.
+
+#### Coverage observation (not a finding of this cycle): the R1 tests don't pin `os.fspath` for a bare `os.PathLike`
+- **Where:** `src/cmdkit/namespace.py:38-40` (`_name_the_file`). The tests are
+  `tests/test_config.py:1317-1342` and `1344-1357`.
+- **What:** the code is correct. A bare `os.PathLike` is named by its path in every R1 route, on
+  both Pythons (`probe-head.log`, the `Bare` lines). The R1 tests use only `str` and `pathlib.Path`,
+  and for those `str(p) == os.fspath(p)`. A hand-planted mutant that spells the path with `str(path)`
+  survives the whole suite on 3.9 and 3.14 (`mutants.log`, M11). Under it, a bare `os.PathLike`
+  would be named by its repr. The reviewer graded it LOW.
+- **Ruling:** a coverage observation, not CONFIRMED. The mutant was planted by hand, and it pins a
+  deeper layer of a behaviour the suite already pins: the file's presence in the message is tested;
+  only its spelling for a non-`Path` `os.PathLike` is not. It also sits in code that cycle 1 reviewed
+  and the remediation did not change.
+- **Home:** seeded as `issues/decode-error-pathlike-test.md` with its `ROADMAP.md` entry, in
+  `d0c374a`, before the reviewed-commit pin.
+
+### Human-gate triggers
+
+- **Still open from cycle 1, publish sign-off owed.** Cycle 1's F1 was CONFIRMED in
+  `src/cmdkit/namespace.py`, which is on § Invariants' high-blast-radius list. The maintainer signed
+  off on remediating it as routed. The gate holds until publish, and the publish sign-off has
+  **not** been given. The maintainer must sign off explicitly, recorded here, before publish is
+  recommended.
+- **Cycle 2:** no CONFIRMED finding, so no new trigger.
+
+### Optional completeness sub-pass (separate reviewer; may see TECH.md)
+
+- Not run: not requested for this cycle.

@@ -39,10 +39,10 @@ phases:
   hill: uphill
   verify: sh spec/namespace-file-loading/verify/gate.sh P2
 review:
-  last_reviewed_commit: c4340c4ad06694b756af0b01b5e45e833ee9ee40
-  verdict: changes-requested
-  blocked_reason: 'Review cycle 1: F1 to_toml rejects non-TextIOBase text handles (R6); F2 two new tests fail on Windows CI. Human gate: F1 in namespace.py'
-  cycle: 1
+  last_reviewed_commit: d0c374a99120a3f8ab0b555c5f160cd70cada2c3
+  verdict: approved
+  blocked_reason: ''
+  cycle: 2
 ---
 
 # TECH.md — File loading accepts paths and handles, and its errors name the file
