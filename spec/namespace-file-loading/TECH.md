@@ -3,7 +3,7 @@ slug: namespace-file-loading
 title: File loading accepts paths and handles, and its errors name the file
 kind: fix
 appetite: small
-status: in_review
+status: blocked
 branch: fix/namespace-file-loading
 base: develop
 current_phase: done
@@ -39,10 +39,10 @@ phases:
   hill: uphill
   verify: sh spec/namespace-file-loading/verify/gate.sh P2
 review:
-  last_reviewed_commit: ''
-  verdict: none
-  blocked_reason: ''
-  cycle: 0
+  last_reviewed_commit: c4340c4ad06694b756af0b01b5e45e833ee9ee40
+  verdict: changes-requested
+  blocked_reason: 'Review cycle 1: F1 to_toml rejects non-TextIOBase text handles (R6); F2 two new tests fail on Windows CI. Human gate: F1 in namespace.py'
+  cycle: 1
 ---
 
 # TECH.md — File loading accepts paths and handles, and its errors name the file
