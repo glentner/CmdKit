@@ -3,7 +3,7 @@ slug: namespace-file-loading
 title: File loading accepts paths and handles, and its errors name the file
 kind: fix
 appetite: small
-status: in_review
+status: done
 branch: fix/namespace-file-loading
 base: develop
 current_phase: done
