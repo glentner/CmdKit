@@ -1,5 +1,5 @@
 ---
-status: unshaped
+status: adopted:namespace-file-loading
 kind: fix
 appetite: small
 ---
