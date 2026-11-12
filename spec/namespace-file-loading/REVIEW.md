@@ -275,6 +275,8 @@ None CONFIRMED and none PLAUSIBLE.
   **not** been given. The maintainer must sign off explicitly, recorded here, before publish is
   recommended.
 - **Cycle 2:** no CONFIRMED finding, so no new trigger.
+- **Publish sign-off, 2026-11-11:** the maintainer signed off explicitly on publishing this cycle,
+  with cycle 1's F1 verified fixed in cycle 2. The gate is closed.
 
 ### Optional completeness sub-pass (separate reviewer; may see TECH.md)
 
