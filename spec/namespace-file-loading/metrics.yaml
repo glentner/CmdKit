@@ -1,4 +1,4 @@
-# Written only by $KB/bin/factory/metrics.py. Observation, never state: nothing routes on it.
+# Written only by the factory's metrics tool. Observation, never state: nothing routes on it.
 slug: namespace-file-loading
 escaped_from: pre-factory
 planned: {date: '2026-11-11', phases: 2}
