@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Union, Mapping, Iterable, Any, Dict, Optional, IO, List, Tuple, Callable, TypeVar, NamedTuple
 
 # standard libs
-import io
 import os
 import sys
 import functools
@@ -186,7 +185,9 @@ class Namespace(NSCoreMixin):
         """
         Load a namespace from a TOML file.
 
-        The path may be a `str` or an `os.PathLike`; a handle may be text or binary.
+        The path may be a `str` or an `os.PathLike`; a handle may be text or binary,
+        decided by the type it exchanges, whatever its class: what its `read` returns
+        is decoded as UTF-8 when it is `bytes`, and taken as it is when it is `str`.
         A file given by path that fails to decode raises `TOMLDecodeError`
         with the file named in its message.
         """
@@ -258,16 +259,22 @@ class Namespace(NSCoreMixin):
         """
         Output to TOML file.
 
-        The path may be a `str` or an `os.PathLike`; a handle may be text or binary.
+        The path may be a `str` or an `os.PathLike`; a handle may be text or binary,
+        decided as :meth:`from_toml` decides it, by the type it exchanges, whatever its
+        class: it gets `bytes` when its `write` takes them, and the same document as
+        `str` when it refuses them. The document is serialized before the handle is
+        touched, so a value TOML cannot hold leaves the handle as it was.
         """
         import tomli_w as toml
         if isinstance(path_or_file, (str, os.PathLike)):
             with open(path_or_file, mode='w', encoding=encoding) as output:
                 output.write(toml.dumps(self.to_dict(), **kwargs))
-        elif isinstance(path_or_file, io.TextIOBase):
-            path_or_file.write(toml.dumps(self.to_dict(), **kwargs))
         else:
-            toml.dump(self.to_dict(), path_or_file, **kwargs)
+            text = toml.dumps(self.to_dict(), **kwargs)
+            try:
+                toml.dump(self.to_dict(), path_or_file, **kwargs)
+            except TypeError:
+                path_or_file.write(text)
 
     def to_json(self, path_or_file: Union[str, os.PathLike, IO], encoding: str = 'utf-8', indent: int = 4, **kwargs) -> None:
         """Output to JSON file. The path may be a `str` or an `os.PathLike`."""

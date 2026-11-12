@@ -9,12 +9,14 @@ import io
 import os
 import sys
 import json
+import tempfile
 from io import StringIO
 from pathlib import Path
 from string import ascii_letters
 
 # external libs
 import pytest
+import tomli_w
 if sys.version_info >= (3, 11):
     from tomllib import TOMLDecodeError, loads as toml_loads
 else:
@@ -1238,19 +1240,79 @@ class TestFileLoading:
     def test_toml_text_handle(self, tmp_path: Path) -> None:
         """to_toml writes a text handle as it writes a binary handle or a path."""
         ns = Namespace({'a': {'x': 1, 'y': 'caf\u00e9'}, 'b': [1, 2]})
-        path = tmp_path / 'path.toml'
-        ns.to_toml(path)
-        expected = path.read_bytes()
-        assert expected
         text, binary = io.StringIO(), io.BytesIO()
         assert ns.to_toml(text) is None
         assert ns.to_toml(binary) is None
+        expected = binary.getvalue()
+        assert expected and b'\n' in expected and b'\r' not in expected
+        assert text.getvalue().encode() == expected
+        path = tmp_path / 'path.toml'
+        ns.to_toml(path)
         handle = tmp_path / 'handle.toml'
         with open(handle, mode='w', encoding='utf-8') as stream:
             assert ns.to_toml(stream) is None
-        assert text.getvalue().encode() == binary.getvalue() == handle.read_bytes() == expected
+        # a path and a text-mode file get the platform's newlines, as every text-mode write does
+        assert path.read_bytes() == handle.read_bytes() == expected.replace(b'\n', os.linesep.encode())
         assert Namespace.from_toml(io.StringIO(text.getvalue())) == ns
         assert Namespace.from_toml(handle) == ns
+
+    def test_toml_handle_of_any_class(self, tmp_path: Path) -> None:
+        """to_toml gives str to a handle that takes str and bytes to one that takes bytes, whatever its class."""
+
+        class Sink:
+            """A handle of no io class: it keeps every write and refuses any type but the ones it takes."""
+            def __init__(self, *takes: type) -> None:
+                self.takes = takes
+                self.calls = []
+            def write(self, chunk) -> int:
+                if not isinstance(chunk, self.takes):
+                    raise TypeError(f'{type(chunk).__name__} refused')
+                self.calls.append(chunk)
+                return len(chunk)
+
+        ns = Namespace({'a': {'x': 1, 'y': 'caf\u00e9'}, 'b': [1, 2], 'c': {'d': {'e': True}}})
+        document = tomli_w.dumps(ns.to_dict())
+        before = Sink(bytes)
+        tomli_w.dump(ns.to_dict(), before)
+        assert len(before.calls) > 1 and b''.join(before.calls) == document.encode()
+
+        text_sink = Sink(str)
+        assert ns.to_toml(text_sink) is None
+        assert text_sink.calls == [document]
+        for make in (lambda: tempfile.NamedTemporaryFile('w+', encoding='utf-8', dir=tmp_path),
+                     lambda: tempfile.SpooledTemporaryFile(mode='w+', encoding='utf-8', dir=tmp_path),
+                     lambda: tempfile.SpooledTemporaryFile(max_size=8, mode='w+', encoding='utf-8', dir=tmp_path)):
+            with make() as stream:
+                assert ns.to_toml(stream) is None
+                stream.seek(0)
+                assert stream.read() == document
+                stream.seek(0)
+                assert Namespace.from_toml(stream) == ns
+
+        for takes in ((bytes, ), (bytes, str)):
+            sink = Sink(*takes)
+            assert ns.to_toml(sink) is None
+            assert sink.calls == before.calls
+        for make in (io.BytesIO,
+                     lambda: tempfile.NamedTemporaryFile('w+b', dir=tmp_path),
+                     lambda: tempfile.SpooledTemporaryFile(mode='w+b', dir=tmp_path),
+                     lambda: tempfile.SpooledTemporaryFile(max_size=8, mode='w+b', dir=tmp_path)):
+            with make() as stream:
+                assert ns.to_toml(stream) is None
+                stream.seek(0)
+                assert stream.read() == document.encode()
+                stream.seek(0)
+                assert Namespace.from_toml(stream) == ns
+
+        bad = Namespace({'a': 1, 'b': {'c': None}})
+        with pytest.raises(TypeError) as reference:
+            tomli_w.dumps(bad.to_dict())
+        for handle, held in ((io.StringIO(), lambda h: h.getvalue()), (io.BytesIO(), lambda h: h.getvalue()),
+                             (Sink(str), lambda h: h.calls), (Sink(bytes), lambda h: h.calls)):
+            with pytest.raises(TypeError) as info:
+                bad.to_toml(handle)
+            assert info.value.args == reference.value.args
+            assert not held(handle)
 
     @pytest.mark.parametrize('make', [str, Path], ids=['str', 'path'])
     @pytest.mark.parametrize('ext, text', [('toml', '[a]\nx = \n'), ('json', '{"a": }')], ids=['toml', 'json'])
@@ -1312,7 +1374,17 @@ class TestFileLoading:
         """Undecodable bytes and a missing file raise as they would without the file named."""
         toml_path, json_path = tmp_path / 'c.toml', tmp_path / 'c.json'
         toml_path.write_bytes(b'a = "\xff"\n')
-        json_path.write_bytes(b'{"a": "\xff"}')
+        # from_json opens a file with the platform's default text encoding: give it bytes that it can't decode
+        with open(json_path, mode='w') as stream:
+            encoding = stream.encoding
+        undecodable = []
+        for byte in range(255, 127, -1):
+            try:
+                bytes([byte]).decode(encoding)
+            except UnicodeDecodeError:
+                undecodable.append(bytes([byte]))
+        assert undecodable
+        json_path.write_bytes(b'{"a": "' + undecodable[0] + b'"}')
         with pytest.raises(UnicodeDecodeError) as info:
             toml_path.read_bytes().decode()
         toml_reference = info.value

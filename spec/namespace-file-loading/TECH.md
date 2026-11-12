@@ -3,7 +3,7 @@ slug: namespace-file-loading
 title: File loading accepts paths and handles, and its errors name the file
 kind: fix
 appetite: small
-status: blocked
+status: in_review
 branch: fix/namespace-file-loading
 base: develop
 current_phase: done
@@ -24,7 +24,7 @@ phases:
   parallel: false
   hammerable: false
   hill: uphill
-  verify: sh spec/namespace-file-loading/verify/gate.sh P1
+  verify: sh spec/namespace-file-loading/verify/gate.sh P2 && sh spec/namespace-file-loading/remediation/F1-to-toml-handles.sh && sh spec/namespace-file-loading/remediation/F2-windows-text-layer.sh
 - id: P2
   name: Decode errors name the file
   status: done
@@ -159,6 +159,8 @@ handles and `to_toml` writes text handles; the docstrings say so in the same com
       dispatch in `from_local` and `to_local` (the `ignore_if_missing` return stays first; support on
       `cls` and on `type(self)`; the call outside any `try`; the two messages); the `from_toml`
       handle branch; the `to_toml` `io.TextIOBase` branch; the annotations.
+      Amended at the cycle 1 remediation: the `io.TextIOBase` branch and `import io` give way to the
+      handle rule of the remediation items below.
 - [x] Docstrings, `PLAN.md` § 2.5: `from_local`, `to_local`, `from_toml`, `from_yaml`, `from_json`,
       `to_toml`, `to_yaml`, `to_json` each gain a sentence saying a path may be a `str` or an
       `os.PathLike`.
@@ -189,9 +191,29 @@ handles and `to_toml` writes text handles; the docstrings say so in the same com
         bytes, and the text reads back.
 - [x] Stage everything, run the verify, then commit code, tests, docstrings and the `TECH.md` state
       change together.
+- [x] Remediation, review cycle 1, F1 (`REVIEW.md`): in `to_toml`'s handle branch, serialize the
+      document with `toml.dumps` first, then `toml.dump` it into the handle as before and, only on a
+      `TypeError`, write the serialized `str` in one call; drop the `io.TextIOBase` branch and
+      `import io`. The `from_toml` and `to_toml` docstrings state the one rule both follow: a handle
+      is binary or text by the type it exchanges, whatever its class.
+- [x] Remediation, review cycle 1, F1: `test_toml_handle_of_any_class` in `TestFileLoading`. A
+      str-only object of no io class gets one `write` carrying the document;
+      `tempfile.NamedTemporaryFile('w+')` and `tempfile.SpooledTemporaryFile('w+')`, in memory and
+      rolled over, hold the document and load it back; a bytes-only object and one taking anything
+      get the very calls `tomli_w.dump` makes; `io.BytesIO` and the binary `tempfile` wrappers hold
+      the same bytes and load them back; a document TOML cannot hold raises tomli_w's own
+      `TypeError` and leaves each kind of handle empty.
+- [x] Remediation, review cycle 1, F2: `test_toml_text_handle` compares the bytes a path and a
+      text-mode file get with the binary handle's, newlines as `os.linesep`;
+      `test_other_errors_unchanged` writes JSON bytes that the platform's default text encoding
+      can't decode (`\xff` under UTF-8). Every other assertion stays as it was.
+- [x] Stage everything, run the verify (the frozen gate, then the two remediation checkers), then
+      commit code, tests, docstrings, checkers and the `TECH.md` state change together.
 - **Verify:** `sh spec/namespace-file-loading/verify/gate.sh P1`: `static P1`, `suite P1`,
-  `drive P1`, `mutants`.
-- **Touches:** `src/cmdkit/namespace.py`, `src/cmdkit/config.py`, `tests/test_config.py`.
+  `drive P1`, `mutants`. Retuned at the cycle 1 remediation to the frozen `gate.sh P2`, then
+  `remediation/F1-to-toml-handles.sh` and `remediation/F2-windows-text-layer.sh` (see Amendments).
+- **Touches:** `src/cmdkit/namespace.py`, `src/cmdkit/config.py`, `tests/test_config.py`;
+  `spec/namespace-file-loading/remediation/` at the remediation.
 
 ## Phase P2 — Decode errors name the file
 **Satisfies:** R1, R7, R8 · **Depends on:** P1
@@ -230,6 +252,50 @@ kept; handle errors and every other error are unchanged; the two docstrings say 
 - **Verify:** `sh spec/namespace-file-loading/verify/gate.sh P2`: `static P2` (with the ledger),
   `suite P2`, `drive P2`, `mutants`.
 - **Touches:** `src/cmdkit/namespace.py`, `tests/test_config.py`.
+
+---
+
+## Amendments
+
+### Review cycle 1 remediation (2026-11-11)
+
+- **Reopened: P1 only.** F1 touches R6, which only P1 satisfies. F2's two tests carry the evidence
+  for R6 and R7 and sit in the same file; P1 satisfies both, so P2 stays done and its one test
+  change (`test_other_errors_unchanged`) lands in P1's remediation commit.
+- **The ruling.** The maintainer cleared F1's human gate for remediation: fix it as the review routes
+  it. `PLAN.md` § 3's deviation row 4 (a text handle is an `io.TextIOBase`) is withdrawn and R6
+  reads as written; § 2.3's `to_toml` handle branch is superseded by the design below. `PLAN.md`,
+  `GOAL.md` and `verify/` stay as frozen.
+- **The design: one rule, both directions.** A TOML handle is binary or text by the type it
+  exchanges, never by its class. `from_toml` decodes what `read` returns when it is `bytes`.
+  `to_toml` serializes first (`toml.dumps`), then makes the very calls it made before
+  (`toml.dump`, chunk by chunk, as `bytes`) and, only when the handle refuses them with a
+  `TypeError`, writes the serialized `str` in one call. Nothing probes the handle. A handle that
+  refuses `bytes` refuses the first chunk, before anything lands, so the `str` write starts on an
+  untouched handle; and since serialization has already succeeded, the only `TypeError` that can
+  reach the `except` is the handle's own. `bytes` first rather than `str` first: every handle that
+  works today, a sink taking anything included (the frozen drive's `same` corpus pins it), gets
+  today's calls byte for byte and call for call.
+- **Two differences, on error paths only.** A document TOML cannot hold now leaves a handle empty,
+  where a binary handle used to get the chunks before the bad value; the error is the same
+  `TypeError`. An unknown keyword into a handle now raises tomli_w's `dumps()` message, as a path
+  always has, where it named `dump()`. No working call changes.
+- **The gate.** P1 is earlier than P2, the latest done phase, so its `verify:` is retuned to the
+  frozen `gate.sh P2`, then the two checkers. That one `gate.sh P2` run on the final tree stands in
+  for P2's gate too. No wrapper: no frozen check pins behaviour the ruling changes (the drive has no
+  `tempfile` or `codecs` handle, and every binary record stays the same).
+- **The checkers** (`remediation/`, first of the cycle, so they take the review's ids):
+  `F1-to-toml-handles.sh` (review cycle 1, F1) writes into 12 text and 10 binary kinds of handle
+  on 3.9 and 3.14, base against index: every binary record identical, write calls included; every
+  text kind holding the document, `codecs.open` (whose `mode` reads binary) and `codecs.getwriter`
+  among them; nothing left in any handle by a document TOML cannot hold; `from_toml` reading every
+  kind back. `F2-windows-text-layer.sh` (review cycle 1, F2) runs the suite on 3.9 and 3.14 under the
+  review's emulation of the Windows text layer, checks that the emulation is live, and requires
+  every `TestFileLoading` test to pass. Each was seen red on the reviewed tree first.
+- **`codecs` stays out of `tests/`.** The frozen `tests_kept.py` allowlist has no `codecs`, so the
+  suite pins the class-independence with a str-only object of no io class, which is how a `codecs`
+  writer behaves, beside the `tempfile` wrappers; the F1 checker drives the `codecs` writers
+  themselves.
 
 ---
 
