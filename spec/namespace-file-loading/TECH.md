@@ -6,12 +6,12 @@ appetite: small
 status: in_progress
 branch: fix/namespace-file-loading
 base: develop
-current_phase: P1
+current_phase: P2
 last_updated: '2026-11-11'
 phases:
 - id: P1
   name: Paths, handles and dispatch
-  status: pending
+  status: done
   satisfies:
   - R2
   - R3
@@ -154,17 +154,17 @@ code+state commit.
 itself and an unsupported extension names the class and the extension; `from_toml` reads binary
 handles and `to_toml` writes text handles; the docstrings say so in the same commit.
 
-- [ ] `src/cmdkit/namespace.py`, per `PLAN.md` § 2.1 to § 2.3: `import io` under `# standard libs`;
+- [x] `src/cmdkit/namespace.py`, per `PLAN.md` § 2.1 to § 2.3: `import io` under `# standard libs`;
       `_NOT_FILE_FORMATS` after `T = TypeVar('T')` with its comment; the six `isinstance` tests; the
       dispatch in `from_local` and `to_local` (the `ignore_if_missing` return stays first; support on
       `cls` and on `type(self)`; the call outside any `try`; the two messages); the `from_toml`
       handle branch; the `to_toml` `io.TextIOBase` branch; the annotations.
-- [ ] Docstrings, `PLAN.md` § 2.5: `from_local`, `to_local`, `from_toml`, `from_yaml`, `from_json`,
+- [x] Docstrings, `PLAN.md` § 2.5: `from_local`, `to_local`, `from_toml`, `from_yaml`, `from_json`,
       `to_toml`, `to_yaml`, `to_json` each gain a sentence saying a path may be a `str` or an
       `os.PathLike`.
-- [ ] `src/cmdkit/config.py`, `PLAN.md` § 2.6: `import os`; the `**files` annotation; the docstring
+- [x] `src/cmdkit/config.py`, `PLAN.md` § 2.6: `import os`; the `**files` annotation; the docstring
       sentence. Nothing else in the file.
-- [ ] `tests/test_config.py`: the imports the tests need, and a new class `TestFileLoading` at the
+- [x] `tests/test_config.py`: the imports the tests need, and a new class `TestFileLoading` at the
       end of the module with these tests (the gate looks them up by name; their content follows
       `GOAL.md` "How it is shown" 2 to 5 and `PLAN.md` § 2.7):
       - `test_path_round_trip`: for `toml`, `tml`, `yaml`, `yml`, `json`, with a `pathlib.Path` and
@@ -187,7 +187,7 @@ handles and `to_toml` writes text handles; the docstrings say so in the same com
       - `test_toml_binary_handle`: `open(p, 'rb')`, `open(p)` and `io.BytesIO` load the same namespace;
       - `test_toml_text_handle`: `io.StringIO`, `io.BytesIO`, `open(p, 'w')` and a path write the same
         bytes, and the text reads back.
-- [ ] Stage everything, run the verify, then commit code, tests, docstrings and the `TECH.md` state
+- [x] Stage everything, run the verify, then commit code, tests, docstrings and the `TECH.md` state
       change together.
 - **Verify:** `sh spec/namespace-file-loading/verify/gate.sh P1`: `static P1`, `suite P1`,
   `drive P1`, `mutants`.

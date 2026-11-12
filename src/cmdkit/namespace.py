@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Union, Mapping, Iterable, Any, Dict, Optional, IO, List, Tuple, Callable, TypeVar, NamedTuple
 
 # standard libs
+import io
 import os
 import sys
 import functools
@@ -25,6 +26,9 @@ __all__ = [
 
 # type aliases
 T = TypeVar('T')
+
+# extensions whose from_<ext> / to_<ext> is a method other than a file loader or writer
+_NOT_FILE_FORMATS = ('dict', 'env', 'local')
 
 
 def _as_namespace(ns: T) -> Union[T, Namespace]:
@@ -128,11 +132,12 @@ class Namespace(NSCoreMixin):
         return cls(other)
 
     @classmethod
-    def from_local(cls, filepath: str, ignore_if_missing: bool = False,
+    def from_local(cls, filepath: Union[str, os.PathLike], ignore_if_missing: bool = False,
                    ftype: Optional[str] = None,  **options) -> Namespace:
         """
         Load from a local file.
 
+        The `filepath` may be a `str` or an `os.PathLike` (such as a `pathlib.Path`).
         If `filepath` does not exist an exception is raised as expected,
         unless `ignore_if_missing` is `True` and an empty Namespace is returned instead.
 
@@ -157,40 +162,43 @@ class Namespace(NSCoreMixin):
             ext = os.path.splitext(filepath)[1].lstrip('.')
         if not os.path.exists(filepath) and ignore_if_missing is True:
             return cls()
-        try:
-            factory = getattr(cls, f'from_{ext}')
-            return factory(filepath, **options)
-        except AttributeError:
-            raise NotImplementedError(f'{cls.__class__.__name__} does not currently support \'{ext}\' files')
+        if ext in _NOT_FILE_FORMATS or not hasattr(cls, f'from_{ext}'):
+            raise NotImplementedError(f'{cls.__name__} does not currently support \'{ext}\' files')
+        return getattr(cls, f'from_{ext}')(filepath, **options)
 
     @classmethod
-    def from_yaml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
-        """Load a namespace from a YAML file."""
+    def from_yaml(cls, path_or_file: Union[str, os.PathLike, IO], **options) -> Namespace:
+        """Load a namespace from a YAML file. The path may be a `str` or an `os.PathLike`."""
         import yaml
-        if isinstance(path_or_file, str):
+        if isinstance(path_or_file, (str, os.PathLike)):
             with open(path_or_file, mode='r', **options) as source:
                 return cls(yaml.load(source, Loader=yaml.FullLoader))
         else:
             return cls(yaml.load(path_or_file, Loader=yaml.FullLoader))
 
     @classmethod
-    def from_toml(cls, path_or_file: Union[str, IO], **options) -> Namespace:
-        """Load a namespace from a TOML file."""
+    def from_toml(cls, path_or_file: Union[str, os.PathLike, IO], **options) -> Namespace:
+        """
+        Load a namespace from a TOML file.
+
+        The path may be a `str` or an `os.PathLike`; a handle may be text or binary.
+        """
         if sys.version_info >= (3, 11):
             import tomllib as toml
         else:
             import tomli as toml
-        if isinstance(path_or_file, str):
+        if isinstance(path_or_file, (str, os.PathLike)):
             with open(path_or_file, mode='rb', **options) as source:
                 return cls(toml.load(source))
         else:
-            return cls(toml.loads(path_or_file.read()))
+            data = path_or_file.read()
+            return cls(toml.loads(data.decode() if isinstance(data, bytes) else data))
 
     @classmethod
-    def from_json(cls, path_or_file: Union[str, IO], **options) -> Namespace:
-        """Load a namespace from a JSON file."""
+    def from_json(cls, path_or_file: Union[str, os.PathLike, IO], **options) -> Namespace:
+        """Load a namespace from a JSON file. The path may be a `str` or an `os.PathLike`."""
         import json
-        if isinstance(path_or_file, str):
+        if isinstance(path_or_file, (str, os.PathLike)):
             with open(path_or_file, mode='r', **options) as source:
                 return cls(json.load(source))
         else:
@@ -200,40 +208,48 @@ class Namespace(NSCoreMixin):
         """Explicitly coerce a Namespace to dictionary."""
         return _as_dict(self)
 
-    def to_local(self, filepath: str, ftype: Optional[str] = None,  **options) -> None:
-        """Output to local file. If `ftype` not set, format based on file extension."""
+    def to_local(self, filepath: Union[str, os.PathLike], ftype: Optional[str] = None,  **options) -> None:
+        """
+        Output to local file. If `ftype` not set, format based on file extension.
+
+        The `filepath` may be a `str` or an `os.PathLike` (such as a `pathlib.Path`).
+        """
         if ftype in ('toml', 'tml', 'yaml', 'yml', 'json'):
             ext = ftype
         else:
             ext = os.path.splitext(filepath)[1].lstrip('.')
-        try:
-            factory = getattr(self, f'to_{ext}')
-            return factory(filepath, **options)
-        except AttributeError:
-            raise NotImplementedError(f'{self.__class__.__name__} does not currently support "{ext}" files."')
+        if ext in _NOT_FILE_FORMATS or not hasattr(type(self), f'to_{ext}'):
+            raise NotImplementedError(f'{self.__class__.__name__} does not currently support "{ext}" files')
+        return getattr(self, f'to_{ext}')(filepath, **options)
 
-    def to_yaml(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', **kwargs) -> None:
-        """Output to YAML file."""
+    def to_yaml(self, path_or_file: Union[str, os.PathLike, IO], encoding: str = 'utf-8', **kwargs) -> None:
+        """Output to YAML file. The path may be a `str` or an `os.PathLike`."""
         import yaml
-        if isinstance(path_or_file, str):
+        if isinstance(path_or_file, (str, os.PathLike)):
             with open(path_or_file, mode='w', encoding=encoding) as output:
                 yaml.dump(self.to_dict(), output, **kwargs)
         else:
             yaml.dump(self.to_dict(), path_or_file, **kwargs)
 
-    def to_toml(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', **kwargs) -> None:
-        """Output to TOML file."""
+    def to_toml(self, path_or_file: Union[str, os.PathLike, IO], encoding: str = 'utf-8', **kwargs) -> None:
+        """
+        Output to TOML file.
+
+        The path may be a `str` or an `os.PathLike`; a handle may be text or binary.
+        """
         import tomli_w as toml
-        if isinstance(path_or_file, str):
+        if isinstance(path_or_file, (str, os.PathLike)):
             with open(path_or_file, mode='w', encoding=encoding) as output:
                 output.write(toml.dumps(self.to_dict(), **kwargs))
+        elif isinstance(path_or_file, io.TextIOBase):
+            path_or_file.write(toml.dumps(self.to_dict(), **kwargs))
         else:
             toml.dump(self.to_dict(), path_or_file, **kwargs)
 
-    def to_json(self, path_or_file: Union[str, IO], encoding: str = 'utf-8', indent: int = 4, **kwargs) -> None:
-        """Output to JSON file."""
+    def to_json(self, path_or_file: Union[str, os.PathLike, IO], encoding: str = 'utf-8', indent: int = 4, **kwargs) -> None:
+        """Output to JSON file. The path may be a `str` or an `os.PathLike`."""
         import json
-        if isinstance(path_or_file, str):
+        if isinstance(path_or_file, (str, os.PathLike)):
             with open(path_or_file, mode='w', encoding=encoding) as output:
                 json.dump(self.to_dict(), output, indent=indent, **kwargs)
         else:

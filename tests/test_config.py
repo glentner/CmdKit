@@ -5,6 +5,7 @@
 
 
 # standard libs
+import io
 import os
 from io import StringIO
 from pathlib import Path
@@ -1088,3 +1089,159 @@ class TestVariantCollision:
         assert cfg.local == {'x': 3}
         assert dict(cfg) == {'x': 3}
         assert cfg.which('x') == '_'
+
+
+class TestFileLoading:
+    """Loading and writing files by path or handle, and how from_local and to_local dispatch."""
+
+    @pytest.mark.parametrize('ext', ['toml', 'tml', 'yaml', 'yml', 'json'])
+    def test_path_round_trip(self, tmp_path: Path, ext: str) -> None:
+        """A pathlib.Path or a bare os.PathLike reads and writes as a str path does."""
+
+        class Bare:
+            """Nothing but the os.PathLike protocol."""
+            def __init__(self, path: str) -> None:
+                self.path = path
+            def __fspath__(self) -> str:
+                return self.path
+
+        ns = Namespace(TEST_DICT)
+        reference = tmp_path / f'reference.{ext}'
+        ns.to_local(str(reference))
+        expected = reference.read_bytes()
+        for name, make in [('path', Path), ('bare', lambda p: Bare(str(p)))]:
+            by_ext, by_ftype, direct = (tmp_path / f'{name}-ext.{ext}', tmp_path / f'{name}-ftype.conf',
+                                        tmp_path / f'{name}-direct.{ext}')
+            assert isinstance(make(by_ext), os.PathLike) and not isinstance(make(by_ext), str)
+            assert ns.to_local(make(by_ext)) is None
+            assert ns.to_local(make(by_ftype), ftype=ext) is None
+            assert getattr(ns, f'to_{ext}')(make(direct)) is None
+            for written in (by_ext, by_ftype, direct):
+                assert written.read_bytes() == expected
+            loaded = [Namespace.from_local(make(by_ext)),
+                      Namespace.from_local(make(by_ftype), ftype=ext),
+                      getattr(Namespace, f'from_{ext}')(make(direct))]
+            for each in loaded:
+                assert type(each) is Namespace
+                assert each == ns == TEST_DICT
+
+    def test_path_ignore_if_missing(self, tmp_path: Path) -> None:
+        """A missing pathlib.Path is empty when allowed, by extension or by ftype, and an error otherwise."""
+        for ext in ['toml', 'tml', 'yaml', 'yml', 'json', 'ini']:
+            ns = Namespace.from_local(tmp_path / f'missing.{ext}', ignore_if_missing=True)
+            assert type(ns) is Namespace and ns == {}
+        for ext in ['toml', 'tml', 'yaml', 'yml', 'json']:
+            ns = Namespace.from_local(tmp_path / 'missing.conf', ftype=ext, ignore_if_missing=True)
+            assert type(ns) is Namespace and ns == {}
+            with pytest.raises(FileNotFoundError):
+                Namespace.from_local(tmp_path / f'missing.{ext}')
+            with pytest.raises(FileNotFoundError):
+                Namespace.from_local(tmp_path / 'missing.conf', ftype=ext)
+
+    def test_configuration_path_layers(self, tmp_path: Path) -> None:
+        """Configuration.from_local takes pathlib.Path layers, a missing one empty."""
+        system, user, local = tmp_path / 'system.toml', tmp_path / 'user.yaml', tmp_path / 'local.json'
+        system.write_text('[a]\nx = 1\ny = 2\n\n[b]\nz = 3\n')
+        user.write_text('a:\n  x: 4\n')
+        cfg = Configuration.from_local(system=system, user=user, local=local)
+        assert dict(cfg) == {'a': {'x': 4, 'y': 2}, 'b': {'z': 3}}
+        assert cfg.which('a', 'x') == 'user'
+        assert cfg.which('a', 'y') == 'system'
+        assert cfg.which('b', 'z') == 'system'
+        assert cfg.namespaces['system'] == {'a': {'x': 1, 'y': 2}, 'b': {'z': 3}}
+        assert cfg.namespaces['user'] == {'a': {'x': 4}}
+        assert cfg.namespaces['local'] == {}
+
+    def test_loader_error_propagates(self, tmp_path: Path) -> None:
+        """An exception raised by the loader comes out of from_local as itself."""
+        path = tmp_path / 'c.json'
+        path.write_text('{"a": 1}')
+        for error in (AttributeError('inner'), KeyError('k')):
+
+            class Failing(Namespace):
+                @classmethod
+                def from_json(cls, path_or_file, **options) -> Namespace:
+                    raise error
+
+            for given in (str(path), path):
+                with pytest.raises(type(error)) as info:
+                    Failing.from_local(given)
+                assert info.value is error
+                with pytest.raises(type(error)) as info:
+                    Failing.from_local(given, ftype='json')
+                assert info.value is error
+
+    def test_writer_error_propagates(self, tmp_path: Path) -> None:
+        """An exception raised by the writer comes out of to_local as itself."""
+        path = tmp_path / 'c.json'
+        for error in (AttributeError('inner'), KeyError('k')):
+
+            class Failing(Namespace):
+                def to_json(self, path_or_file, **options) -> None:
+                    raise error
+
+            for given in (str(path), path):
+                with pytest.raises(type(error)) as info:
+                    Failing({'a': 1}).to_local(given)
+                assert info.value is error
+                with pytest.raises(type(error)) as info:
+                    Failing({'a': 1}).to_local(given, ftype='json')
+                assert info.value is error
+        assert not path.exists()
+
+    def test_unsupported_extension(self, tmp_path: Path) -> None:
+        """An extension with no file loader or writer names the class and the extension."""
+
+        class Custom(Namespace):
+            """A subclass adding nothing."""
+
+        marker = tmp_path / 'ran'
+        for ext in ['ini', 'dict', 'env', 'local']:
+            present = tmp_path / f'present.{ext}'
+            present.write_text('a = 1\n')
+            for cls in (Namespace, Custom):
+                for given in (str(present), present):
+                    with pytest.raises(NotImplementedError) as info:
+                        cls.from_local(given)
+                    assert info.value.args == (f'{cls.__name__} does not currently support \'{ext}\' files', )
+                    with pytest.raises(NotImplementedError) as info:
+                        cls.from_local(given, ignore_if_missing=True)
+                    assert info.value.args == (f'{cls.__name__} does not currently support \'{ext}\' files', )
+                target = tmp_path / f'target.{ext}'
+                for ns in (cls({'a': 1}), cls({f'to_{ext}': 5}), cls({f'to_{ext}_eval': f'touch {marker}'})):
+                    for given in (str(target), target):
+                        with pytest.raises(NotImplementedError) as info:
+                            ns.to_local(given)
+                        assert info.value.args == (f'{cls.__name__} does not currently support "{ext}" files', )
+                assert not target.exists()
+        assert not marker.exists()
+
+    def test_toml_binary_handle(self, tmp_path: Path) -> None:
+        """from_toml reads a binary handle as it reads a text handle."""
+        path = tmp_path / 'c.toml'
+        path.write_text(TEST_TOML)
+        with open(path, mode='rb') as stream:
+            from_binary = Namespace.from_toml(stream)
+        with open(path) as stream:
+            from_text = Namespace.from_toml(stream)
+        from_bytes = Namespace.from_toml(io.BytesIO(TEST_TOML.encode()))
+        for ns in (from_binary, from_text, from_bytes):
+            assert type(ns) is Namespace
+            assert ns == TEST_DICT
+
+    def test_toml_text_handle(self, tmp_path: Path) -> None:
+        """to_toml writes a text handle as it writes a binary handle or a path."""
+        ns = Namespace({'a': {'x': 1, 'y': 'caf\u00e9'}, 'b': [1, 2]})
+        path = tmp_path / 'path.toml'
+        ns.to_toml(path)
+        expected = path.read_bytes()
+        assert expected
+        text, binary = io.StringIO(), io.BytesIO()
+        assert ns.to_toml(text) is None
+        assert ns.to_toml(binary) is None
+        handle = tmp_path / 'handle.toml'
+        with open(handle, mode='w', encoding='utf-8') as stream:
+            assert ns.to_toml(stream) is None
+        assert text.getvalue().encode() == binary.getvalue() == handle.read_bytes() == expected
+        assert Namespace.from_toml(io.StringIO(text.getvalue())) == ns
+        assert Namespace.from_toml(handle) == ns
